@@ -11,6 +11,6 @@
  */
 window.GREENSMART_CONFIG = {
     gaMeasurementId: 'G-Q1RKVL7JZB',
-    inquiryApiUrl: '',
+    inquiryApiUrl: '/api/inquiries',
     inquiryApiBearer: ''
 };

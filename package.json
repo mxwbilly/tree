@@ -5,7 +5,7 @@
   "main": "index.html",
   "scripts": {
     "dev": "node server.js",
-    "build": "mkdir -p dist && cp -r index.html src _headers dist/",
+    "build": "node build.js",
     "deploy": "npm run build && rsync -avz dist/ user@your-server:/var/www/html/",
     "start": "node server.js",
     "qa:check": "node qa-check.js"

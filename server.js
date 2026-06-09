@@ -10,9 +10,10 @@ const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 
 const PORT = Number(process.env.PORT || 8000);
-const HOST = process.env.HOST || '127.0.0.1';
+const HOST = process.env.HOST || '0.0.0.0';
 const ROOT_DIR = __dirname;
-const DATA_DIR = path.join(ROOT_DIR, 'data');
+const STATIC_DIR = path.resolve(ROOT_DIR, process.env.STATIC_DIR || ROOT_DIR);
+const DATA_DIR = path.resolve(ROOT_DIR, process.env.DATA_DIR || 'data');
 const JWT_SECRET = process.env.JWT_SECRET || 'change-this-secret-in-production';
 const TOKEN_EXPIRES_IN = '12h';
 
@@ -983,9 +984,13 @@ function createApp() {
     }
   });
 
-  app.use(express.static(ROOT_DIR, { extensions: ['html'] }));
+  app.use(express.static(STATIC_DIR, {
+    extensions: ['html'],
+    dotfiles: 'deny',
+    index: 'index.html'
+  }));
   app.get('*', (req, res) => {
-    res.status(404).sendFile(path.join(ROOT_DIR, '404.html'));
+    res.status(404).sendFile(path.join(STATIC_DIR, '404.html'));
   });
 
   return app;
@@ -996,6 +1001,8 @@ async function startServer() {
   const app = createApp();
   app.listen(PORT, HOST, () => {
     console.log(`\nAPI + static server running at http://${HOST}:${PORT}`);
+    console.log(`Static files: ${STATIC_DIR}`);
+    console.log(`Data store: ${DATA_DIR}`);
     console.log(`Default admin: ${ADMIN_EMAIL}`);
     console.log('Set ADMIN_PASSWORD in .env before production use.\n');
   });
