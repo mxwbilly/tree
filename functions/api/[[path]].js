@@ -182,9 +182,16 @@ function buildInquiryMailSubject(prefix, product, country, inquiryId) {
 
 async function sendEmailViaResend(env, { to, subject, text }) {
   const apiKey = env.RESEND_API_KEY;
-  const from = env.MAIL_FROM;
-  if (!apiKey || !from || !to) {
-    return false;
+  const from = String(env.MAIL_FROM || '').trim();
+  const recipient = String(to || '').trim().toLowerCase();
+  if (!apiKey) {
+    return { ok: false, error: 'RESEND_API_KEY is not configured.' };
+  }
+  if (!from) {
+    return { ok: false, error: 'MAIL_FROM is not configured.' };
+  }
+  if (!recipient) {
+    return { ok: false, error: 'Recipient email is empty.' };
   }
   try {
     const response = await fetch('https://api.resend.com/emails', {
@@ -193,26 +200,41 @@ async function sendEmailViaResend(env, { to, subject, text }) {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ from, to: [to], subject, text })
+      body: JSON.stringify({ from, to: [recipient], subject, text })
     });
-    if (!response.ok) {
-      console.error('[mail] Resend error:', response.status, await response.text());
-      return false;
+    const raw = await response.text();
+    let payload = {};
+    try {
+      payload = raw ? JSON.parse(raw) : {};
+    } catch {
+      payload = { message: raw };
     }
-    return true;
+    if (!response.ok) {
+      const error = payload.message || payload.error || raw || `Resend HTTP ${response.status}`;
+      console.error('[mail] Resend error:', response.status, error);
+      return { ok: false, status: response.status, error };
+    }
+    return { ok: true, id: payload.id || null };
   } catch (error) {
     console.error('[mail] Resend failed:', error);
-    return false;
+    return { ok: false, error: String(error?.message || error) };
   }
+}
+
+function resolveNotifyEmail(env, settings) {
+  const stored = String(settings?.notifyEmail || '').trim();
+  if (stored) return stored.toLowerCase();
+  return String(env.NOTIFY_EMAIL || env.ADMIN_EMAIL || '').trim().toLowerCase();
 }
 
 async function notifyNewInquiry(env, { inquiryId, product, source, message, contact, notifyEmail, assigneeEmail }) {
   const safeName = contact.name || '';
   const safeEmail = contact.email || '';
   const safeCountry = contact.country || '';
+  const results = { notify: null, assignee: null };
 
   if (notifyEmail) {
-    await sendEmailViaResend(env, {
+    results.notify = await sendEmailViaResend(env, {
       to: notifyEmail,
       subject: buildInquiryMailSubject('New inquiry', product, safeCountry, inquiryId),
       text: [
@@ -225,10 +247,12 @@ async function notifyNewInquiry(env, { inquiryId, product, source, message, cont
         `Source: ${source || 'website'}`
       ].join('\n')
     });
+  } else {
+    results.notify = { ok: false, error: 'No notify email configured.' };
   }
 
   if (assigneeEmail) {
-    await sendEmailViaResend(env, {
+    results.assignee = await sendEmailViaResend(env, {
       to: assigneeEmail,
       subject: buildInquiryMailSubject('Assigned inquiry', product, safeCountry, inquiryId),
       text: [
@@ -241,11 +265,13 @@ async function notifyNewInquiry(env, { inquiryId, product, source, message, cont
       ].join('\n')
     });
   }
+
+  return results;
 }
 
 async function notifyInquiryAssigned(env, { inquiryId, product, contact, status, assigneeEmail }) {
-  if (!assigneeEmail) return;
-  await sendEmailViaResend(env, {
+  if (!assigneeEmail) return { ok: false, error: 'No assignee email configured.' };
+  return sendEmailViaResend(env, {
     to: assigneeEmail,
     subject: buildInquiryMailSubject('Inquiry assigned', product, contact?.country, inquiryId),
     text: [
@@ -255,6 +281,18 @@ async function notifyInquiryAssigned(env, { inquiryId, product, contact, status,
       `Status: ${status || ''}`
     ].join('\n')
   });
+}
+
+function scheduleMailTask(waitUntil, task) {
+  const wrapped = task.catch((error) => {
+    console.error('[mail] background task failed:', error);
+    return { ok: false, error: String(error?.message || error) };
+  });
+  if (waitUntil) {
+    waitUntil(wrapped);
+    return null;
+  }
+  return wrapped;
 }
 
 function computeSlaState(inquiry, nowMs = Date.now()) {
@@ -345,7 +383,10 @@ async function getSettings(env) {
   const { results } = await env.DB.prepare('SELECT key, value FROM settings').all();
   const settings = { notifyEmail: env.NOTIFY_EMAIL || env.ADMIN_EMAIL || '', defaultAssigneeId: null };
   for (const item of results || []) {
-    if (item.key === 'notifyEmail') settings.notifyEmail = item.value || '';
+    if (item.key === 'notifyEmail') {
+      const stored = String(item.value || '').trim();
+      if (stored) settings.notifyEmail = stored;
+    }
     if (item.key === 'defaultAssigneeId') settings.defaultAssigneeId = item.value || null;
   }
   return settings;
@@ -510,17 +551,24 @@ async function handleCreateInquiry(request, env, waitUntil) {
   const assignee = assigneeId
     ? (users.results || []).find((user) => user.id === assigneeId)
     : null;
+  const notifyEmail = resolveNotifyEmail(env, settings);
   const mailTask = notifyNewInquiry(env, {
     inquiryId,
     product: payload.product || '',
     source: payload.source || 'website',
     message: safeMessage,
     contact: preview.contact,
-    notifyEmail: settings.notifyEmail || env.NOTIFY_EMAIL || env.ADMIN_EMAIL || '',
+    notifyEmail,
     assigneeEmail: assignee?.email || ''
+  }).then(async (mailResult) => {
+    await appendActivityLog(env, {
+      type: 'mail.inquiry_notify',
+      targetId: inquiryId,
+      payload: { notifyEmail, ...mailResult }
+    });
+    return mailResult;
   });
-  if (waitUntil) waitUntil(mailTask);
-  else await mailTask;
+  scheduleMailTask(waitUntil, mailTask);
 
   return json({ ok: true, inquiryId, status: 'new', message: 'Inquiry received.' }, { status: 201 });
 }
@@ -726,12 +774,61 @@ async function handlePatchInquiry(request, env, auth, inquiryId, waitUntil) {
       contact: inquiry.contact,
       status: inquiry.status,
       assigneeEmail: assignee?.email || ''
+    }).then(async (mailResult) => {
+      await appendActivityLog(env, {
+        type: 'mail.inquiry_assigned',
+        actorId: auth.sub,
+        targetId: inquiry.id,
+        payload: mailResult
+      });
+      return mailResult;
     });
-    if (waitUntil) waitUntil(mailTask);
-    else await mailTask;
+    scheduleMailTask(waitUntil, mailTask);
   }
 
   return json({ ok: true, item: inquiry });
+}
+
+async function handleMailStatus(env) {
+  const settings = await getSettings(env);
+  const notifyEmail = resolveNotifyEmail(env, settings);
+  return json({
+    ok: true,
+    item: {
+      resendConfigured: Boolean(env.RESEND_API_KEY),
+      mailFrom: String(env.MAIL_FROM || '').trim() || null,
+      notifyEmail: notifyEmail || null,
+      envNotifyEmail: String(env.NOTIFY_EMAIL || '').trim() || null,
+      envAdminEmail: String(env.ADMIN_EMAIL || '').trim() || null
+    }
+  });
+}
+
+async function handleMailTest(env) {
+  const settings = await getSettings(env);
+  const notifyEmail = resolveNotifyEmail(env, settings);
+  if (!notifyEmail) {
+    return json({ ok: false, error: 'No notify email configured. Set NOTIFY_EMAIL or update admin settings.' }, { status: 400 });
+  }
+  const result = await sendEmailViaResend(env, {
+    to: notifyEmail,
+    subject: '[GreenSmart] Resend test email',
+    text: [
+      'This is a test email from GreenSmart inquiry notifications.',
+      '',
+      `Time: ${nowIso()}`,
+      `Notify email: ${notifyEmail}`,
+      `Mail from: ${String(env.MAIL_FROM || '').trim() || '(not set)'}`
+    ].join('\n')
+  });
+  await appendActivityLog(env, {
+    type: 'mail.test',
+    payload: { notifyEmail, ...result }
+  });
+  if (!result.ok) {
+    return json({ ok: false, error: result.error, item: result }, { status: 502 });
+  }
+  return json({ ok: true, message: `Test email sent to ${notifyEmail}.`, item: result });
 }
 
 async function routeAdmin(request, env, path, waitUntil) {
@@ -752,6 +849,16 @@ async function routeAdmin(request, env, path, waitUntil) {
   if (path === '/api/admin/settings') {
     if (auth.role !== 'admin') return json({ ok: false, error: 'Forbidden.' }, { status: 403 });
     if (request.method === 'GET' || request.method === 'PATCH') return handleSettings(request, env);
+  }
+
+  if (path === '/api/admin/mail/status' && request.method === 'GET') {
+    if (auth.role !== 'admin') return json({ ok: false, error: 'Forbidden.' }, { status: 403 });
+    return handleMailStatus(env);
+  }
+
+  if (path === '/api/admin/mail/test' && request.method === 'POST') {
+    if (auth.role !== 'admin') return json({ ok: false, error: 'Forbidden.' }, { status: 403 });
+    return handleMailTest(env);
   }
 
   if (path === '/api/admin/inquiries' && request.method === 'GET') return handleInquiriesList(request, env);

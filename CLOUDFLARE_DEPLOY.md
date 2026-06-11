@@ -76,3 +76,21 @@ https://novagardenhome.com/admin.html
 - 询盘自动/手动分配负责人 → 同时通知负责人邮箱
 
 若未配置 Resend 变量，询盘仍会正常入库，只是跳过邮件发送。
+
+### Resend 常见失败原因
+
+1. **域名未验证**：`MAIL_FROM` 使用 `@novagardenhome.com` 前，必须先在 Resend 添加并验证该域名（在 Cloudflare DNS 添加 Resend 提供的 SPF/DKIM 记录）。
+2. **未验证域名时的限制**：只能使用 `onboarding@resend.dev` 发件，且收件人只能是 Resend 注册邮箱。
+3. **变量环境不对**：`RESEND_API_KEY`、`MAIL_FROM` 必须配置在 **Production**，不是 Preview。
+4. **通知邮箱未设置**：需配置 `NOTIFY_EMAIL`，或在后台设置里填写通知邮箱。
+
+### 邮件测试接口（部署后）
+
+后台管理员登录后，可在浏览器控制台执行：
+
+```javascript
+fetch('/api/admin/mail/status', { headers: { Authorization: 'Bearer ' + localStorage.getItem('adminToken') } }).then(r => r.json()).then(console.log)
+fetch('/api/admin/mail/test', { method: 'POST', headers: { Authorization: 'Bearer ' + localStorage.getItem('adminToken') } }).then(r => r.json()).then(console.log)
+```
+
+若测试失败，返回的 `error` 字段会包含 Resend 的具体报错（如域名未验证）。
