@@ -27,6 +27,8 @@
 | `ADMIN_PASSWORD` | 密钥 | 默认后台管理员密码 |
 | `ADMIN_NAME` | 文本 | 默认后台管理员名称 |
 | `NOTIFY_EMAIL` | 文本 | 接收询盘通知的邮箱 |
+| `RESEND_API_KEY` | 密钥 | Resend API 密钥 |
+| `MAIL_FROM` | 文本 | 发件地址，如 `GreenSmart <noreply@novagardenhome.com>` |
 
 ## 初始化 D1 数据库
 
@@ -59,8 +61,18 @@ https://novagardenhome.com/admin.html
 - 前台表单提交成功
 - 后台使用 `ADMIN_EMAIL` / `ADMIN_PASSWORD` 登录成功
 - D1 的 `inquiries` 表能看到新询盘
+- `NOTIFY_EMAIL` 收到新询盘邮件通知
 
-## 当前限制
+## 邮件通知
 
-Cloudflare Workers / Pages Functions 不支持传统 `nodemailer + SMTP` 直连发信。
-当前版本先完成询盘入库和后台管理，邮件通知后续建议接入 Resend / SendGrid / Postmark API。
+生产环境通过 [Resend](https://resend.com) HTTP API 发信，需配置：
+
+- `RESEND_API_KEY`：Resend 控制台中的 API Key
+- `MAIL_FROM`：已在 Resend 验证过的发件地址（格式：`名称 <email@domain.com>`）
+
+触发场景：
+
+- 前台提交新询盘 → 发送到 `NOTIFY_EMAIL`（或后台设置的通知邮箱）
+- 询盘自动/手动分配负责人 → 同时通知负责人邮箱
+
+若未配置 Resend 变量，询盘仍会正常入库，只是跳过邮件发送。

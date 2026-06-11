@@ -174,6 +174,89 @@ function getPriorityLevelByRfqPercent(percent) {
   return 'low';
 }
 
+function buildInquiryMailSubject(prefix, product, country, inquiryId) {
+  const safeProduct = String(product || 'unknown-product').trim() || 'unknown-product';
+  const safeCountry = String(country || 'unknown-country').trim() || 'unknown-country';
+  return `[GreenSmart] ${prefix} ${safeProduct} | ${safeCountry} | ${inquiryId}`;
+}
+
+async function sendEmailViaResend(env, { to, subject, text }) {
+  const apiKey = env.RESEND_API_KEY;
+  const from = env.MAIL_FROM;
+  if (!apiKey || !from || !to) {
+    return false;
+  }
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ from, to: [to], subject, text })
+    });
+    if (!response.ok) {
+      console.error('[mail] Resend error:', response.status, await response.text());
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error('[mail] Resend failed:', error);
+    return false;
+  }
+}
+
+async function notifyNewInquiry(env, { inquiryId, product, source, message, contact, notifyEmail, assigneeEmail }) {
+  const safeName = contact.name || '';
+  const safeEmail = contact.email || '';
+  const safeCountry = contact.country || '';
+
+  if (notifyEmail) {
+    await sendEmailViaResend(env, {
+      to: notifyEmail,
+      subject: buildInquiryMailSubject('New inquiry', product, safeCountry, inquiryId),
+      text: [
+        `Inquiry ID: ${inquiryId}`,
+        `Name: ${safeName}`,
+        `Email: ${safeEmail}`,
+        `Country: ${safeCountry}`,
+        `Product: ${product || '-'}`,
+        `Message: ${message}`,
+        `Source: ${source || 'website'}`
+      ].join('\n')
+    });
+  }
+
+  if (assigneeEmail) {
+    await sendEmailViaResend(env, {
+      to: assigneeEmail,
+      subject: buildInquiryMailSubject('Assigned inquiry', product, safeCountry, inquiryId),
+      text: [
+        'A new inquiry was assigned to you.',
+        '',
+        `Inquiry ID: ${inquiryId}`,
+        `Buyer: ${safeName}`,
+        `Email: ${safeEmail}`,
+        `Country: ${safeCountry}`
+      ].join('\n')
+    });
+  }
+}
+
+async function notifyInquiryAssigned(env, { inquiryId, product, contact, status, assigneeEmail }) {
+  if (!assigneeEmail) return;
+  await sendEmailViaResend(env, {
+    to: assigneeEmail,
+    subject: buildInquiryMailSubject('Inquiry assigned', product, contact?.country, inquiryId),
+    text: [
+      `You were assigned inquiry ${inquiryId}.`,
+      `Buyer: ${contact?.name || ''}`,
+      `Email: ${contact?.email || ''}`,
+      `Status: ${status || ''}`
+    ].join('\n')
+  });
+}
+
 function computeSlaState(inquiry, nowMs = Date.now()) {
   if (['won', 'lost'].includes(String(inquiry?.status || ''))) {
     return { breached: false, overdueHours: 0, thresholdHours: 24 };
@@ -334,7 +417,7 @@ async function handleHealth() {
   return json({ ok: true, service: 'greensmart-api', runtime: 'cloudflare-pages-functions', time: nowIso() });
 }
 
-async function handleCreateInquiry(request, env) {
+async function handleCreateInquiry(request, env, waitUntil) {
   const limited = await checkRateLimit(env, request, 'inquiry', 40, 15 * 60);
   if (limited) return limited;
 
@@ -423,6 +506,21 @@ async function handleCreateInquiry(request, env) {
     targetId: inquiryId,
     payload: { email: safeEmail, product: payload.product || '', country: safeCountry }
   });
+
+  const assignee = assigneeId
+    ? (users.results || []).find((user) => user.id === assigneeId)
+    : null;
+  const mailTask = notifyNewInquiry(env, {
+    inquiryId,
+    product: payload.product || '',
+    source: payload.source || 'website',
+    message: safeMessage,
+    contact: preview.contact,
+    notifyEmail: settings.notifyEmail || env.NOTIFY_EMAIL || env.ADMIN_EMAIL || '',
+    assigneeEmail: assignee?.email || ''
+  });
+  if (waitUntil) waitUntil(mailTask);
+  else await mailTask;
 
   return json({ ok: true, inquiryId, status: 'new', message: 'Inquiry received.' }, { status: 201 });
 }
@@ -591,10 +689,11 @@ async function handleCreateQuote(request, env, auth, inquiryId) {
   return json({ ok: true, item: quote }, { status: 201 });
 }
 
-async function handlePatchInquiry(request, env, auth, inquiryId) {
+async function handlePatchInquiry(request, env, auth, inquiryId, waitUntil) {
   const inquiry = await getInquiry(env, inquiryId);
   if (!inquiry) return json({ ok: false, error: 'Inquiry not found.' }, { status: 404 });
   const body = await readBody(request);
+  const oldAssigneeId = inquiry.assigneeId;
   let changed = false;
   if (body.status) {
     if (!STATUS_VALUES.has(body.status)) return json({ ok: false, error: 'Invalid status value.' }, { status: 400 });
@@ -618,10 +717,24 @@ async function handlePatchInquiry(request, env, auth, inquiryId) {
   inquiry.updatedAt = nowIso();
   await saveInquiryJson(env, inquiry);
   await appendActivityLog(env, { type: 'inquiry.updated', actorId: auth.sub, targetId: inquiry.id, payload: { status: inquiry.status, assigneeId: inquiry.assigneeId || '' } });
+
+  if (inquiry.assigneeId && inquiry.assigneeId !== oldAssigneeId) {
+    const assignee = await env.DB.prepare('SELECT email FROM users WHERE id = ?').bind(inquiry.assigneeId).first();
+    const mailTask = notifyInquiryAssigned(env, {
+      inquiryId: inquiry.id,
+      product: inquiry.product,
+      contact: inquiry.contact,
+      status: inquiry.status,
+      assigneeEmail: assignee?.email || ''
+    });
+    if (waitUntil) waitUntil(mailTask);
+    else await mailTask;
+  }
+
   return json({ ok: true, item: inquiry });
 }
 
-async function routeAdmin(request, env, path) {
+async function routeAdmin(request, env, path, waitUntil) {
   if (path === '/api/admin/auth/login' && request.method === 'POST') {
     return handleLogin(request, env);
   }
@@ -657,14 +770,14 @@ async function routeAdmin(request, env, path) {
   const inquiryMatch = path.match(/^\/api\/admin\/inquiries\/([^/]+)$/);
   if (inquiryMatch) {
     if (request.method === 'GET') return handleInquiryDetail(env, decodeURIComponent(inquiryMatch[1]));
-    if (request.method === 'PATCH') return handlePatchInquiry(request, env, auth, decodeURIComponent(inquiryMatch[1]));
+    if (request.method === 'PATCH') return handlePatchInquiry(request, env, auth, decodeURIComponent(inquiryMatch[1]), waitUntil);
   }
 
   return json({ ok: false, error: 'Not found.' }, { status: 404 });
 }
 
 export async function onRequest(context) {
-  const { request, env } = context;
+  const { request, env, waitUntil } = context;
   if (!env.DB) {
     return json({ ok: false, error: 'D1 binding DB is not configured.' }, { status: 500 });
   }
@@ -674,7 +787,7 @@ export async function onRequest(context) {
   const path = url.pathname.replace(/\/+$/, '') || '/';
 
   if (path === '/api/health' && request.method === 'GET') return handleHealth();
-  if (path === '/api/inquiries' && request.method === 'POST') return handleCreateInquiry(request, env);
-  if (path.startsWith('/api/admin/')) return routeAdmin(request, env, path);
+  if (path === '/api/inquiries' && request.method === 'POST') return handleCreateInquiry(request, env, waitUntil);
+  if (path.startsWith('/api/admin/')) return routeAdmin(request, env, path, waitUntil);
   return json({ ok: false, error: 'Not found.' }, { status: 404 });
 }
