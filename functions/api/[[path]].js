@@ -180,6 +180,23 @@ function buildInquiryMailSubject(prefix, product, country, inquiryId) {
   return `[GreenSmart] ${prefix} ${safeProduct} | ${safeCountry} | ${inquiryId}`;
 }
 
+function formatResendError(payload, raw, status) {
+  const nested = payload?.error;
+  if (nested && typeof nested === 'object') {
+    return nested.message || nested.error || JSON.stringify(nested);
+  }
+  if (typeof payload?.error === 'string' && payload.error.trim()) {
+    return payload.error.trim();
+  }
+  if (typeof payload?.message === 'string' && payload.message.trim()) {
+    return payload.message.trim();
+  }
+  if (typeof raw === 'string' && raw.trim()) {
+    return raw.trim();
+  }
+  return `Resend HTTP ${status}`;
+}
+
 async function sendEmailViaResend(env, { to, subject, text }) {
   const apiKey = env.RESEND_API_KEY;
   const from = String(env.MAIL_FROM || '').trim();
@@ -207,14 +224,14 @@ async function sendEmailViaResend(env, { to, subject, text }) {
     try {
       payload = raw ? JSON.parse(raw) : {};
     } catch {
-      payload = { message: raw };
+      payload = {};
     }
     if (!response.ok) {
-      const error = payload.message || payload.error || raw || `Resend HTTP ${response.status}`;
+      const error = formatResendError(payload, raw, response.status);
       console.error('[mail] Resend error:', response.status, error);
-      return { ok: false, status: response.status, error };
+      return { ok: false, status: response.status, error, details: payload };
     }
-    return { ok: true, id: payload.id || null };
+    return { ok: true, id: payload.id || payload.data?.id || null };
   } catch (error) {
     console.error('[mail] Resend failed:', error);
     return { ok: false, error: String(error?.message || error) };
@@ -805,30 +822,40 @@ async function handleMailStatus(env) {
 }
 
 async function handleMailTest(env) {
-  const settings = await getSettings(env);
-  const notifyEmail = resolveNotifyEmail(env, settings);
-  if (!notifyEmail) {
-    return json({ ok: false, error: 'No notify email configured. Set NOTIFY_EMAIL or update admin settings.' }, { status: 400 });
+  try {
+    const settings = await getSettings(env);
+    const notifyEmail = resolveNotifyEmail(env, settings);
+    if (!notifyEmail) {
+      return json({ ok: false, error: 'No notify email configured. Set NOTIFY_EMAIL or update admin settings.' }, { status: 400 });
+    }
+    const result = await sendEmailViaResend(env, {
+      to: notifyEmail,
+      subject: '[GreenSmart] Resend test email',
+      text: [
+        'This is a test email from GreenSmart inquiry notifications.',
+        '',
+        `Time: ${nowIso()}`,
+        `Notify email: ${notifyEmail}`,
+        `Mail from: ${String(env.MAIL_FROM || '').trim() || '(not set)'}`
+      ].join('\n')
+    });
+    try {
+      await appendActivityLog(env, {
+        type: 'mail.test',
+        payload: { notifyEmail, ...result }
+      });
+    } catch (logError) {
+      console.error('[mail] failed to write activity log:', logError);
+    }
+    if (!result.ok) {
+      const error = String(result.error || 'Resend rejected the email request.');
+      return json({ ok: false, error, item: result }, { status: 400 });
+    }
+    return json({ ok: true, message: `Test email sent to ${notifyEmail}.`, item: result });
+  } catch (error) {
+    console.error('[mail] handleMailTest failed:', error);
+    return json({ ok: false, error: String(error?.message || error) }, { status: 500 });
   }
-  const result = await sendEmailViaResend(env, {
-    to: notifyEmail,
-    subject: '[GreenSmart] Resend test email',
-    text: [
-      'This is a test email from GreenSmart inquiry notifications.',
-      '',
-      `Time: ${nowIso()}`,
-      `Notify email: ${notifyEmail}`,
-      `Mail from: ${String(env.MAIL_FROM || '').trim() || '(not set)'}`
-    ].join('\n')
-  });
-  await appendActivityLog(env, {
-    type: 'mail.test',
-    payload: { notifyEmail, ...result }
-  });
-  if (!result.ok) {
-    return json({ ok: false, error: result.error, item: result }, { status: 502 });
-  }
-  return json({ ok: true, message: `Test email sent to ${notifyEmail}.`, item: result });
 }
 
 async function routeAdmin(request, env, path, waitUntil) {

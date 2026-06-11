@@ -254,11 +254,15 @@ async function apiFetch(url, options = {}) {
         headers.Authorization = `Bearer ${token}`;
     }
     const response = await fetch(url, { ...options, headers });
+    const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.error || `Request failed (${response.status})`);
+        const detail = payload.error ?? payload.message ?? payload.item?.error;
+        const text = typeof detail === 'string'
+            ? detail
+            : (detail?.message || (payload.item ? JSON.stringify(payload.item) : '') || `Request failed (${response.status})`);
+        throw new Error(text);
     }
-    return response.json();
+    return payload;
 }
 
 function updatePageControls() {
