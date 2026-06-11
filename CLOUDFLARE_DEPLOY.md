@@ -89,8 +89,9 @@ https://novagardenhome.com/admin.html
 后台管理员登录后，可在浏览器控制台执行：
 
 ```javascript
-fetch('/api/admin/mail/status', { headers: { Authorization: 'Bearer ' + localStorage.getItem('adminToken') } }).then(r => r.json()).then(console.log)
-fetch('/api/admin/mail/test', { method: 'POST', headers: { Authorization: 'Bearer ' + localStorage.getItem('adminToken') } }).then(r => r.json()).then(console.log)
+const token = localStorage.getItem('greensmart-admin-token');
+fetch('/api/admin/mail/status', { headers: { Authorization: 'Bearer ' + token } }).then(r => r.json()).then(console.log);
+fetch('/api/admin/mail/test', { method: 'POST', headers: { Authorization: 'Bearer ' + token } }).then(r => r.json()).then(console.log);
 ```
 
 若测试失败，返回的 `error` 字段会包含 Resend 的具体报错（如域名未验证）。

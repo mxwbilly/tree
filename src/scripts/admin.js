@@ -60,6 +60,8 @@ const nextWeekPlanList = document.getElementById('nextWeekPlanList');
 const notifyEmailInput = document.getElementById('notifyEmailInput');
 const defaultAssigneeInput = document.getElementById('defaultAssigneeInput');
 const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+const testMailBtn = document.getElementById('testMailBtn');
+const mailStatusText = document.getElementById('mailStatusText');
 
 let inquiryItems = [];
 let selectedInquiryId = '';
@@ -467,14 +469,33 @@ async function loadSettings() {
         notifyEmailInput.disabled = true;
         defaultAssigneeInput.disabled = true;
         saveSettingsBtn.disabled = true;
+        if (testMailBtn) testMailBtn.disabled = true;
+        if (mailStatusText) mailStatusText.textContent = '';
         return;
     }
     notifyEmailInput.disabled = false;
     defaultAssigneeInput.disabled = false;
     saveSettingsBtn.disabled = false;
+    if (testMailBtn) testMailBtn.disabled = false;
     const result = await apiFetch(`${adminApiBase}/settings`);
     notifyEmailInput.value = result.item?.notifyEmail || '';
     defaultAssigneeInput.value = result.item?.defaultAssigneeId || '';
+    await loadMailStatus();
+}
+
+async function loadMailStatus() {
+    if (!mailStatusText || !currentUser || currentUser.role !== 'admin') return;
+    try {
+        const result = await apiFetch(`${adminApiBase}/mail/status`);
+        const item = result.item || {};
+        const parts = [];
+        parts.push(item.resendConfigured ? 'Resend 已配置' : 'Resend 未配置');
+        parts.push(item.mailFrom ? `发件：${item.mailFrom}` : '发件地址未设置');
+        parts.push(item.notifyEmail ? `通知：${item.notifyEmail}` : '通知邮箱未设置');
+        mailStatusText.textContent = parts.join(' · ');
+    } catch (error) {
+        mailStatusText.textContent = `邮件状态读取失败：${error.message}`;
+    }
 }
 
 async function loadInquiries() {
@@ -754,6 +775,26 @@ saveSettingsBtn?.addEventListener('click', async () => {
         alert(error.message);
     } finally {
         saveSettingsBtn.disabled = false;
+    }
+});
+
+testMailBtn?.addEventListener('click', async () => {
+    if (!currentUser || currentUser.role !== 'admin') {
+        alert('仅管理员可以发送测试邮件。');
+        return;
+    }
+    testMailBtn.disabled = true;
+    try {
+        const result = await apiFetch(`${adminApiBase}/mail/test`, { method: 'POST' });
+        alert(result.message || '测试邮件已发送，请检查收件箱和垃圾箱。');
+        await loadMailStatus();
+    } catch (error) {
+        alert(`测试邮件发送失败：${error.message}`);
+        if (mailStatusText) {
+            mailStatusText.textContent = `最近测试失败：${error.message}`;
+        }
+    } finally {
+        testMailBtn.disabled = false;
     }
 });
 
