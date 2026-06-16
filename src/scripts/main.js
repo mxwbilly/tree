@@ -317,7 +317,10 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     langButtons.forEach((button) => {
         button.addEventListener('click', async function () {
-            await applyTranslations(button.dataset.lang);
+            const targetLang = button.dataset.lang;
+            localStorage.setItem('greensmart-lang', targetLang);
+            updateDetailPageLinks(targetLang);
+            await applyTranslations(targetLang);
         });
     });
 
