@@ -1221,6 +1221,7 @@ body {
     border-radius: 20px;
     overflow: hidden;
     box-shadow: var(--shadow-sm);
+    border: 2px solid transparent;
     transition: all 0.3s ease;
     position: relative;
     display: flex;
@@ -1259,8 +1260,8 @@ body {
     }
 }
 
-.product-card.featured {
-    border: 2px solid var(--primary-color);
+.product-card:hover {
+    border-color: var(--primary-color);
 }
 
 .product-image-wrapper {
