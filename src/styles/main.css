@@ -2201,6 +2201,12 @@ body {
     padding: 24px;
     background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
     box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+}
+
+.trust-asset-list {
+    flex: 1;
 }
 
 .trust-asset-header {
