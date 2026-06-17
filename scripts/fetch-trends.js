@@ -19,11 +19,11 @@ const OUTPUT = path.join(__dirname, '..', 'trend-data.json');
 const COUNTRIES = ['VN', 'TH', 'ID', 'MY', 'SG', 'PH'];
 
 const PRODUCTS = {
-  bamboo_fiber_planter: 'bamboo fiber planter',
-  self_watering_planter: 'self watering planter',
-  nursery_tray: 'nursery tray',
+  bamboo_fiber_planter: 'bamboo planter',
+  self_watering_planter: 'self watering pot',
+  nursery_tray: 'seedling tray',
   terracotta_pot: 'terracotta pot',
-  balcony_planter_box: 'balcony planter box',
+  balcony_planter_box: 'balcony planter',
   hanging_basket: 'hanging basket',
 };
 
