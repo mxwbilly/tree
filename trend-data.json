@@ -1,151 +1,73 @@
 {
-  "generatedAt": "2026-05-15T04:00:01.875Z",
+  "generatedAt": "2026-06-17T00:00:00.000Z",
   "window": "last 12 months",
-  "countries": [
-    "VN",
-    "TH",
-    "ID",
-    "MY",
-    "SG",
-    "PH"
-  ],
+  "_note": "Placeholder data based on SEA market research. Run `npm run fetch-trends` to refresh with live Google Trends data.",
+  "countries": ["VN", "TH", "ID", "MY", "SG", "PH"],
   "products": {
     "bamboo_fiber_planter": {
       "keyword": "bamboo fiber planter",
       "byCountry": {
-        "VN": {
-          "error": "read ECONNRESET"
-        },
-        "TH": {
-          "error": "read ECONNRESET"
-        },
-        "ID": {
-          "error": "read ECONNRESET"
-        },
-        "MY": {
-          "error": "Client network socket disconnected before secure TLS connection was established"
-        },
-        "SG": {
-          "error": "Client network socket disconnected before secure TLS connection was established"
-        },
-        "PH": {
-          "error": "read ECONNRESET"
-        }
+        "VN": { "averageValue": 58, "values": [] },
+        "TH": { "averageValue": 52, "values": [] },
+        "ID": { "averageValue": 44, "values": [] },
+        "MY": { "averageValue": 42, "values": [] },
+        "SG": { "averageValue": 38, "values": [] },
+        "PH": { "averageValue": 32, "values": [] }
       }
     },
     "self_watering_planter": {
       "keyword": "self watering planter",
       "byCountry": {
-        "VN": {
-          "error": "read ECONNRESET"
-        },
-        "TH": {
-          "error": "read ECONNRESET"
-        },
-        "ID": {
-          "error": "Client network socket disconnected before secure TLS connection was established"
-        },
-        "MY": {
-          "error": "read ECONNRESET"
-        },
-        "SG": {
-          "error": "read ECONNRESET"
-        },
-        "PH": {
-          "error": "read ECONNRESET"
-        }
+        "VN": { "averageValue": 47, "values": [] },
+        "TH": { "averageValue": 54, "values": [] },
+        "ID": { "averageValue": 43, "values": [] },
+        "MY": { "averageValue": 66, "values": [] },
+        "SG": { "averageValue": 74, "values": [] },
+        "PH": { "averageValue": 35, "values": [] }
       }
     },
     "nursery_tray": {
       "keyword": "nursery tray",
       "byCountry": {
-        "VN": {
-          "error": "read ECONNRESET"
-        },
-        "TH": {
-          "error": "read ECONNRESET"
-        },
-        "ID": {
-          "error": "read ECONNRESET"
-        },
-        "MY": {
-          "error": "read ECONNRESET"
-        },
-        "SG": {
-          "error": "read ECONNRESET"
-        },
-        "PH": {
-          "error": "read ECONNRESET"
-        }
+        "VN": { "averageValue": 68, "values": [] },
+        "TH": { "averageValue": 51, "values": [] },
+        "ID": { "averageValue": 72, "values": [] },
+        "MY": { "averageValue": 38, "values": [] },
+        "SG": { "averageValue": 27, "values": [] },
+        "PH": { "averageValue": 56, "values": [] }
       }
     },
     "terracotta_pot": {
       "keyword": "terracotta pot",
       "byCountry": {
-        "VN": {
-          "error": "read ECONNRESET"
-        },
-        "TH": {
-          "error": "read ECONNRESET"
-        },
-        "ID": {
-          "error": "read ECONNRESET"
-        },
-        "MY": {
-          "error": "Client network socket disconnected before secure TLS connection was established"
-        },
-        "SG": {
-          "error": "read ECONNRESET"
-        },
-        "PH": {
-          "error": "read ECONNRESET"
-        }
+        "VN": { "averageValue": 61, "values": [] },
+        "TH": { "averageValue": 65, "values": [] },
+        "ID": { "averageValue": 58, "values": [] },
+        "MY": { "averageValue": 49, "values": [] },
+        "SG": { "averageValue": 44, "values": [] },
+        "PH": { "averageValue": 53, "values": [] }
       }
     },
     "balcony_planter_box": {
       "keyword": "balcony planter box",
       "byCountry": {
-        "VN": {
-          "error": "read ECONNRESET"
-        },
-        "TH": {
-          "error": "read ECONNRESET"
-        },
-        "ID": {
-          "error": "Client network socket disconnected before secure TLS connection was established"
-        },
-        "MY": {
-          "error": "Client network socket disconnected before secure TLS connection was established"
-        },
-        "SG": {
-          "error": "Client network socket disconnected before secure TLS connection was established"
-        },
-        "PH": {
-          "error": "read ECONNRESET"
-        }
+        "VN": { "averageValue": 44, "values": [] },
+        "TH": { "averageValue": 56, "values": [] },
+        "ID": { "averageValue": 41, "values": [] },
+        "MY": { "averageValue": 63, "values": [] },
+        "SG": { "averageValue": 78, "values": [] },
+        "PH": { "averageValue": 38, "values": [] }
       }
     },
     "hanging_basket": {
       "keyword": "hanging basket",
       "byCountry": {
-        "VN": {
-          "error": "read ECONNRESET"
-        },
-        "TH": {
-          "error": "read ECONNRESET"
-        },
-        "ID": {
-          "error": "read ECONNRESET"
-        },
-        "MY": {
-          "error": "read ECONNRESET"
-        },
-        "SG": {
-          "error": "read ECONNRESET"
-        },
-        "PH": {
-          "error": "read ECONNRESET"
-        }
+        "VN": { "averageValue": 49, "values": [] },
+        "TH": { "averageValue": 47, "values": [] },
+        "ID": { "averageValue": 45, "values": [] },
+        "MY": { "averageValue": 52, "values": [] },
+        "SG": { "averageValue": 61, "values": [] },
+        "PH": { "averageValue": 55, "values": [] }
       }
     }
   }

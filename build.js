@@ -20,6 +20,7 @@ const staticEntries = [
   '_headers',
   'robots.txt',
   'sitemap.xml',
+  'trend-data.json',
   'site.webmanifest',
   'favicon.svg',
   'favicon-32x32.png',
@@ -66,6 +67,7 @@ const srcCopyDirs = [
   'src/assets',
   'src/components',
   'src/i18n',
+  'articles',
 ];
 
 function copyEntry(entry) {
@@ -140,6 +142,16 @@ async function build() {
   staticEntries.forEach(copyEntry);
   srcCopyDirs.forEach(copyEntry);
   console.log('✅ 静态文件复制完成');
+
+  // 更新 dist/sitemap.xml 中的 lastmod 为当前构建日期
+  const sitemapPath = path.join(dist, 'sitemap.xml');
+  if (fs.existsSync(sitemapPath)) {
+    const today = new Date().toISOString().slice(0, 10);
+    const sitemapContent = fs.readFileSync(sitemapPath, 'utf8')
+      .replace(/<lastmod>[^<]+<\/lastmod>/g, `<lastmod>${today}</lastmod>`);
+    fs.writeFileSync(sitemapPath, sitemapContent, 'utf8');
+    console.log(`✅ sitemap.xml lastmod → ${today}`);
+  }
 
   // 2. 压缩 JS
   console.log('\n📦 压缩 JS:');

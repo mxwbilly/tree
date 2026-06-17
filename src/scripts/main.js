@@ -321,6 +321,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             localStorage.setItem('greensmart-lang', targetLang);
             updateDetailPageLinks(targetLang);
             await applyTranslations(targetLang);
+            loadAndApplyTrends(targetLang);
         });
     });
 
@@ -432,6 +433,87 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
     });
 
+    const TREND_URL_KEY_MAP = {
+        'bamboo-fiber-planter.html': 'bamboo_fiber_planter',
+        'self-watering-ceramic-planter.html': 'self_watering_planter',
+        'stackable-nursery-tray.html': 'nursery_tray',
+        'terracotta-planter.html': 'terracotta_pot',
+        'balcony-planter-box.html': 'balcony_planter_box',
+        'hanging-coir-basket.html': 'hanging_basket',
+    };
+    const LANG_COUNTRY_MAP = { en: 'SG', zh: 'SG', vi: 'VN', th: 'TH', id: 'ID', tl: 'PH' };
+    const TREND_BADGE_LABELS = {
+        en: 'Trending ↑', zh: '热销 ↑', vi: 'Trending ↑', th: 'กำลังฮิต ↑', id: 'Trending ↑', tl: 'Trending ↑'
+    };
+    let _trendData = null;
+
+    async function fetchTrendData() {
+        if (_trendData) return _trendData;
+        try {
+            const res = await fetch('/trend-data.json');
+            if (!res.ok) return null;
+            _trendData = await res.json();
+            return _trendData;
+        } catch {
+            return null;
+        }
+    }
+
+    function getTrendScore(trendData, productKey, countryCode) {
+        const entry = trendData?.products?.[productKey]?.byCountry?.[countryCode];
+        if (!entry || entry.error) return null;
+        return typeof entry.averageValue === 'number' ? entry.averageValue : null;
+    }
+
+    function applyTrendBadges(lang, trendData) {
+        const countryCode = LANG_COUNTRY_MAP[lang] || 'SG';
+        const cards = document.querySelectorAll('.products-grid .product-card');
+        cards.forEach((card) => {
+            const detailLink = card.querySelector('a[href$=".html"]');
+            if (!detailLink) return;
+            const href = detailLink.getAttribute('href').split('?')[0];
+            const productKey = TREND_URL_KEY_MAP[href];
+            if (!productKey) return;
+            const score = getTrendScore(trendData, productKey, countryCode);
+            const badge = card.querySelector('.product-badge');
+            if (!badge) return;
+            card.removeAttribute('data-trend-score');
+            badge.classList.remove('badge-trending', 'badge-rising');
+            if (score === null) return;
+            card.dataset.trendScore = score;
+            if (score >= 60) {
+                badge.classList.add('badge-trending');
+                badge.textContent = TREND_BADGE_LABELS[lang] || TREND_BADGE_LABELS.en;
+            } else if (score >= 45) {
+                badge.classList.add('badge-rising');
+            }
+        });
+        trackEvent('trend_badges_applied', { country: countryCode, lang });
+    }
+
+    function sortProductCardsByTrend(lang, trendData) {
+        const countryCode = LANG_COUNTRY_MAP[lang] || 'SG';
+        const grid = document.querySelector('.products-grid');
+        if (!grid) return;
+        const cards = Array.from(grid.querySelectorAll('.product-card'));
+        cards.forEach((card) => {
+            const scoreAttr = card.dataset.trendScore;
+            card._trendSort = scoreAttr !== undefined ? Number(scoreAttr) : -1;
+        });
+        const sorted = [...cards].sort((a, b) => b._trendSort - a._trendSort);
+        const hasChanged = sorted.some((card, i) => card !== cards[i]);
+        if (hasChanged) {
+            sorted.forEach((card) => grid.appendChild(card));
+        }
+    }
+
+    async function loadAndApplyTrends(lang) {
+        const trendData = await fetchTrendData();
+        if (!trendData) return;
+        applyTrendBadges(lang, trendData);
+        sortProductCardsByTrend(lang, trendData);
+    }
+
     const observer = new IntersectionObserver((entries) => {
         entries.forEach((entry) => {
             if (entry.isIntersecting) {
@@ -450,7 +532,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     const urlLangParam = new URLSearchParams(window.location.search).get('lang');
     const savedLangParam = localStorage.getItem('greensmart-lang');
-    const supportedLangList = ['en', 'zh', 'vi', 'th', 'id'];
+    const supportedLangList = ['en', 'zh', 'vi', 'th', 'id', 'tl'];
     const initialLang = (supportedLangList.includes(urlLangParam) ? urlLangParam : null)
         || (supportedLangList.includes(savedLangParam) ? savedLangParam : null)
         || 'en';
@@ -459,4 +541,6 @@ document.addEventListener('DOMContentLoaded', async function () {
         test: 'hero_title',
         lang: initialLang
     }));
+
+    loadAndApplyTrends(initialLang);
 });

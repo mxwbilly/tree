@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     const pageName = window.location.pathname.split('/').pop() || '';
     const urlLang = new URLSearchParams(window.location.search).get('lang');
     const savedLang = localStorage.getItem('greensmart-lang');
-    const supportedLangs = new Set(['en', 'zh', 'vi', 'th', 'id']);
+    const supportedLangs = new Set(['en', 'zh', 'vi', 'th', 'id', 'tl']);
     const preferredLang = supportedLangs.has(urlLang) ? urlLang : (supportedLangs.has(savedLang) ? savedLang : 'en');
     const lang = preferredLang;
     const detailPages = new Set([
@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             <button type="button" class="lang-btn${currentLang === 'vi' ? ' active' : ''}" data-lang="vi">VI</button>
             <button type="button" class="lang-btn${currentLang === 'th' ? ' active' : ''}" data-lang="th">TH</button>
             <button type="button" class="lang-btn${currentLang === 'id' ? ' active' : ''}" data-lang="id">ID</button>
+            <button type="button" class="lang-btn${currentLang === 'tl' ? ' active' : ''}" data-lang="tl">TL</button>
         `;
 
         switcher.addEventListener('click', function (event) {
@@ -203,7 +204,20 @@ document.addEventListener('DOMContentLoaded', async function () {
             ],
             ctaFile: 'Unduh Template RFQ (CSV)'
         };
-        const copyMap = { en, zh, vi, th, id };
+        const tl = {
+            title: 'Procurement Execution Pack',
+            desc: 'Ibahagi ang MOQ ladder, lead-time plan, at RFQ template sa unang reply para mabawasan ang paulit-ulit na tanong.',
+            moqTitle: 'MOQ Ladder Reference',
+            leadTitle: 'Mga Tala sa Lead-Time at Pagpaplano',
+            fileTitle: 'I-download ang RFQ Template',
+            fileRows: [
+                'Kasama ang mga pangunahing field: produkto, sukat, dami, destination port, timeline, packaging, at termino.',
+                'Maaaring direktang ipadala sa mga buyer at gamitin ulit para sa mas mabilis na internal quoting.',
+                'Inirerekomenda na ilakip ang bersyon ng template at validity ng quote sa bawat alok.'
+            ],
+            ctaFile: 'I-download ang RFQ Template (CSV)'
+        };
+        const copyMap = { en, zh, vi, th, id, tl };
         const copy = copyMap[currentLang] || en;
 
         const section = document.createElement('section');
