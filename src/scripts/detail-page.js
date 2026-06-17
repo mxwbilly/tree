@@ -243,8 +243,8 @@ document.addEventListener('DOMContentLoaded', async function () {
     const backBtn = document.querySelector('.detail-copy .btn.btn-secondary');
     const quoteBtn = document.querySelector('.detail-cta-bar .btn.btn-primary');
 
-    if (backBtn) backBtn.href = `index.html?lang=${encodeURIComponent(lang)}#products`;
-    if (quoteBtn) quoteBtn.href = `index.html?lang=${encodeURIComponent(lang)}#contact`;
+    if (backBtn) backBtn.href = `/?lang=${encodeURIComponent(lang)}#products`;
+    if (quoteBtn) quoteBtn.href = `/?lang=${encodeURIComponent(lang)}#contact`;
 
     localStorage.setItem('greensmart-lang', lang);
     mountLanguageSwitcher(lang);
