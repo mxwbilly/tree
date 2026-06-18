@@ -2805,6 +2805,20 @@ html[lang="id"] .trend-chip-balcony {
         display: none;
     }
 
+    .detail-lang-switcher {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 3px;
+        top: 72px;
+        right: 10px;
+        max-width: calc(100vw - 20px);
+    }
+
+    .detail-lang-switcher .lang-btn {
+        padding: 5px 7px;
+        font-size: 10px;
+    }
+
     .promo-badge {
         display: block;
     }

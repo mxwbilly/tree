@@ -25,14 +25,16 @@ document.addEventListener('DOMContentLoaded', async function () {
             zh: '中国花盆与自动浇水花盆批发',
             vi: 'Chau hoa si va chau tuoi nuoc tu dong tu Trung Quoc',
             th: 'ขายส่งกระถางต้นไม้และกระถางรดน้ำอัตโนมัติจากจีน',
-            id: 'Pot bunga grosir dan planter self-watering dari China'
+            id: 'Pot bunga grosir dan planter self-watering dari China',
+            tl: 'Wholesale na Flower Pots at Self-Watering Planters mula China'
         },
         hero_b: {
             en: 'Reliable OEM Flower Pots with Fast Export Delivery',
             zh: '支持OEM定制与快速交付的花盆供应商',
             vi: 'Nha cung cap chau hoa OEM dang tin cay, giao hang xuat khau nhanh',
             th: 'ซัพพลายเออร์กระถาง OEM ที่เชื่อถือได้ พร้อมส่งออกรวดเร็ว',
-            id: 'Pemasok pot bunga OEM andal dengan pengiriman ekspor cepat'
+            id: 'Pemasok pot bunga OEM andal dengan pengiriman ekspor cepat',
+            tl: 'Mapagkakatiwalaang OEM Flower Pots na may Mabilis na Export Delivery'
         }
     };
 
@@ -192,6 +194,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     }
 
     const _dictCache = new Map();
+    let _translationGeneration = 0;
 
     async function loadDictionary(lang) {
         if (_dictCache.has(lang)) return _dictCache.get(lang);
@@ -202,10 +205,12 @@ document.addEventListener('DOMContentLoaded', async function () {
     }
 
     async function applyTranslations(lang) {
+        const generation = ++_translationGeneration;
         const [bundle, fallback] = await Promise.all([
             loadDictionary(lang),
             loadDictionary('en')
         ]);
+        if (generation !== _translationGeneration) return;
         const strings = bundle.strings || {};
         const fallbackStrings = fallback.strings || {};
 
@@ -345,7 +350,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         });
     });
 
-    document.querySelectorAll('.products-grid a[href$=".html"]').forEach((link) => {
+    document.querySelectorAll('.products-grid a[href*=".html"]').forEach((link) => {
         link.addEventListener('click', function () {
             trackEvent('view_product_detail', withTrackingMeta({
                 product_url: this.getAttribute('href') || '',
@@ -366,7 +371,8 @@ document.addEventListener('DOMContentLoaded', async function () {
             zh: { sending: '发送中...', sent: '询盘已提交', failed: '提交失败，请稍后重试。' },
             vi: { sending: 'Dang gui...', sent: 'Da gui inquiry', failed: 'Gui that bai, vui long thu lai.' },
             th: { sending: 'กําลังส่ง...', sent: 'ส่งคำถามแล้ว', failed: 'ส่งไม่สำเร็จ โปรดลองอีกครั้ง' },
-            id: { sending: 'Mengirim...', sent: 'Inquiry terkirim', failed: 'Gagal kirim, silakan coba lagi.' }
+            id: { sending: 'Mengirim...', sent: 'Inquiry terkirim', failed: 'Gagal kirim, silakan coba lagi.' },
+            tl: { sending: 'Nagpapadala...', sent: 'Naipadala na ang inquiry', failed: 'Nabigo ang pagpapadala, subukan muli.' }
         };
         const submitButton = this.querySelector('button[type="submit"]');
         const originalText = submitButton.textContent;
@@ -469,7 +475,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         const countryCode = LANG_COUNTRY_MAP[lang] || 'SG';
         const cards = document.querySelectorAll('.products-grid .product-card');
         cards.forEach((card) => {
-            const detailLink = card.querySelector('a[href$=".html"]');
+            const detailLink = card.querySelector('a[href*=".html"]');
             if (!detailLink) return;
             const href = detailLink.getAttribute('href').split('?')[0];
             const productKey = TREND_URL_KEY_MAP[href];
