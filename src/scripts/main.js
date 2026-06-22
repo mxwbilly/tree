@@ -22,19 +22,15 @@ document.addEventListener('DOMContentLoaded', async function () {
     const heroTitleVariants = {
         hero_a: {
             en: 'Wholesale Flower Pots & Self-Watering Planters from China',
-            zh: '中国花盆与自动浇水花盆批发',
             vi: 'Chau hoa si va chau tuoi nuoc tu dong tu Trung Quoc',
             th: 'ขายส่งกระถางต้นไม้และกระถางรดน้ำอัตโนมัติจากจีน',
             id: 'Pot bunga grosir dan planter self-watering dari China',
-            tl: 'Wholesale na Flower Pots at Self-Watering Planters mula China'
         },
         hero_b: {
             en: 'Reliable OEM Flower Pots with Fast Export Delivery',
-            zh: '支持OEM定制与快速交付的花盆供应商',
             vi: 'Nha cung cap chau hoa OEM dang tin cay, giao hang xuat khau nhanh',
             th: 'ซัพพลายเออร์กระถาง OEM ที่เชื่อถือได้ พร้อมส่งออกรวดเร็ว',
             id: 'Pemasok pot bunga OEM andal dengan pengiriman ekspor cepat',
-            tl: 'Mapagkakatiwalaang OEM Flower Pots na may Mabilis na Export Delivery'
         }
     };
 
@@ -244,7 +240,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             faqScript.textContent = JSON.stringify(faqJsonLd);
         }
 
-        document.documentElement.lang = lang === 'zh' ? 'zh-CN' : lang;
+        document.documentElement.lang = lang;
         document.title = bundle.title || fallback.title;
         if (metaDescription) metaDescription.setAttribute('content', bundle.description || fallback.description);
         if (metaKeywords) metaKeywords.setAttribute('content', bundle.keywords || fallback.keywords);
@@ -368,11 +364,9 @@ document.addEventListener('DOMContentLoaded', async function () {
         const selectedProducts = formData.getAll('product').filter((item) => String(item || '').trim());
         const messages = {
             en: { sending: 'Sending...', sent: 'Inquiry sent', failed: 'Send failed, please try again.' },
-            zh: { sending: '发送中...', sent: '询盘已提交', failed: '提交失败，请稍后重试。' },
             vi: { sending: 'Dang gui...', sent: 'Da gui inquiry', failed: 'Gui that bai, vui long thu lai.' },
             th: { sending: 'กําลังส่ง...', sent: 'ส่งคำถามแล้ว', failed: 'ส่งไม่สำเร็จ โปรดลองอีกครั้ง' },
-            id: { sending: 'Mengirim...', sent: 'Inquiry terkirim', failed: 'Gagal kirim, silakan coba lagi.' },
-            tl: { sending: 'Nagpapadala...', sent: 'Naipadala na ang inquiry', failed: 'Nabigo ang pagpapadala, subukan muli.' }
+            id: { sending: 'Mengirim...', sent: 'Inquiry terkirim', failed: 'Gagal kirim, silakan coba lagi.' }
         };
         const submitButton = this.querySelector('button[type="submit"]');
         const originalText = submitButton.textContent;
@@ -447,9 +441,9 @@ document.addEventListener('DOMContentLoaded', async function () {
         'balcony-planter-box.html': 'balcony_planter_box',
         'hanging-coir-basket.html': 'hanging_basket',
     };
-    const LANG_COUNTRY_MAP = { en: 'SG', zh: 'SG', vi: 'VN', th: 'TH', id: 'ID', tl: 'PH' };
+    const LANG_COUNTRY_MAP = { en: 'SG', vi: 'VN', th: 'TH', id: 'ID' };
     const TREND_BADGE_LABELS = {
-        en: 'Trending ↑', zh: '热销 ↑', vi: 'Trending ↑', th: 'กำลังฮิต ↑', id: 'Trending ↑', tl: 'Trending ↑'
+        en: 'Trending ↑', vi: 'Trending ↑', th: 'กำลังฮิต ↑', id: 'Trending ↑'
     };
     let _trendData = null;
 
@@ -538,7 +532,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     const urlLangParam = new URLSearchParams(window.location.search).get('lang');
     const savedLangParam = localStorage.getItem('greensmart-lang');
-    const supportedLangList = ['en', 'zh', 'vi', 'th', 'id', 'tl'];
+    const supportedLangList = ['en', 'vi', 'th', 'id'];
     const initialLang = (supportedLangList.includes(urlLangParam) ? urlLangParam : null)
         || (supportedLangList.includes(savedLangParam) ? savedLangParam : null)
         || 'en';

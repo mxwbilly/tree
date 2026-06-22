@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     const pageName = window.location.pathname.split('/').pop() || '';
     const urlLang = new URLSearchParams(window.location.search).get('lang');
     const savedLang = localStorage.getItem('greensmart-lang');
-    const supportedLangs = new Set(['en', 'zh', 'vi', 'th', 'id', 'tl']);
+    const supportedLangs = new Set(['en', 'vi', 'th', 'id']);
     const preferredLang = supportedLangs.has(urlLang) ? urlLang : (supportedLangs.has(savedLang) ? savedLang : 'en');
     const lang = preferredLang;
     const detailPages = new Set([
@@ -19,11 +19,9 @@ document.addEventListener('DOMContentLoaded', async function () {
         switcher.className = 'lang-switcher detail-lang-switcher';
         switcher.innerHTML = `
             <button type="button" class="lang-btn${currentLang === 'en' ? ' active' : ''}" data-lang="en">EN</button>
-            <button type="button" class="lang-btn${currentLang === 'zh' ? ' active' : ''}" data-lang="zh">中文</button>
             <button type="button" class="lang-btn${currentLang === 'vi' ? ' active' : ''}" data-lang="vi">VI</button>
             <button type="button" class="lang-btn${currentLang === 'th' ? ' active' : ''}" data-lang="th">TH</button>
             <button type="button" class="lang-btn${currentLang === 'id' ? ' active' : ''}" data-lang="id">ID</button>
-            <button type="button" class="lang-btn${currentLang === 'tl' ? ' active' : ''}" data-lang="tl">TL</button>
         `;
 
         switcher.addEventListener('click', function (event) {
@@ -217,7 +215,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             ],
             ctaFile: 'I-download ang RFQ Template (CSV)'
         };
-        const copyMap = { en, zh, vi, th, id, tl };
+        const copyMap = { en, vi, th, id };
         const copy = copyMap[currentLang] || en;
 
         const section = document.createElement('section');
