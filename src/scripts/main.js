@@ -10,12 +10,10 @@ document.addEventListener('DOMContentLoaded', async function () {
     const metaKeywords = document.querySelector('meta[name="keywords"]');
     const siteConfig = window.GREENSMART_CONFIG || {};
     const detailPageFiles = new Set([
-        'bamboo-fiber-planter.html',
-        'self-watering-ceramic-planter.html',
-        'stackable-nursery-tray.html',
-        'terracotta-planter.html',
-        'balcony-planter-box.html',
-        'hanging-coir-basket.html'
+        'self-watering-double-layer.html',
+        'root-control-gallon-pot.html',
+        'transparent-orchid-pot.html',
+        'creative-shaped-planter.html'
     ]);
     const abParam = new URLSearchParams(window.location.search).get('ab');
     const heroTitleVariant = (abParam === 'hero-b' || abParam === 'b') ? 'hero_b' : 'hero_a';
@@ -434,12 +432,8 @@ document.addEventListener('DOMContentLoaded', async function () {
     });
 
     const TREND_URL_KEY_MAP = {
-        'bamboo-fiber-planter.html': 'bamboo_fiber_planter',
-        'self-watering-ceramic-planter.html': 'self_watering_planter',
-        'stackable-nursery-tray.html': 'nursery_tray',
-        'terracotta-planter.html': 'terracotta_pot',
-        'balcony-planter-box.html': 'balcony_planter_box',
-        'hanging-coir-basket.html': 'hanging_basket',
+        'self-watering-double-layer.html': 'self_watering_planter',
+        'root-control-gallon-pot.html': 'nursery_tray',
     };
     const LANG_COUNTRY_MAP = { en: 'SG', vi: 'VN', th: 'TH', id: 'ID' };
     const TREND_BADGE_LABELS = {
