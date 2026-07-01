@@ -1419,6 +1419,44 @@ body {
     background-color: #f59e0b;
 }
 
+.product-stock-chip {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    background-color: rgba(255, 255, 255, 0.94);
+    color: var(--primary-color);
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 999px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.product-stock-chip i {
+    font-size: 10px;
+}
+
+.product-stock-chip.chip-new {
+    color: #b45309;
+}
+
+.product-stock-chip.chip-new i {
+    color: #f59e0b;
+}
+
+@media (max-width: 768px) {
+    .product-stock-chip {
+        top: auto;
+        right: 16px;
+        bottom: 16px;
+        left: auto;
+    }
+}
+
 .product-info {
     padding: 24px;
     flex: 1;
