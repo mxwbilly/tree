@@ -1451,9 +1451,9 @@ body {
 @media (max-width: 768px) {
     .product-stock-chip {
         top: auto;
-        right: 16px;
+        right: auto;
         bottom: 16px;
-        left: auto;
+        left: 16px;
     }
 }
 
