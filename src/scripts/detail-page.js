@@ -3,16 +3,15 @@ document.addEventListener('DOMContentLoaded', async function () {
     const urlLang = new URLSearchParams(window.location.search).get('lang');
     const savedLang = localStorage.getItem('greensmart-lang');
     const supportedLangs = new Set(['en', 'vi', 'th', 'id']);
-    const preferredLang = supportedLangs.has(urlLang) ? urlLang : (supportedLangs.has(savedLang) ? savedLang : 'en');
-    const lang = preferredLang;
+    const lang = supportedLangs.has(urlLang) ? urlLang : (supportedLangs.has(savedLang) ? savedLang : 'en');
     const detailPages = new Set([
-        'bamboo-fiber-planter.html',
-        'self-watering-ceramic-planter.html',
-        'stackable-nursery-tray.html',
-        'terracotta-planter.html',
-        'balcony-planter-box.html',
-        'hanging-coir-basket.html'
+        'self-watering-double-layer.html',
+        'root-control-gallon-pot.html',
+        'transparent-orchid-pot.html',
+        'creative-shaped-planter.html'
     ]);
+
+    if (!detailPages.has(pageName)) return;
 
     function mountLanguageSwitcher(currentLang) {
         const switcher = document.createElement('div');
@@ -39,76 +38,52 @@ document.addEventListener('DOMContentLoaded', async function () {
     }
 
     const procurementData = {
-        'bamboo-fiber-planter.html': {
+        'self-watering-double-layer.html': {
             moq: [
-                '100-299 pcs: mixed color support within standard palette',
-                '300-799 pcs: custom carton mark and barcode label support',
-                '800+ pcs: OEM logo and retail pack options available'
+                '50-199 pcs: standard colors, mixed sizes in same color accepted',
+                '200-499 pcs: custom color program and gift-box packaging',
+                '500+ pcs: OEM logo, retail-ready program, water-level window option'
             ],
             lead: [
-                'Sampling: 5-7 days for standard size and color',
-                'Bulk order: 20-30 days after deposit and artwork confirmation',
+                'Sampling: 5-10 days for standard size and color',
+                'Bulk order: 20-35 days after deposit and artwork confirmation',
                 'Peak season buffer: suggest booking 2-3 weeks earlier'
             ]
         },
-        'self-watering-ceramic-planter.html': {
+        'root-control-gallon-pot.html': {
             moq: [
-                '50-199 pcs: standard glaze and color combinations',
-                '200-499 pcs: gift box and insert card options',
-                '500+ pcs: OEM logo placement and premium finish program'
+                '500-1499 pcs: standard sizes and colors, up to 4 sizes mixed',
+                '1500-3999 pcs: full gallon range mix with carton marks',
+                '4000+ pcs: private label marks and tailored container loading'
             ],
             lead: [
-                'Sampling: 7-10 days including structure check',
-                'Bulk order: 25-35 days after deposit and packaging approval',
-                'Peak season buffer: recommend 3-4 weeks extra planning'
-            ]
-        },
-        'stackable-nursery-tray.html': {
-            moq: [
-                '500-1499 pcs: standard tray depth and hole format',
-                '1500-3999 pcs: mixed cavity options per shipment',
-                '4000+ pcs: tailored carton loading and private label marks'
-            ],
-            lead: [
-                'Sampling: 4-6 days for standard tray structure',
-                'Bulk order: 18-28 days after deposit and quantity lock',
+                'Sampling: 5-8 days for standard gallon sizes',
+                'Bulk order: 20-30 days after deposit and quantity lock',
                 'Peak season buffer: reserve 2 weeks for logistics slots'
             ]
         },
-        'terracotta-planter.html': {
+        'transparent-orchid-pot.html': {
             moq: [
-                '100-399 pcs: standard shape and classic terracotta tone',
-                '400-999 pcs: mixed size assortment in one order',
-                '1000+ pcs: customized label and reinforced packing option'
+                '200-499 pcs per size: stock moulds, crystal clear standard',
+                '500-1999 pcs: mixed sizes and seedling cup combinations',
+                '2000+ pcs: custom tint, screen print, or shrink sleeve label'
             ],
             lead: [
-                'Sampling: 6-8 days for selected sizes',
-                'Bulk order: 22-32 days after deposit and packing sign-off',
-                'Peak season buffer: suggest 2-3 weeks for kiln scheduling'
+                'Sampling: 5-10 days including clarity check',
+                'Bulk order: 15-25 days after deposit confirmation',
+                'Peak season buffer: suggest 2 weeks before orchid trade peaks'
             ]
         },
-        'balcony-planter-box.html': {
+        'creative-shaped-planter.html': {
             moq: [
-                '20-99 sets: standard planter box and tray',
-                '100-299 sets: mixed sizes with project-ready packing',
-                '300+ sets: OEM color and project label support'
+                '50-199 pcs per design: mixed designs in same order accepted',
+                '200-499 pcs: gift-box packaging and OEM insert card',
+                '500+ pcs per design: exclusive OEM mould program available'
             ],
             lead: [
-                'Sampling: 5-7 days for standard dimensions',
-                'Bulk order: 20-30 days after deposit and final spec confirmation',
-                'Peak season buffer: recommend 2 weeks ahead for project windows'
-            ]
-        },
-        'hanging-coir-basket.html': {
-            moq: [
-                '100-299 sets: standard basket frame and chain length',
-                '300-799 sets: mixed diameter combinations available',
-                '800+ sets: custom chain finish and branded retail packing'
-            ],
-            lead: [
-                'Sampling: 5-8 days for basket and chain verification',
-                'Bulk order: 20-30 days after deposit and accessory confirmation',
-                'Peak season buffer: reserve 2-3 weeks before spring peak'
+                'Sampling: 7-10 days for catalogue designs',
+                'Bulk order: 20-35 days after deposit and packaging approval',
+                'Peak season buffer: book 3-4 weeks before gift seasons'
             ]
         }
     };
@@ -137,19 +112,6 @@ document.addEventListener('DOMContentLoaded', async function () {
             return;
         }
 
-        const zh = {
-            title: '采购执行包（可直接用于询盘沟通）',
-            desc: '把 MOQ 阶梯、交期安排和 RFQ 模板一次发给客户，可明显减少来回确认时间。',
-            moqTitle: 'MOQ 阶梯参考',
-            leadTitle: '交期与排产建议',
-            fileTitle: 'RFQ 模板下载',
-            fileRows: [
-                '已包含核心字段：产品、尺寸、数量、目的港、交期、包装、条款。',
-                '可直接转发给客户填写，回收后可用于内部快速报价。',
-                '建议每次报价附上模板版本和有效期。'
-            ],
-            ctaFile: '下载 RFQ 模板 (CSV)'
-        };
         const en = {
             title: 'Procurement Execution Pack',
             desc: 'Share MOQ ladder, lead-time plan, and RFQ template in the first reply to reduce back-and-forth.',
@@ -202,19 +164,6 @@ document.addEventListener('DOMContentLoaded', async function () {
             ],
             ctaFile: 'Unduh Template RFQ (CSV)'
         };
-        const tl = {
-            title: 'Procurement Execution Pack',
-            desc: 'Ibahagi ang MOQ ladder, lead-time plan, at RFQ template sa unang reply para mabawasan ang paulit-ulit na tanong.',
-            moqTitle: 'MOQ Ladder Reference',
-            leadTitle: 'Mga Tala sa Lead-Time at Pagpaplano',
-            fileTitle: 'I-download ang RFQ Template',
-            fileRows: [
-                'Kasama ang mga pangunahing field: produkto, sukat, dami, destination port, timeline, packaging, at termino.',
-                'Maaaring direktang ipadala sa mga buyer at gamitin ulit para sa mas mabilis na internal quoting.',
-                'Inirerekomenda na ilakip ang bersyon ng template at validity ng quote sa bawat alok.'
-            ],
-            ctaFile: 'I-download ang RFQ Template (CSV)'
-        };
         const copyMap = { en, vi, th, id };
         const copy = copyMap[currentLang] || en;
 
@@ -254,6 +203,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     const backBtn = document.querySelector('.detail-copy .btn.btn-secondary');
     const quoteBtn = document.querySelector('.detail-cta-bar .btn.btn-primary');
+    const whatsappBtn = document.querySelector('.detail-cta-bar .btn.btn-whatsapp');
 
     if (backBtn) backBtn.href = `/?lang=${encodeURIComponent(lang)}#products`;
     if (quoteBtn) quoteBtn.href = `/?lang=${encodeURIComponent(lang)}#contact`;
@@ -269,70 +219,101 @@ document.addEventListener('DOMContentLoaded', async function () {
     const dict = await loadDetailDict(lang);
     const uiCopy = dict?.ui || {};
 
-    if (backBtn) backBtn.textContent = uiCopy.backBtn || 'Back to Homepage';
-    if (quoteBtn) quoteBtn.textContent = uiCopy.quoteBtn || 'Request Quote';
+    if (backBtn) backBtn.textContent = uiCopy.backBtn || '← Back to Products';
 
     mountProcurementPack(pageName, lang, dict?.pages || null);
 
-    if (!dict || !detailPages.has(pageName)) return;
-    const content = dict.pages?.[pageName];
+    const content = dict?.pages?.[pageName];
     if (!content) return;
 
     const metaDescription = document.querySelector('meta[name="description"]');
-    if (metaDescription) metaDescription.setAttribute('content', content.description);
-    document.title = content.title;
+    if (metaDescription && content.description) metaDescription.setAttribute('content', content.description);
+    if (content.title) document.title = content.title;
     document.documentElement.lang = uiCopy.htmlLang || lang;
+
+    if (quoteBtn) quoteBtn.textContent = content.ctaPrimary || uiCopy.quoteBtn || quoteBtn.textContent;
+    if (whatsappBtn) whatsappBtn.textContent = content.ctaWhatsapp || uiCopy.whatsappBtn || whatsappBtn.textContent;
 
     const heading = document.querySelector('.detail-copy h1');
     const intro = document.querySelector('.detail-copy > p');
-    const pointItems = document.querySelectorAll('.detail-points li');
-    const specsHeading = document.querySelector('.detail-card h2');
-    const tableRows = document.querySelectorAll('.detail-spec-table tr');
-    const buyerHeading = document.querySelectorAll('.detail-card h3')[0];
-    const tagItems = document.querySelectorAll('.detail-tags span');
-    const focusCards = document.querySelectorAll('.detail-focus .detail-card');
+    if (heading && content.h1) heading.textContent = content.h1;
+    if (intro && content.intro) intro.textContent = content.intro;
 
-    if (heading) heading.textContent = content.h1;
-    if (intro) intro.textContent = content.intro;
-    pointItems.forEach((item, index) => {
+    document.querySelectorAll('.detail-points li').forEach((item, index) => {
+        if (!content.points?.[index]) return;
         const icon = item.querySelector('i');
-        item.textContent = content.points[index] || item.textContent;
+        item.textContent = content.points[index];
         if (icon) {
             item.prepend(icon);
             item.insertBefore(document.createTextNode(' '), icon.nextSibling);
         }
     });
-    if (specsHeading) specsHeading.textContent = content.specsTitle;
-    tableRows.forEach((row, index) => {
+
+    document.querySelectorAll('.quick-specs-bar .spec-item').forEach((item, index) => {
+        const pair = content.quickSpecs?.[index];
+        if (!pair) return;
+        const label = item.querySelector('.spec-label');
+        const value = item.querySelector('.spec-value');
+        if (label) label.textContent = pair[0];
+        if (value) value.textContent = pair[1];
+    });
+
+    const specsHeading = document.querySelector('.detail-grid .detail-card h2');
+    if (specsHeading && content.specsTitle) specsHeading.textContent = content.specsTitle;
+
+    document.querySelectorAll('.detail-spec-table tr').forEach((row, index) => {
+        const line = content.specsRows?.[index];
+        if (!line) return;
         const th = row.querySelector('th');
         const td = row.querySelector('td');
-        const line = content.specsRows[index];
-        if (!line) return;
         if (th) th.textContent = line[0];
         if (td) td.textContent = line[1];
     });
-    if (buyerHeading) buyerHeading.textContent = content.buyerTitle;
-    tagItems.forEach((tag, index) => {
-        tag.textContent = content.tags[index] || tag.textContent;
+
+    const gridHeadings = document.querySelectorAll('.detail-grid .detail-card h3');
+    if (gridHeadings[0] && content.buyerTitle) gridHeadings[0].textContent = content.buyerTitle;
+    if (gridHeadings[1] && content.whyTitle) gridHeadings[1].textContent = content.whyTitle;
+
+    document.querySelectorAll('.detail-tags span').forEach((tag, index) => {
+        if (content.tags?.[index]) tag.textContent = content.tags[index];
     });
 
-    const focus = content.focus;
-    if (focus && focusCards.length >= 2) {
+    const whyList = document.querySelector('.detail-grid .detail-card:last-child .detail-mini-list');
+    if (whyList && content.whyItems) {
+        whyList.innerHTML = content.whyItems
+            .map(([label, text]) => `<li><strong>${label}:</strong> ${text}</li>`)
+            .join('');
+    }
+
+    const galleryHeading = document.querySelector('.gallery-section h2');
+    const galleryNote = document.querySelector('.gallery-section .variant-note');
+    if (galleryHeading && content.galleryTitle) galleryHeading.textContent = content.galleryTitle;
+    if (galleryNote && content.galleryNote) galleryNote.textContent = content.galleryNote;
+    document.querySelectorAll('.gallery-section .gallery-caption').forEach((cap, index) => {
+        if (content.galleryCaptions?.[index]) cap.textContent = content.galleryCaptions[index];
+    });
+
+    const focusCards = document.querySelectorAll('.detail-focus .detail-card');
+    if (focusCards.length >= 2 && content.focus) {
+        const focus = content.focus;
         const leftHeading = focusCards[0].querySelector('h3');
         const rightHeading = focusCards[1].querySelector('h3');
         const leftList = focusCards[0].querySelector('.detail-mini-list');
         const rightList = focusCards[1].querySelector('.detail-mini-list');
-        if (leftHeading) leftHeading.textContent = focus.leftTitle;
-        if (rightHeading) rightHeading.textContent = focus.rightTitle;
-        if (leftList) {
+        if (leftHeading && focus.leftTitle) leftHeading.textContent = focus.leftTitle;
+        if (rightHeading && focus.rightTitle) rightHeading.textContent = focus.rightTitle;
+        if (leftList && focus.leftItems) {
             leftList.innerHTML = focus.leftItems
-                .map(([label, text]) => `<li><strong>${label}：</strong>${text}</li>`)
+                .map(([label, text]) => `<li><strong>${label}</strong> ${text}</li>`)
                 .join('');
         }
-        if (rightList) {
+        if (rightList && focus.rightItems) {
             rightList.innerHTML = focus.rightItems
-                .map(([label, text]) => `<li><strong>${label}：</strong>${text}</li>`)
+                .map((text) => `<li>${text}</li>`)
                 .join('');
         }
     }
+
+    const relatedHeading = document.querySelector('.detail-related h3');
+    if (relatedHeading && uiCopy.relatedTitle) relatedHeading.textContent = uiCopy.relatedTitle;
 });

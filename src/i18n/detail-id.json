@@ -1,123 +1,291 @@
 {
   "ui": {
-    "backBtn": "Kembali ke Halaman Produk",
-    "quoteBtn": "Minta Penawaran Grosir",
-    "htmlLang": "id"
+    "htmlLang": "id",
+    "backBtn": "← Kembali ke Produk",
+    "quoteBtn": "Minta Penawaran",
+    "whatsappBtn": "WhatsApp Sales",
+    "relatedTitle": "Produk terkait"
   },
   "pages": {
-    "bamboo-fiber-planter.html": {
-      "title": "Pot Tanaman Serat Bambu Ramah Lingkungan | GreenSmart",
-      "description": "Lini produk pot serat bambu ramah lingkungan untuk pembeli grosir Asia Tenggara.",
-      "h1": "Pot Tanaman Serat Bambu Ramah Lingkungan",
-      "intro": "Cocok untuk pembeli yang mengutamakan positioning ramah lingkungan, bobot pengiriman lebih ringan, dan warna yang mudah dipajang di ritel.",
-      "points": ["Tekstur alami dengan tampilan cetakan bersih", "Cocok untuk dekorasi rumah, hadiah, dan ritel jaringan", "Mendukung kustomisasi OEM logo, label, dan karton"],
-      "specsTitle": "Spesifikasi Grosir yang Direkomendasikan",
-      "specsRows": [["Material", "Komposit serat bambu"], ["Permukaan", "Warna alami matte atau cat semprot"], ["Ukuran", "Dari pot meja kecil hingga pot dekorasi ukuran sedang"], ["Referensi MOQ", "Mulai 100 pcs"], ["Dapat Dikustomisasi", "Warna, Logo, Label, Kode karton"]],
-      "buyerTitle": "Jenis Pembeli yang Cocok",
-      "tags": ["Toko Hadiah", "Ritel Dekorasi Rumah", "Lini Produk Hijau", "Jaringan Toko"],
+    "self-watering-double-layer.html": {
+      "title": "Pot Self-Watering Dua Lapis Grosir | GreenSmart",
+      "description": "Pot self-watering dua lapis grosir dari China — reservoir bawah, jendela level air opsional, warna OEM. MOQ 50 pcs, FOB Shenzhen.",
+      "h1": "Pot Self-Watering Dua Lapis (Pot Malas)",
+      "intro": "Desain reservoir bawah — siram sekali, tanaman tetap lembap 1-2 minggu. Kategori pot indoor paling tren di Shopee Malaysia, Shopee Singapura, dan Tiki Vietnam 2025-2026.",
+      "points": [
+        "Bodi PP dua lapis dengan reservoir bawah tertutup",
+        "Jendela level air transparan (opsional)",
+        "Pilihan sistem sumbu serap atau sub-irigasi",
+        "Cangkang luar tersedia matte, glossy, atau imitasi keramik",
+        "Mendukung warna OEM + kemasan private label"
+      ],
+      "quickSpecs": [
+        ["MOQ", "Mulai 50 pcs"],
+        ["Lead Time", "20-35 hari"],
+        ["Pelabuhan FOB", "Shenzhen / Shanghai"],
+        ["Sampel", "$10-20, dikembalikan saat order"]
+      ],
+      "specsTitle": "Spesifikasi produk",
+      "specsRows": [
+        ["Material", "PP bebas BPA (dalam + luar), opsi cangkang ABS imitasi keramik"],
+        ["Ukuran", "ø10 cm / ø14 cm / ø18 cm / ø22 cm / ø26 cm"],
+        ["Kapasitas reservoir", "150 ml - 1.200 ml tergantung ukuran"],
+        ["Warna", "Putih, abu-abu, hijau sage, pink, krem, hitam — OEM tersedia"],
+        ["Indikator air", "Jendela samping opsional; model standar tanpa jendela juga ada"],
+        ["Drainase", "Lubang overflow cegah busuk akar; opsi tray dalam lepas-pasang"],
+        ["MOQ", "50 pcs per SKU (campur ukuran warna sama diterima)"],
+        ["Kustomisasi", "Logo OEM, kotak kado, hang tag, polybag"],
+        ["CBM (mix 20 ukuran)", "Sekitar 0,6 CBM per 500 pcs"]
+      ],
+      "buyerTitle": "Pembeli paling cocok",
+      "tags": ["Seller Shopee / Lazada", "Toko lifestyle apartemen", "Toko kado", "Garden center SG/MY", "Retailer tanaman indoor", "Brand subscription box"],
+      "whyTitle": "Mengapa laris di Asia Tenggara",
+      "whyItems": [
+        ["Apartemen kota", "penghuni kota yang sibuk ingin tanaman yang bertahan tanpa perawatan harian."],
+        ["Kado", "bentuk modern bersih + pesan minim perawatan = produk kado yang mudah dijual."],
+        ["Algoritma platform", "\"pot malas / lazy pot\" adalah kata kunci breakout di Shopee SG, MY, dan TH sejak 2024."]
+      ],
+      "galleryTitle": "Varian produk dan rentang ukuran",
+      "galleryNote": "Foto ukuran dan warna lainnya dikirim via WhatsApp atau email setelah inquiry.",
+      "galleryCaptions": ["Rentang warna · detail celah reservoir", "Lifestyle balkon · saat dipakai"],
       "focus": {
-        "leftTitle": "Prioritas Pembeli",
-        "leftItems": [["Bukti eco", "Disarankan konfirmasi rasio serat bambu dan dokumen kepatuhan yang tersedia."], ["Konsistensi warna", "Disarankan sepakati toleransi perbedaan warna per lot sebelum pemesanan."], ["Kekuatan karton", "Konfirmasi standar uji jatuh untuk mengurangi klaim kerusakan pengiriman."], ["OEM dan biaya", "Konfirmasi proses logo dan kebijakan biaya cetakan sebelumnya."]],
-        "rightTitle": "Informasi RFQ yang Disarankan",
-        "rightItems": [["Pasar target", "Negara dan saluran distribusi (eceran, jaringan, e-commerce)."], ["Spesifikasi", "Campuran diameter/tinggi dan perkiraan jumlah per spesifikasi."], ["Jenis kemasan", "Karton bulk, kotak ritel, atau kemasan display berbarcode."], ["Ketentuan perdagangan", "Pelabuhan tujuan, Incoterm, dan bulan pengiriman yang diinginkan."]]
+        "leftTitle": "Pertanyaan pembeli yang sering muncul",
+        "leftItems": [
+          ["Apakah reservoir rapat?", "Ya — pot luar dan dalam saling mengunci. Tidak bocor di permukaan datar. Sediakan tatakan untuk perlindungan ekstra di rak."],
+          ["Berapa lama air bertahan?", "Biasanya 7-14 hari untuk tanaman tropis standar. Tergantung jenis tanaman dan iklim."],
+          ["Bisa warna kustom?", "Bisa, MOQ 200 pcs per warna kustom dengan tambahan 30 hari untuk warna tooling baru."],
+          ["Apakah PP food-safe?", "Resin PP kami bebas BPA. Cocok untuk herbal dan tanaman konsumsi."]
+        ],
+        "rightTitle": "Catatan ekspor dan pengiriman",
+        "rightItems": [
+          "Desain susun mengurangi CBM signifikan dibanding pot keramik bulat.",
+          "Kode HS: 3926.90 (pot plastik) — tarif preferensi RCEP 0-5% berlaku.",
+          "Kemasan kotak kado siap retail tersedia untuk kiriman langsung Shopee/Lazada.",
+          "COO (Form E), packing list, dan invoice komersial standar disertakan."
+        ]
       },
-      "moq": ["100-299 pcs: dukungan warna campuran dalam palet standar", "300-799 pcs: dukungan kode karton dan label barcode kustom", "800+ pcs: opsi OEM logo dan kemasan eceran tersedia"],
-      "lead": ["Sampel: 5-7 hari untuk ukuran dan warna standar", "Pesanan besar: 20-30 hari setelah deposit dan konfirmasi artwork", "Musim puncak: disarankan pesan 2-3 minggu lebih awal"]
+      "ctaPrimary": "Minta Penawaran",
+      "ctaWhatsapp": "WhatsApp Sales",
+      "moq": [
+        "50-199 pcs: warna standar, campur ukuran warna sama diterima",
+        "200-499 pcs: program warna kustom dan kemasan kotak kado",
+        "500+ pcs: logo OEM, program retail, opsi jendela level air"
+      ],
+      "lead": [
+        "Sampel: 5-10 hari untuk ukuran dan warna standar",
+        "Order besar: 20-35 hari setelah DP dan konfirmasi artwork",
+        "Musim puncak: sarankan booking 2-3 minggu lebih awal"
+      ]
     },
-    "self-watering-ceramic-planter.html": {
-      "title": "Pot Keramik Penyiraman Otomatis | GreenSmart",
-      "description": "Pot keramik penyiraman otomatis untuk ritel dan proyek OEM.",
-      "h1": "Pot Keramik Penyiraman Otomatis",
-      "intro": "Diposisikan di segmen menengah-atas untuk tanaman dalam ruangan modern, cocok untuk ritel, proyek hadiah, dan pembeli yang menekankan pengalaman perawatan rendah.",
-      "points": ["Struktur tangki penyimpan air, dengan opsi tali sifon", "Beberapa model dapat dikembangkan dengan jendela tampilan level air", "Cocok untuk pasar Singapura dan Malaysia"],
-      "specsTitle": "Spesifikasi Grosir yang Direkomendasikan",
-      "specsRows": [["Material", "Keramik berglasir + struktur tangki penyimpan air bawaan"], ["Warna", "Putih, Abu-abu, Pasir, dan warna OEM kustom"], ["Ukuran", "Dari pot meja hingga pot dalam ruangan ukuran sedang"], ["Referensi MOQ", "Mulai 50 pcs"], ["Dapat Dikustomisasi", "Kotak hadiah, label, logo, finishing permukaan"]],
-      "buyerTitle": "Jenis Pembeli yang Cocok",
-      "tags": ["Ritel Gaya Hidup", "Saluran Hadiah", "Lini Dalam Ruangan Menengah-Atas", "Saluran Mal"],
+    "root-control-gallon-pot.html": {
+      "title": "Pot Kontrol Akar & Pot Gallon Grosir | GreenSmart",
+      "description": "Pot kontrol akar dan pot gallon pembibitan grosir dari China — dinding air-pruning, 1-10 gallon, MOQ 500 pcs, PP bebas BPA, tahan UV. FOB Shenzhen.",
+      "h1": "Pot Kontrol Akar & Pot Gallon Pembibitan",
+      "intro": "Dinding samping air-pruning mencegah akar melingkar dan menghasilkan sistem akar padat berserat. Wadah tanam standar untuk pembibitan komersial dan penanam serius di seluruh Asia Tenggara.",
+      "points": [
+        "Lubang air-pruning di sisi dan dasar — cegah akar melingkar",
+        "Rentang 1 gallon sampai 10 gallon ready stock",
+        "Resin PP bebas BPA, food-safe grade",
+        "Stabil UV untuk pembibitan outdoor iklim tropis",
+        "Bisa disusun saat kosong — hemat CBM gudang dan freight"
+      ],
+      "quickSpecs": [
+        ["MOQ", "Mulai 500 pcs"],
+        ["Lead Time", "20-30 hari"],
+        ["Pelabuhan FOB", "Shenzhen / Guangzhou"],
+        ["Sampel", "$8-15, dikembalikan saat order"]
+      ],
+      "specsTitle": "Tabel ukuran dan spesifikasi",
+      "specsRows": [
+        ["Ukuran", "1 gal / 2 gal / 3 gal / 5 gal / 7 gal / 10 gal"],
+        ["Rentang diameter", "ø15 cm - ø35 cm"],
+        ["Rentang tinggi", "14 cm - 32 cm"],
+        ["Material", "PP bebas BPA, stabil UV, food-safe grade"],
+        ["Tipe dinding", "Berlubang / mesh untuk air pruning"],
+        ["Warna", "Hitam (standar), hijau tua, cokelat, putih"],
+        ["MOQ", "500 pcs per ukuran/warna"],
+        ["Mix LCL", "Beberapa ukuran dalam satu kiriman, mulai 1 CBM"],
+        ["Sertifikasi", "Laporan uji bebas BPA tersedia; Form E (RCEP) sesuai permintaan"]
+      ],
+      "buyerTitle": "Pembeli paling cocok",
+      "tags": ["Pembibitan komersial VN/ID", "Kebun buah", "Eksportir bunga TH", "Distributor bibit sayur", "Grosir vasilitas pertanian", "Jaringan retail penanam rumahan"],
+      "whyTitle": "Mengapa air-pruning penting di Asia Tenggara",
+      "whyItems": [
+        ["Panas tropis", "akar tumbuh lebih cepat di iklim hangat — air pruning cegah akar melingkar lebih efektif daripada pot dinding solid."],
+        ["Keberhasilan transplantasi", "bola akar hasil air-pruning jauh lebih minim syok saat dipindah — krusial bagi penanam komersial."],
+        ["Drainase air", "dinding berlubang cegah genangan di wilayah curah hujan tinggi (musim hujan Vietnam, Indonesia)."]
+      ],
+      "galleryTitle": "Rentang ukuran dan aplikasi",
+      "galleryNote": "Foto ukuran dan aplikasi lainnya dikirim bersama paket sampel.",
+      "galleryCaptions": ["Panel air-pruning · detail", "Aplikasi tanam · saat dipakai"],
       "focus": {
-        "leftTitle": "Prioritas Pembeli",
-        "leftItems": [["Risiko kebocoran", "Konfirmasi kerapatan tangki dan performa saat miring selama pengiriman."], ["Masa pakai aksesori", "Tentukan rencana penggantian tali/komponen internal untuk memudahkan pembelian ulang."], ["Kontrol kualitas glasir", "Kunci standar pinhol dan toleransi warna sebelum produksi massal."], ["Kemasan tahan benturan", "Saluran hadiah perlu konfirmasi struktur lapisan dan karton."]],
-        "rightTitle": "Informasi RFQ yang Disarankan",
-        "rightItems": [["Struktur SKU", "Tentukan proporsi model meja dan ukuran sedang untuk penawaran yang akurat."], ["Positioning harga", "Bedakan kisaran harga eceran target untuk lini standar dan lini hadiah."], ["Kebutuhan branding", "Tentukan posisi logo, bahasa label, dan kebutuhan kartu."], ["Tonggak waktu", "Sebaiknya berikan timeline sampel dan tanggal peluncuran lot pertama."]]
+        "leftTitle": "Pertanyaan pembeli yang sering muncul",
+        "leftItems": [
+          ["Dinding solid atau mesh?", "Kami suplai keduanya. Mesh/berlubang = air pruning. Solid = pembibitan standar. Ukuran gallon sama tersedia di kedua gaya."],
+          ["Umur UV?", "PP stabil UV tahan 2-3 musim outdoor di iklim tropis."],
+          ["Bisa campur ukuran dalam satu order?", "Bisa — minimum total 500 pcs, bisa dibagi sampai 4 ukuran."],
+          ["Form E RCEP tersedia?", "Ya — kami penerbit Form E RCEP terdaftar. Menurunkan bea masuk ke 0-5% untuk Vietnam dan Indonesia."]
+        ],
+        "rightTitle": "Catatan freight dan ekspor",
+        "rightItems": [
+          "Bisa disusun saat kosong — 500 pcs pot 3 gal hanya sekitar 1,8 CBM (vs 4+ CBM jika tidak bisa disusun).",
+          "Rute utama: FOB Shenzhen → Cat Lai (VN) 6 hari; → Tanjung Priok (ID) 9 hari; → Laem Chabang (TH) 8 hari.",
+          "HS 3926.90 — tarif preferensi RCEP berlaku untuk VN, TH, ID, MY, SG."
+        ]
       },
-      "moq": ["50-199 pcs: kombinasi glasir dan warna standar", "200-499 pcs: opsi kotak hadiah dan kartu sisipan", "500+ pcs: penempatan OEM logo dan program finishing premium"],
-      "lead": ["Sampel: 7-10 hari termasuk pemeriksaan struktur", "Pesanan besar: 25-35 hari setelah deposit dan persetujuan kemasan", "Musim puncak: disarankan perencanaan ekstra 3-4 minggu"]
+      "ctaPrimary": "Minta Penawaran",
+      "ctaWhatsapp": "WhatsApp Sales",
+      "moq": [
+        "500-1499 pcs: ukuran dan warna standar, campur sampai 4 ukuran",
+        "1500-3999 pcs: mix rentang gallon penuh dengan marking karton",
+        "4000+ pcs: marking private label dan loading kontainer sesuai kebutuhan"
+      ],
+      "lead": [
+        "Sampel: 5-8 hari untuk ukuran gallon standar",
+        "Order besar: 20-30 hari setelah DP dan penguncian jumlah",
+        "Musim puncak: cadangkan 2 minggu untuk slot logistik"
+      ]
     },
-    "stackable-nursery-tray.html": {
-      "title": "Nampan Pembibitan yang Dapat Ditumpuk | GreenSmart",
-      "description": "Lini nampan pembibitan yang dapat ditumpuk untuk pembeli grosir pertanian dan perkebunan.",
-      "h1": "Nampan Pembibitan yang Dapat Ditumpuk",
-      "intro": "Untuk pembudidaya komersial, distributor pembibitan, dan saluran berkebun fungsional yang menekankan efisiensi tumpukan dan penggunaan ruang pengiriman.",
-      "points": ["Struktur yang dapat ditumpuk, menghemat gudang dan volume pengiriman", "Tersedia opsi plastik daur ulang, cocok untuk jalur grosir fungsional", "Memenuhi kebutuhan pasar Indonesia dan Filipina"],
-      "specsTitle": "Spesifikasi Grosir yang Direkomendasikan",
-      "specsRows": [["Material", "Plastik PP/PE daur ulang atau standar"], ["Bentuk Nampan", "Nampan sel, nampan bertumpuk, kombinasi pembibitan"], ["Ukuran", "Berbagai jumlah sel dan kedalaman"], ["Referensi MOQ", "Mulai 500 pcs"], ["Dapat Dikustomisasi", "Warna, kemasan, kode karton"]],
-      "buyerTitle": "Jenis Pembeli yang Cocok",
-      "tags": ["Pembibitan", "Petani", "Pasokan Pertanian", "Distributor Bibit"],
+    "transparent-orchid-pot.html": {
+      "title": "Pot Anggrek Transparan & Cup Semai Grosir | GreenSmart",
+      "description": "Pot anggrek transparan dan cup semai grosir dari China — PET/PP bening, ø5-15 cm, MOQ 200 pcs. Akar terlihat. Tren di pasar anggrek Thailand, Vietnam. FOB Shenzhen.",
+      "h1": "Pot Anggrek Transparan & Cup Semai",
+      "intro": "Dinding bening meneruskan cahaya ke akar anggrek dan memudahkan pemantauan kesehatan akar tanpa repotting. Wadah tanam esensial perdagangan anggrek Asia Tenggara — dari eksportir Thailand sampai hobiis Vietnam.",
+      "points": [
+        "PET atau PS bening kristal — akar terlihat dari luar",
+        "Celah drainase samping tingkatkan sirkulasi udara ke akar",
+        "Ukuran ø5 cm sampai ø15 cm lengkap standar pot anggrek",
+        "Tersedia juga varian cup semai / cup propagasi",
+        "Desain susun-sarung hemat penyimpanan dan freight"
+      ],
+      "quickSpecs": [
+        ["MOQ", "Mulai 200 pcs"],
+        ["Lead Time", "15-25 hari"],
+        ["Pelabuhan FOB", "Shenzhen / Guangzhou"],
+        ["Sampel", "$5-12, dikembalikan saat order"]
+      ],
+      "specsTitle": "Spesifikasi produk",
+      "specsRows": [
+        ["Material", "PET bening kristal (kaku) atau PS; opsi PP frosted"],
+        ["Ukuran pot anggrek", "ø5,5 / ø8 / ø10 / ø12 / ø15 cm"],
+        ["Ukuran cup semai", "50 ml / 100 ml / 200 ml / 350 ml"],
+        ["Drainase", "Celah samping + lubang dasar; lebar celah 2-4 mm"],
+        ["Transparansi", "Transmisi cahaya ≥85% (grade bening standar)"],
+        ["Warna", "Bening kristal, bening frosted, hijau muda, pink muda"],
+        ["MOQ", "200 pcs per ukuran (anggrek); 500 pcs per ukuran (cup semai)"],
+        ["Penyusunan", "Susun-sarung; 200 pot ø10 cm ≈ 0,3 CBM"],
+        ["Sertifikasi", "PET food-grade; bebas BPA; Form E tersedia"]
+      ],
+      "buyerTitle": "Pembeli paling cocok",
+      "tags": ["Kebun anggrek TH/VN", "Eksportir anggrek", "Grosir vasilitas pembibitan", "Toko propagasi tanaman", "Retailer penghobi", "Supplier kebun raya"],
+      "whyTitle": "Mengapa pot transparan menguasai budidaya anggrek",
+      "whyItems": [
+        ["Pantau kesehatan akar", "penanam melihat warna akar dan kelembapan tanpa mengganggu akar — akar hijau/perak berarti sehat."],
+        ["Dorongan fotosintesis", "akar anggrek mengandung klorofil dan diuntungkan paparan cahaya — pot bening tingkatkan vitalitas akar."],
+        ["Ekspor anggrek Thailand", "Thailand eksportir anggrek terbesar dunia; pot transparan adalah standar paket Dendrobium dan Phalaenopsis."]
+      ],
+      "galleryTitle": "Rentang ukuran dan varian",
+      "galleryNote": "Foto pot bening lainnya dikirim via WhatsApp atau email setelah inquiry.",
+      "galleryCaptions": ["Visibilitas akar · detail dinding celah", "Rentang ukuran · anggrek mekar"],
       "focus": {
-        "leftTitle": "Prioritas Pembeli",
-        "leftItems": [["Ketebalan plastik", "Konfirmasi berat per pcs dan ketebalan dinding sesuai model nampan."], ["Ketahanan tumpukan", "Konfirmasi performa tekanan nampan dalam pengiriman palet penuh."], ["Persyaratan cuaca", "Bedakan penggunaan di rumah kaca dan di luar ruangan di bawah sinar matahari."], ["Efisiensi tumpukan", "Perhatikan jumlah per karton dan kapasitas muatan kontainer."]],
-        "rightTitle": "Informasi RFQ yang Disarankan",
-        "rightItems": [["Spesifikasi sel", "Berikan jumlah sel, kedalaman nampan, dan bentuk lubang drainase."], ["Pilihan material", "Sebutkan proporsi bahan daur ulang dan preferensi warna."], ["Siklus penggunaan", "Sekali pakai atau multi-musim akan mempengaruhi rekomendasi."], ["Rencana logistik", "Pelabuhan tujuan, pengiriman bertahap, dan kebutuhan stok pengaman."]]
+        "leftTitle": "Pertanyaan pembeli yang sering muncul",
+        "leftItems": [
+          ["PET atau PS?", "PET lebih kaku dan lebih bening; PS lebih murah. Untuk penanam anggrek, PET direkomendasikan. Untuk cup semai (sekali pakai), PS cukup."],
+          ["Apakah celah melemahkan pot?", "Tidak — desain bibir celah diperkuat menjaga integritas struktur. Teruji sampai 2 kg tanaman + media tanam."],
+          ["Bisa cetak logo di pot bening?", "Bisa — sablon atau label shrink sleeve. MOQ 500 pcs untuk sablon."],
+          ["Ada pot luar dekoratif?", "Ada — kami suplai cachepot luar opaque serasi untuk menaruh pot bening di dalamnya."]
+        ],
+        "rightTitle": "Catatan freight dan ekspor",
+        "rightItems": [
+          "Efisiensi CBM sangat baik — pot bening susun-sarung punya biaya freight per unit terendah di semua kategori pot.",
+          "HS 3926.90 — tarif RCEP 0-5% berlaku untuk semua pasar utama Asia Tenggara.",
+          "Rute utama: FOB Shenzhen → Bangkok (udara untuk sampel); laut ke Cat Lai atau Laem Chabang untuk order besar.",
+          "Pembeli Thailand: sering digabung pot kontrol akar dalam LCL sama untuk paket vasilitas pembibitan."
+        ]
       },
-      "moq": ["500-1499 pcs: kedalaman nampan dan format lubang standar", "1500-3999 pcs: opsi lubang campuran per pengiriman", "4000+ pcs: pemuatan karton kustom dan tanda label pribadi"],
-      "lead": ["Sampel: 4-6 hari untuk struktur nampan standar", "Pesanan besar: 18-28 hari setelah deposit dan kunci jumlah", "Musim puncak: pesan 2 minggu untuk slot logistik"]
+      "ctaPrimary": "Minta Penawaran",
+      "ctaWhatsapp": "WhatsApp Sales",
+      "moq": [
+        "200-499 pcs per ukuran: cetakan stok, bening standar",
+        "500-1999 pcs: campur ukuran dan kombinasi cup semai",
+        "2000+ pcs: tint kustom, sablon, atau label shrink sleeve"
+      ],
+      "lead": [
+        "Sampel: 5-10 hari termasuk cek kejernihan",
+        "Order besar: 15-25 hari setelah konfirmasi DP",
+        "Musim puncak: sarankan 2 minggu sebelum puncak perdagangan anggrek"
+      ]
     },
-    "terracotta-planter.html": {
-      "title": "Pot Tanah Liat Berventilasi | GreenSmart",
-      "description": "Pot tanah liat berventilasi untuk ritel klasik dan lini penanaman luar ruangan.",
-      "h1": "Pot Tanah Liat Berventilasi",
-      "intro": "Seri tanah liat klasik, cocok untuk herbal, sukulen, dan berkebun di iklim hangat dan lembab, dengan nilai tampilan yang stabil.",
-      "points": ["Tanah liat berpori membantu akar bernapas", "Tampilan merah tanah alami, gaya berkebun klasik", "Cocok untuk ritel, dekorasi, dan lini produk luar ruangan"],
-      "specsTitle": "Spesifikasi Grosir yang Direkomendasikan",
-      "specsRows": [["Material", "Tanah liat alami yang dibakar pada suhu tinggi"], ["Bentuk", "Pot bulat dengan opsi alas dan aksesori"], ["Ukuran", "Dari ukuran dekorasi kecil hingga ukuran tanam sedang"], ["Referensi MOQ", "Mulai 100 pcs"], ["Dapat Dikustomisasi", "Label, karton, kemasan campuran"]],
-      "buyerTitle": "Jenis Pembeli yang Cocok",
-      "tags": ["Ritel Taman", "Dekorasi Luar Ruangan", "Penanaman Herbal", "Lini Produk Klasik"],
+    "creative-shaped-planter.html": {
+      "title": "Pot Bentuk Kreatif Grosir — Hewan, Batu Imitasi, Telur Dinosaurus | GreenSmart",
+      "description": "Pot bentuk kreatif grosir dari China — hewan, wajah ekspresi, batu imitasi, telur dinosaurus. MOQ 50 pcs per desain, resin/MGO, OEM. Tren di Shopee & TikTok.",
+      "h1": "Pot Bentuk Kreatif & Unik",
+      "intro": "Pot kado dan dekorasi rumah margin tinggi dengan daya viral di Shopee, Lazada, dan TikTok Shop se-Asia Tenggara. Bentuk hewan, wajah ekspresif, tekstur batu imitasi, dan telur dinosaurus — koleksi baru tiap musim.",
+      "points": [
+        "Seri hewan: kucing, kelinci, beruang, landak, wajah kaktus",
+        "Seri ekspresi: senang, kesal, kaget, malu-malu",
+        "Finishing tekstur batu imitasi & beton imitasi",
+        "Telur dinosaurus & desain unik musiman",
+        "Kemasan kotak kado, hang tag, logo OEM tersedia"
+      ],
+      "quickSpecs": [
+        ["MOQ", "Mulai 50 pcs/desain"],
+        ["Lead Time", "20-35 hari"],
+        ["Pelabuhan FOB", "Shenzhen / Yiwu"],
+        ["Sampel", "$8-25, dikembalikan saat order"]
+      ],
+      "specsTitle": "Seri desain dan spesifikasi",
+      "specsRows": [
+        ["Seri hewan", "Kucing · Kelinci · Beruang · Landak · Corgi · Wajah kaktus"],
+        ["Seri ekspresi", "Wajah senang · Kesal · Kaget · Kedip · Malu blush"],
+        ["Seri tekstur", "Batu imitasi · Beton imitasi · Terakota imitasi · Motif marmer"],
+        ["Seri unik", "Telur dinosaurus · Biji ek · Topi jamur · Tunggul kayu mini"],
+        ["Material", "Resin (ringan), MGO semen komposit, atau poly-resin"],
+        ["Ukuran", "Kecil: 8-12 cm · Sedang: 13-18 cm · Besar: 19-25 cm"],
+        ["MOQ", "50 pcs per desain (campur desain dalam satu order diterima)"],
+        ["Kemasan", "Kotak kado individual, bubble wrap, kartu insert OEM"],
+        ["Rentang harga (FOB)", "USD 1,80-6,50 per pcs tergantung ukuran dan desain"]
+      ],
+      "buyerTitle": "Pembeli paling cocok",
+      "tags": ["Toko kado SEA", "Seller TikTok / IG", "Butik dekorasi rumah", "Florist & toko bunga", "Gifting department store", "Kurator subscription box"],
+      "whyTitle": "Mengapa laris di platform Asia Tenggara",
+      "whyItems": [
+        ["Konten viral", "pot hewan dan ekspresi menghasilkan UGC organik di TikTok dan Instagram — share rate 3-5× lebih tinggi vs pot standar."],
+        ["Puncak musim kado", "Valentine, Songkran, Hari Raya, Tet — pot unik terjual 4:1 vs pot standar di minggu momen kado di Shopee."],
+        ["Margin tinggi", "landed cost USD 2-4, harga retail THB 250-450 / VND 80.000-150.000 / SGD 12-22."],
+        ["MOQ rendah per desain", "pembeli bisa stok 6-8 desain @50 pcs daripada komit ke satu desain."]
+      ],
+      "galleryTitle": "Galeri seri desain",
+      "galleryNote": "Katalog desain lengkap (50+ desain) dikirim via WhatsApp atau email setelah inquiry. Koleksi baru rilis tiap kuartal.",
+      "galleryCaptions": ["Desain relief · close-up detail", "Gaya lifestyle · tampilan siap kado"],
       "focus": {
-        "leftTitle": "Prioritas Pembeli",
-        "leftItems": [["Kontrol kerusakan", "Disarankan sepakati tingkat kerusakan yang dapat diterima dan prosedur klaim."], ["Penyerapan air", "Konfirmasi tingkat porositas tanah liat berdasarkan iklim lokal dan jenis tanaman."], ["Konsistensi warna", "Kunci rentang perbedaan warna tanah merah per lot."], ["Ketahanan musiman", "Konfirmasi batas penggunaan di lingkungan suhu tinggi/rendah."]],
-        "rightTitle": "Informasi RFQ yang Disarankan",
-        "rightItems": [["Struktur set", "Tentukan apakah perlu kombinasi pot + alas."], ["Positioning saluran", "Ritel taman, dekorasi rumah, atau pasokan proyek."], ["Rencana kemasan", "Sekat, kertas sarang lebah, atau set wrapping shrink."], ["Ritme pengadaan stok", "Sebutkan jendela musim puncak dan siklus restock."]]
+        "leftTitle": "Pertanyaan pembeli yang sering muncul",
+        "leftItems": [
+          ["Bisa desain eksklusif?", "Bisa — cetakan OEM eksklusif mulai MOQ 500 pcs/desain. Biaya cetakan ditawarkan terpisah."],
+          ["Apakah tahan air?", "Resin dan MGO tahan air. Semua desain punya lubang drainase standar. Tidak cocok terendam outdoor lama."],
+          ["Bagaimana cegah pecah saat kirim?", "Kotak kado individual + foam insert + lapisan bubble karton luar. Tingkat pecah di bawah 1% pengiriman standar."],
+          ["Ada desain baru musiman?", "Kami rilis 10-15 desain baru per kuartal. Subscriber WhatsApp dapat katalog first-look."]
+        ],
+        "rightTitle": "Catatan freight dan ekspor",
+        "rightItems": [
+          "Desain resin: ringan (150-400 g per pcs) — air freight memungkinkan untuk order trial kecil.",
+          "Desain MGO semen: lebih berat — rekomendasi laut FCL untuk order di atas 500 pcs.",
+          "HS 6913.90 (imitasi keramik) atau 3926.90 (resin) — verifikasi dengan broker pabean per desain.",
+          "FOB Yiwu atau FOB Shenzhen tergantung alokasi pabrik — penawaran mencantumkan pelabuhannya."
+        ]
       },
-      "moq": ["100-399 pcs: bentuk standar dan warna terracotta klasik", "400-999 pcs: assortmen ukuran campuran dalam satu pesanan", "1000+ pcs: opsi label kustom dan kemasan diperkuat"],
-      "lead": ["Sampel: 6-8 hari untuk ukuran yang dipilih", "Pesanan besar: 22-32 hari setelah deposit dan penandatanganan kemasan", "Musim puncak: disarankan 2-3 minggu untuk jadwal kiln"]
-    },
-    "balcony-planter-box.html": {
-      "title": "Kotak Tanam Balkon | GreenSmart",
-      "description": "Kotak tanam balkon untuk berkebun perkotaan dan proyek perumahan.",
-      "h1": "Kotak Tanam Balkon",
-      "intro": "Cocok untuk balkon apartemen, set ritel ruang kecil, dan kontrak perumahan jangka panjang berbasis proyek.",
-      "points": ["Struktur panjang, cocok untuk ruang kota yang terbatas", "Tersedia opsi kombinasi nampan dan liner dalam", "Cocok untuk proyek perumahan dan promosi berkebun di balkon"],
-      "specsTitle": "Spesifikasi Grosir yang Direkomendasikan",
-      "specsRows": [["Material", "Plastik tahan cuaca atau material komposit"], ["Bentuk", "Kotak tanam + nampan atau penyangga"], ["Ukuran", "Ukuran balkon, ambang jendela, dan proyek"], ["Referensi MOQ", "Mulai 20 set"], ["Dapat Dikustomisasi", "Warna, kemasan, penyesuaian ukuran proyek"]],
-      "buyerTitle": "Jenis Pembeli yang Cocok",
-      "tags": ["Ritel Berkebun Perkotaan", "Proyek Perumahan", "Pasokan Lanskap", "Set Tanam"],
-      "focus": {
-        "leftTitle": "Prioritas Pembeli",
-        "leftItems": [["Kapasitas beban", "Performa bagian bawah dan penguatan dasar saat penuh dengan tanah basah."], ["Desain drainase", "Konfirmasi jalur luapan untuk menghindari keluhan kebocoran balkon."], ["Ketahanan UV dan pemudaran", "Tetapkan standar cuaca berdasarkan intensitas sinar matahari di pasar target."], ["Kompatibilitas aksesori", "Konfirmasi kompatibilitas nampan, gantungan, dan penyangga."]],
-        "rightTitle": "Informasi RFQ yang Disarankan",
-        "rightItems": [["Skenario proyek", "Perumahan, set ritel, atau proyek lanskap."], ["Ukuran target", "Tentukan panjang, lebar, tinggi, dan kedalaman tanam efektif."], ["Unit penjualan", "Satuan, set, atau pengiriman campuran per proyek."], ["Pengaturan pengiriman", "Jadwal pengiriman bertahap dan jendela pemasangan."]]
-      },
-      "moq": ["20-99 set: kotak tanam dan nampan standar", "100-299 set: campuran ukuran dengan kemasan siap proyek", "300+ set: dukungan warna OEM dan label proyek"],
-      "lead": ["Sampel: 5-7 hari untuk dimensi standar", "Pesanan besar: 20-30 hari setelah deposit dan konfirmasi spesifikasi akhir", "Musim puncak: disarankan 2 minggu lebih awal untuk jendela proyek"]
-    },
-    "hanging-coir-basket.html": {
-      "title": "Keranjang Gantung Serat Kelapa | GreenSmart",
-      "description": "Keranjang gantung serat kelapa untuk dekorasi dan rangkaian produk berkebun gantung.",
-      "h1": "Keranjang Gantung Serat Kelapa",
-      "intro": "Keranjang gantung bergaya alami, cocok untuk ritel dekorasi, pameran kebun, dan rangkaian produk berkebun yang ramah lingkungan.",
-      "points": ["Liner serat kelapa, tekstur material alami yang menonjol", "Pilihan aksesori rantai dan kait logam", "Cocok untuk pusat taman dan lini produk dekorasi eco"],
-      "specsTitle": "Spesifikasi Grosir yang Direkomendasikan",
-      "specsRows": [["Material", "Liner serat kelapa + rangka logam"], ["Bentuk", "Keranjang bulat + set rantai gantung"], ["Ukuran", "Ukuran dekorasi eceran dan pameran kebun"], ["Referensi MOQ", "Mulai 100 set"], ["Dapat Dikustomisasi", "Warna rantai, label, kemasan, campuran"]],
-      "buyerTitle": "Jenis Pembeli yang Cocok",
-      "tags": ["Pusat Taman", "Ritel Dekorasi Kebun", "Pajangan Musiman", "Taman Vertikal"],
-      "focus": {
-        "leftTitle": "Prioritas Pembeli",
-        "leftItems": [["Anti-karat rantai", "Iklim lembab perlu konfirmasi tingkat perlindungan karat."], ["Spesifikasi liner serat", "Ketebalan dan kepadatan serat mempengaruhi retensi air."], ["Keamanan gantungan", "Perlu tentukan batas beban dan kekuatan kait."], ["Kemasan pajangan musiman", "Promosi musim semi sering memerlukan kemasan yang ramah rak."]],
-        "rightTitle": "Informasi RFQ yang Disarankan",
-        "rightItems": [["Campuran ukuran", "Sediakan diameter, kedalaman, dan panjang rantai sekaligus."], ["Permukaan rangka", "Pilihan hitam, perunggu, cat bubuk, atau galvanis."], ["Bentuk liner", "Liner serat kelapa terpasang atau dikemas terpisah."], ["Ritme penjualan", "Target bulan peluncuran dan rencana frekuensi pengisian."]]
-      },
-      "moq": ["100-299 set: rangka keranjang dan panjang rantai standar", "300-799 set: kombinasi diameter campuran tersedia", "800+ set: finishing rantai kustom dan kemasan eceran bermerek"],
-      "lead": ["Sampel: 5-8 hari untuk verifikasi keranjang dan rantai", "Pesanan besar: 20-30 hari setelah deposit dan konfirmasi aksesori", "Musim puncak: pesan 2-3 minggu sebelum puncak musim semi"]
+      "ctaPrimary": "Minta Katalog",
+      "ctaWhatsapp": "WhatsApp Desain Terbaru",
+      "moq": [
+        "50-199 pcs per desain: campur desain dalam satu order diterima",
+        "200-499 pcs: kemasan kotak kado dan kartu insert OEM",
+        "500+ pcs per desain: program cetakan OEM eksklusif"
+      ],
+      "lead": [
+        "Sampel: 7-10 hari untuk desain katalog",
+        "Order besar: 20-35 hari setelah DP dan approval kemasan",
+        "Musim puncak: booking 3-4 minggu sebelum musim kado"
+      ]
     }
   }
 }

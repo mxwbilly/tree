@@ -25,6 +25,7 @@ const staticEntries = [
   'robots.txt',
   'sitemap.xml',
   'trend-data.json',
+  'rfq-template.csv',
   'site.webmanifest',
   'favicon.svg',
   'favicon-32x32.png',

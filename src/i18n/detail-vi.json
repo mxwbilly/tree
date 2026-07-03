@@ -1,123 +1,291 @@
 {
   "ui": {
-    "backBtn": "Quay lai san pham trang chu",
-    "quoteBtn": "Yeu cau bao gia si",
-    "htmlLang": "vi"
+    "htmlLang": "vi",
+    "backBtn": "← Quay lai san pham",
+    "quoteBtn": "Yeu cau bao gia",
+    "whatsappBtn": "WhatsApp ban hang",
+    "relatedTitle": "San pham lien quan"
   },
   "pages": {
-    "bamboo-fiber-planter.html": {
-      "title": "Chau Hoa Soi Tre Than Thien Moi Truong | GreenSmart",
-      "description": "Dong san pham chau hoa soi tre than thien moi truong danh cho nguoi mua buon Dong Nam A.",
-      "h1": "Chau Hoa Soi Tre Than Thien Moi Truong",
-      "intro": "Phu hop cho nguoi mua quan tam den dinh vi xanh, trong luong van chuyen nhe hon va mau sac than thien voi kenh ban le.",
-      "points": ["Chat lieu tu nhien voi ngoai quan sach dep", "Phu hop cho trang tri nha, qua tang va ban le chuoi", "Ho tro OEM logo, nhan dan va tuy chinh carton"],
-      "specsTitle": "Quy cach si khuyen nghi",
-      "specsRows": [["Chat lieu", "Hop chat soi tre"], ["Be mat", "Mau tu nhien mat hoac son"], ["Kich thuoc", "Tu chau nho ban den chau trang tri co"], ["MOQ tham chieu", "Tu 100 cai"], ["Co the tuy chinh", "Mau sac, Logo, nhan, ky hieu carton"]],
-      "buyerTitle": "Loai nguoi mua phu hop",
-      "tags": ["Cua hang qua tang", "Ban le trang tri nha", "Dong san pham xanh", "Chuoi cua hang"],
+    "self-watering-double-layer.html": {
+      "title": "Chau Tu Tuoi Nuoc Hai Lop Gia Si | GreenSmart",
+      "description": "Chau tu tuoi nuoc hai lop gia si tu Trung Quoc — ngan chua nuoc day, vach bao nuoc tuy chon, mau OEM. MOQ 50 cai, FOB Shenzhen.",
+      "h1": "Chau Tu Tuoi Nuoc Hai Lop (Chau Luoi)",
+      "intro": "Thiet ke ngan chua nuoc day — tuoi mot lan, cay du am 1-2 tuan. Danh muc chau trong nha hot nhat tren Shopee Malaysia, Shopee Singapore va Tiki Viet Nam 2025-2026.",
+      "points": [
+        "Than PP hai lop voi ngan chua nuoc kin o day",
+        "Cua so xem muc nuoc trong suot (tuy chon)",
+        "He thong bac tham hoac tuoi ngam tuy chon",
+        "Vo ngoai co ban nham, bong hoac gia gom",
+        "Ho tro mau OEM + bao bi nhan rieng"
+      ],
+      "quickSpecs": [
+        ["MOQ", "Tu 50 cai"],
+        ["Thoi gian giao", "20-35 ngay"],
+        ["Cang FOB", "Shenzhen / Shanghai"],
+        ["Hang mau", "$10-20, hoan phi"]
+      ],
+      "specsTitle": "Thong so san pham",
+      "specsRows": [
+        ["Vat lieu", "PP khong BPA (trong + ngoai), tuy chon vo ABS gia gom"],
+        ["Kich thuoc", "ø10 cm / ø14 cm / ø18 cm / ø22 cm / ø26 cm"],
+        ["Dung tich ngan nuoc", "150 ml - 1.200 ml tuy kich thuoc"],
+        ["Mau sac", "Trang, xam, xanh sage, hong, be, den — nhan OEM"],
+        ["Bao muc nuoc", "Cua so ben hong tuy chon; co ban khong cua so"],
+        ["Thoat nuoc", "Lo tran chong ung re; tuy chon khay trong thao roi"],
+        ["MOQ", "50 cai moi SKU (chap nhan tron size cung mau)"],
+        ["Tuy chinh", "Logo OEM, hop qua, the treo, tui PE"],
+        ["CBM (mix 20 size)", "Khoang 0,6 CBM moi 500 cai"]
+      ],
+      "buyerTitle": "Nguoi mua phu hop nhat",
+      "tags": ["Nguoi ban Shopee / Lazada", "Cua hang lifestyle chung cu", "Shop qua tang", "Trung tam vuon SG/MY", "Nha ban le cay trong nha", "Thuong hieu hop qua dinh ky"],
+      "whyTitle": "Vi sao ban chay tai Dong Nam A",
+      "whyItems": [
+        ["Can ho do thi", "cu dan thanh pho ban ron muon cay song khoe ma khong cham soc hang ngay."],
+        ["Qua tang", "dang hien dai gon gang + thong diep it cham soc = san pham qua tang de ban."],
+        ["Thuat toan san TMDT", "\"chau luoi / lazy pot\" la tu khoa bung no tren Shopee SG, MY va TH tu 2024."]
+      ],
+      "galleryTitle": "Mau ma va dai kich thuoc",
+      "galleryNote": "Them anh kich thuoc va mau sac se gui qua WhatsApp hoac email sau khi lien he.",
+      "galleryCaptions": ["Dai mau · chi tiet khe ngan nuoc", "Phong cach ban cong · dang su dung"],
       "focus": {
-        "leftTitle": "Uu tien cua nguoi mua",
-        "leftItems": [["Bao dam eco", "Nen xac nhan ty le soi tre va tai lieu tuan thu co san."], ["Dong deu mau sac", "Nen thoa thuan pham vi sai mau theo lo truoc khi dat don."], ["Do ben carton", "Xac nhan tieu chuan test roi de giam khieu nai hu hong."], ["OEM va chi phi", "Thong nhat quy trinh logo va phi khuon truoc."]],
-        "rightTitle": "Thong tin RFQ khuyen nghi",
-        "rightItems": [["Thi truong muc tieu", "Quoc gia va kenh phan phoi (ban le, chuoi, TMDT)."], ["Quy cach can", "Hon hop kich thuoc va so luong theo tung loai."], ["Loai dong goi", "Thung rong, hop ban le hoac goi trung bay co ma vach."], ["Dieu khoan thuong mai", "Cang den, Incoterm va thang xuat du kien."]]
+        "leftTitle": "Cau hoi nguoi mua thuong gap",
+        "leftItems": [
+          ["Ngan nuoc co kin khong?", "Co — chau trong va ngoai khop chat. Khong ro ri tren mat phang. Co khay hung kem de bao ve ke."],
+          ["Nuoc dung duoc bao lau?", "Thuong 7-14 ngay cho cay nhiet doi pho bien. Tuy loai cay va khi hau."],
+          ["Lam mau rieng duoc khong?", "Duoc, MOQ 200 cai moi mau rieng, them 30 ngay cho mau khuon moi."],
+          ["PP co an toan thuc pham?", "Nhua PP cua chung toi khong BPA. Phu hop trong rau thom va cay an duoc."]
+        ],
+        "rightTitle": "Ghi chu xuat khau va van chuyen",
+        "rightItems": [
+          "Thiet ke xep chong giam dang ke CBM so voi chau gom tron.",
+          "Ma HS: 3926.90 (chau nhua) — ap dung thue uu dai RCEP 0-5%.",
+          "Co bao bi hop qua san sang ban le cho don giao truc tiep Shopee/Lazada.",
+          "COO (Form E), phieu dong goi va hoa don thuong mai kem theo tieu chuan."
+        ]
       },
-      "moq": ["100-299 cai: ho tro hon mau trong bang mau tieu chuan", "300-799 cai: ho tro ky hieu carton va nhan ma vach tuy chinh", "800+ cai: co the co tuy chon OEM logo va bao bi ban le"],
-      "lead": ["Mau: 5-7 ngay cho kich thuoc va mau tieu chuan", "Don lon: 20-30 ngay sau khi nhan coc va xac nhan ban ve", "Mua cao diem: nen dat truoc 2-3 tuan som hon"]
+      "ctaPrimary": "Yeu cau bao gia",
+      "ctaWhatsapp": "WhatsApp ban hang",
+      "moq": [
+        "50-199 cai: mau tieu chuan, chap nhan tron size cung mau",
+        "200-499 cai: chuong trinh mau rieng va bao bi hop qua",
+        "500+ cai: logo OEM, chuong trinh ban le, tuy chon cua so muc nuoc"
+      ],
+      "lead": [
+        "Lam mau: 5-10 ngay cho size va mau tieu chuan",
+        "Don lon: 20-35 ngay sau dat coc va xac nhan artwork",
+        "Mua cao diem: nen dat truoc 2-3 tuan"
+      ]
     },
-    "self-watering-ceramic-planter.html": {
-      "title": "Chau Gom Tu Dong Tuoi Nuoc | GreenSmart",
-      "description": "Chau gom tu dong tuoi nuoc danh cho ban le va du an OEM.",
-      "h1": "Chau Gom Tu Dong Tuoi Nuoc",
-      "intro": "Dinh vi phan khuc cao cap cho noi that hien dai, phu hop nha ban le, du an qua tang va nguoi mua chon cuoc song nhan nhoi khong can phieu me.",
-      "points": ["Ngan chua nuoc kem, tuy chon day dan nuoc", "Mot so mau co the the hien cua so muc nuoc", "Phu hop thi truong Singapore va Malaysia"],
-      "specsTitle": "Quy cach si khuyen nghi",
-      "specsRows": [["Chat lieu", "Gom men + ngan chua nuoc tich hop"], ["Mau sac", "Trang, xam, be cat va OEM tuy chinh"], ["Kich thuoc", "Tu chau ban nho den chau noi that co"], ["MOQ tham chieu", "Tu 50 cai"], ["Co the tuy chinh", "Hop qua, nhan, logo, be mat cao cap"]],
-      "buyerTitle": "Loai nguoi mua phu hop",
-      "tags": ["Ban le phong cach song", "Kenh qua tang", "Dong noi that cao cap", "Kenh bai hang"],
+    "root-control-gallon-pot.html": {
+      "title": "Chau Kiem Soat Re & Chau Gallon Gia Si | GreenSmart",
+      "description": "Chau kiem soat re va chau gallon uom cay gia si tu Trung Quoc — thanh air-pruning, 1-10 gallon, MOQ 500 cai, PP khong BPA, chong UV. FOB Shenzhen.",
+      "h1": "Chau Kiem Soat Re & Chau Gallon Uom Cay",
+      "intro": "Thanh ben air-pruning chong re xoan va tao bo re day, nhieu re to. Chau trong tieu chuan cho vuon uom thuong mai va nguoi trong chuyen nghiep khap Dong Nam A.",
+      "points": [
+        "Lo air-pruning o thanh va day — chong re xoan vong",
+        "Du kich thuoc tu 1 gallon den 10 gallon co san",
+        "Nhua PP khong BPA, dat chuan an toan thuc pham",
+        "On dinh UV cho vuon uom ngoai troi khi hau nhiet doi",
+        "Xep chong khi rong — giam CBM kho va van chuyen"
+      ],
+      "quickSpecs": [
+        ["MOQ", "Tu 500 cai"],
+        ["Thoi gian giao", "20-30 ngay"],
+        ["Cang FOB", "Shenzhen / Guangzhou"],
+        ["Hang mau", "$8-15, hoan phi"]
+      ],
+      "specsTitle": "Bang kich thuoc va thong so",
+      "specsRows": [
+        ["Kich thuoc", "1 gal / 2 gal / 3 gal / 5 gal / 7 gal / 10 gal"],
+        ["Duong kinh", "ø15 cm - ø35 cm"],
+        ["Chieu cao", "14 cm - 32 cm"],
+        ["Vat lieu", "PP khong BPA, on dinh UV, chuan an toan thuc pham"],
+        ["Kieu thanh", "Thanh duc lo / luoi cho air pruning"],
+        ["Mau sac", "Den (tieu chuan), xanh dam, nau, trang"],
+        ["MOQ", "500 cai moi size/mau"],
+        ["Tron LCL", "Nhieu size trong mot lo hang, tu 1 CBM"],
+        ["Chung nhan", "Co bao cao khong BPA; Form E (RCEP) theo yeu cau"]
+      ],
+      "buyerTitle": "Nguoi mua phu hop nhat",
+      "tags": ["Vuon uom thuong mai VN/ID", "Trang trai cay an qua", "Nha xuat khau hoa TH", "Nha phan phoi cay giong rau", "Ban si vat tu nong nghiep", "Chuoi ban le nguoi trong tai nha"],
+      "whyTitle": "Vi sao air-pruning quan trong o Dong Nam A",
+      "whyItems": [
+        ["Nong nhiet doi", "re phat trien nhanh trong khi hau nong — air pruning chong re xoan hieu qua hon chau thanh kin."],
+        ["Ty le song khi chuyen cay", "bo re qua air-pruning it soc hon nhieu khi chuyen chau — quan trong voi nguoi trong thuong mai."],
+        ["Thoat nuoc", "thanh duc lo chong ung nuoc o vung mua nhieu (mua mua Viet Nam, Indonesia)."]
+      ],
+      "galleryTitle": "Dai kich thuoc va ung dung",
+      "galleryNote": "Them anh kich thuoc va ung dung se gui kem goi hang mau.",
+      "galleryCaptions": ["Thanh air-pruning · chi tiet", "Ung dung trong cay · dang su dung"],
       "focus": {
-        "leftTitle": "Uu tien cua nguoi mua",
-        "leftItems": [["Rui ro ro ri", "Nen xac nhan do kin ngan nuoc va bieu hien khi nghieng trong van chuyen."], ["Tuan thu phu kien", "Xac dinh phuong an thay day dan/noi bo truoc de tao dieu kien mua lai."], ["Kiem soat chat luong men", "Khoa tieu chuan lo hong va sai mau truoc san xuat lon."], ["Dong goi chong vo", "Kenh qua tang nen xac nhan cau truc lot va thung."]],
-        "rightTitle": "Thong tin RFQ khuyen nghi",
-        "rightItems": [["Co cau SKU", "Xac ro ty le ban nho va ban co de bao gia chinh xac."], ["Dinh vi gia", "Phan biet giai gia ban le muc tieu cho dong tieu chuan va dong qua tang."], ["Yeu cau thuong hieu", "Neu ro vi tri logo, ngon ngu nhan va nhu cau the huong dan."], ["Moc thoi gian", "Nen cung cap moc mau va thoi gian len ke lo hang dau."]]
+        "leftTitle": "Cau hoi nguoi mua thuong gap",
+        "leftItems": [
+          ["Thanh kin hay thanh luoi?", "Co ca hai. Luoi/duc lo = air pruning. Kin = vuon uom tieu chuan. Cung size gallon cho ca hai kieu."],
+          ["Tuoi tho UV?", "PP on dinh UV chiu duoc 2-3 mua ngoai troi khi hau nhiet doi."],
+          ["Tron size trong mot don duoc khong?", "Duoc — toi thieu 500 cai tong, chia toi da 4 size."],
+          ["Co Form E RCEP khong?", "Co — chung toi la don vi phat hanh Form E RCEP. Giam thue nhap ve 0-5% cho Viet Nam va Indonesia."]
+        ],
+        "rightTitle": "Ghi chu cuoc van va xuat khau",
+        "rightItems": [
+          "Xep chong khi rong — 500 chau 3 gal chi khoang 1,8 CBM (so voi 4+ CBM neu khong xep chong).",
+          "Tuyen chinh: FOB Shenzhen → Cat Lai (VN) 6 ngay; → Tanjung Priok (ID) 9 ngay; → Laem Chabang (TH) 8 ngay.",
+          "HS 3926.90 — thue uu dai RCEP ap dung cho VN, TH, ID, MY, SG."
+        ]
       },
-      "moq": ["50-199 cai: men tieu chuan va to hop mau thuong dung", "200-499 cai: tuy chon hop qua va nhan kem", "500+ cai: dat OEM logo va goi cao cap"],
-      "lead": ["Mau: 7-10 ngay bao gom kiem tra cau truc", "Don lon: 25-35 ngay sau khi nhan coc va duyet bao bi", "Mua cao diem: nen du phong them 3-4 tuan"]
+      "ctaPrimary": "Yeu cau bao gia",
+      "ctaWhatsapp": "WhatsApp ban hang",
+      "moq": [
+        "500-1499 cai: size va mau tieu chuan, tron toi da 4 size",
+        "1500-3999 cai: tron du dai gallon kem ky hieu thung",
+        "4000+ cai: nhan rieng va xep container theo yeu cau"
+      ],
+      "lead": [
+        "Lam mau: 5-8 ngay cho size gallon tieu chuan",
+        "Don lon: 20-30 ngay sau dat coc va chot so luong",
+        "Mua cao diem: du phong 2 tuan cho lich van chuyen"
+      ]
     },
-    "stackable-nursery-tray.html": {
-      "title": "Bo Khay Uom Cay Co The Xep Chong | GreenSmart",
-      "description": "Dong san pham khay uom cay xep chong danh cho nguoi mua buon trong trong va nong nghiep.",
-      "h1": "Bo Khay Uom Cay Co The Xep Chong",
-      "intro": "Phu hop cho nguoi trong thuong mai, phan phoi uom va kenh lam vuon thuc dung, nhan manh hieu qua xep chong va tan dung khong gian van chuyen.",
-      "points": ["Cau truc xep chong, tiet kiem kho bai va dung tich van chuyen", "Co the cung cap phuong an nhua tai che, phu hop dong buon thuc dung", "Dap ung nhu cau thi truong Indonesia va Philippines"],
-      "specsTitle": "Quy cach si khuyen nghi",
-      "specsRows": [["Chat lieu", "Nhua PP/PE tai che hoac tieu chuan"], ["Dang khay", "Khay lo, khay xep chong, to hop uom"], ["Kich thuoc", "Nhieu so lo va do sau"], ["MOQ tham chieu", "Tu 500 cai"], ["Co the tuy chinh", "Mau sac, dong goi, ky hieu thung"]],
-      "buyerTitle": "Loai nguoi mua phu hop",
-      "tags": ["Vuon uom", "Nha trong", "Cung cap vat tu nong nghiep", "Phan phoi uom"],
+    "transparent-orchid-pot.html": {
+      "title": "Chau Lan Trong Suot & Coc Uom Cay Gia Si | GreenSmart",
+      "description": "Chau lan trong suot va coc uom cay gia si tu Trung Quoc — PET/PP trong, ø5-15 cm, MOQ 200 cai. Nhin thay re. Hot tai thi truong lan Thai Lan, Viet Nam. FOB Shenzhen.",
+      "h1": "Chau Lan Trong Suot & Coc Uom Cay",
+      "intro": "Thanh trong suot cho anh sang den re lan va giup nguoi trong theo doi suc khoe re ma khong can thay chau. Chau trong thiet yeu cua nganh lan Dong Nam A — tu nha xuat khau Thai den nguoi trong Viet Nam.",
+      "points": [
+        "PET hoac PS trong suot — nhin thay re tu ben ngoai",
+        "Khe thoat nuoc ben hong tang luu thong khi den re",
+        "Kich thuoc ø5 cm den ø15 cm du chuan chau lan",
+        "Co san phien ban coc uom / coc nhan giong",
+        "Thiet ke xep long giam kho chua va cuoc van"
+      ],
+      "quickSpecs": [
+        ["MOQ", "Tu 200 cai"],
+        ["Thoi gian giao", "15-25 ngay"],
+        ["Cang FOB", "Shenzhen / Guangzhou"],
+        ["Hang mau", "$5-12, hoan phi"]
+      ],
+      "specsTitle": "Thong so san pham",
+      "specsRows": [
+        ["Vat lieu", "PET trong suot (cung) hoac PS; tuy chon PP mo"],
+        ["Size chau lan", "ø5,5 / ø8 / ø10 / ø12 / ø15 cm"],
+        ["Size coc uom", "50 ml / 100 ml / 200 ml / 350 ml"],
+        ["Thoat nuoc", "Khe ben hong + lo day; khe rong 2-4 mm"],
+        ["Do trong", "≥85% anh sang xuyen qua (chuan trong tieu chuan)"],
+        ["Mau sac", "Trong suot, trong mo, xanh nhat, hong nhat"],
+        ["MOQ", "200 cai moi size (chau lan); 500 cai moi size (coc uom)"],
+        ["Xep chong", "Xep long; 200 chau ø10 cm ≈ 0,3 CBM"],
+        ["Chung nhan", "PET chuan thuc pham; khong BPA; co Form E"]
+      ],
+      "buyerTitle": "Nguoi mua phu hop nhat",
+      "tags": ["Trang trai lan TH/VN", "Nha xuat khau lan", "Ban si vat tu vuon uom", "Shop nhan giong cay", "Nha ban le nguoi choi lan", "Nha cung cap vuon bach thao"],
+      "whyTitle": "Vi sao chau trong suot thong tri nganh lan",
+      "whyItems": [
+        ["Theo doi suc khoe re", "nguoi trong thay mau re va do am ma khong dong den re — re xanh/bac la khoe."],
+        ["Tang quang hop", "re lan chua diep luc va huong loi tu anh sang — chau trong giup re khoe hon."],
+        ["Xuat khau lan Thai", "Thai Lan la nuoc xuat khau lan lon nhat the gioi; chau trong la chuan cho Dendrobium va Phalaenopsis."]
+      ],
+      "galleryTitle": "Dai kich thuoc va phien ban",
+      "galleryNote": "Them anh chau trong se gui qua WhatsApp hoac email sau khi lien he.",
+      "galleryCaptions": ["Nhin thay re · chi tiet khe thanh", "Dai size · lan dang no hoa"],
       "focus": {
-        "leftTitle": "Uu tien cua nguoi mua",
-        "leftItems": [["Do day nhua", "Nen xac nhan trong luong cai va do day thanh theo quy cach khay."], ["Chiu ap xep chong", "Xac nhan kha nang chiu ap khi van chuyen ca palet."], ["Yeu cau chong thoi tiet", "Phan biet su dung trong nha uom va ngoai nang."], ["Hieu qua xep long nhau", "Chu y so cai tren thung va so luong ca cont."]],
-        "rightTitle": "Thong tin RFQ khuyen nghi",
-        "rightItems": [["Quy cach lo", "Cung cap so lo, do sau va dang lo thoat nuoc."], ["Phuong an vat lieu", "Neu ro ty le nhua tai che va mau sac uu tien."], ["Chu ky su dung", "Mot lan dung hay nhieu mua anh huong den de xuat."], ["Ke hoach van chuyen", "Cang den, giao hang chia dot va yeu cau hang tru."]]
+        "leftTitle": "Cau hoi nguoi mua thuong gap",
+        "leftItems": [
+          ["PET hay PS?", "PET cung hon va trong hon; PS re hon. Trong lan nen dung PET. Coc uom (dung mot lan) thi PS du tot."],
+          ["Khe co lam yeu chau?", "Khong — vien khe gia cuong giu do cung. Da thu nghiem den 2 kg cay + gia the."],
+          ["In logo len chau trong duoc khong?", "Duoc — in lua hoac nhan co. MOQ 500 cai cho in lua."],
+          ["Co chau ngoai trang tri kem khong?", "Co — chung toi cung cap chau ngoai duc mau dong bo de dat chau trong ben trong."]
+        ],
+        "rightTitle": "Ghi chu cuoc van va xuat khau",
+        "rightItems": [
+          "Hieu qua CBM xuat sac — chau trong xep long co cuoc van moi don vi thap nhat trong cac loai chau.",
+          "HS 3926.90 — thue RCEP 0-5% ap dung cho cac thi truong Dong Nam A chinh.",
+          "Tuyen chinh: FOB Shenzhen → Bangkok (bay cho mau); duong bien den Cat Lai hoac Laem Chabang cho don lon.",
+          "Nguoi mua Thai: thuong ghep chung chau kiem soat re trong cung LCL cho goi vat tu vuon uom."
+        ]
       },
-      "moq": ["500-1499 cai: do sau khay va lo tieu chuan", "1500-3999 cai: co the hon cac loai lo trong mot lo hang", "4000+ cai: tuy chinh dong thung va ky hieu nhan hang"],
-      "lead": ["Mau: 4-6 ngay cho cau truc khay tieu chuan", "Don lon: 18-28 ngay sau khi nhan coc va khoa so luong", "Mua cao diem: dat truoc 2 tuan cho slot van chuyen"]
+      "ctaPrimary": "Yeu cau bao gia",
+      "ctaWhatsapp": "WhatsApp ban hang",
+      "moq": [
+        "200-499 cai moi size: khuon san, trong suot tieu chuan",
+        "500-1999 cai: tron size va ket hop coc uom",
+        "2000+ cai: nhuom mau, in lua hoac nhan co theo yeu cau"
+      ],
+      "lead": [
+        "Lam mau: 5-10 ngay gom kiem tra do trong",
+        "Don lon: 15-25 ngay sau xac nhan dat coc",
+        "Mua cao diem: nen dat truoc 2 tuan mua lan cao diem"
+      ]
     },
-    "terracotta-planter.html": {
-      "title": "Chau Dat Nung Thoang Khi | GreenSmart",
-      "description": "Chau dat nung thoang khi phu hop cho ban le kinh dien va trong cay ngoai troi.",
-      "h1": "Chau Dat Nung Thoang Khi",
-      "intro": "Dong dat nung kinh dien, phu hop cho cay thom, cay mong nuoc va lam vuon khi hau am, co gia tri trung bay on dinh.",
-      "points": ["Dat nung nhieu lo giup re cay thoang khi", "Mau do tu nhien, phong cach lam vuon kinh dien", "Phu hop cho ban le, trang tri va dong san pham ngoai troi"],
-      "specsTitle": "Quy cach si khuyen nghi",
-      "specsRows": [["Chat lieu", "Dat tu nhien nung nhiet cao"], ["Dang", "Chau tron co the kem dia lot va phu kien"], ["Kich thuoc", "Tu trang tri nho den trong tieu chuan co"], ["MOQ tham chieu", "Tu 100 cai"], ["Co the tuy chinh", "Nhan, thung, dong goi hon hop"]],
-      "buyerTitle": "Loai nguoi mua phu hop",
-      "tags": ["Ban le lam vuon", "Trang tri ngoai troi", "Trong cay thom", "Dong san pham kinh dien"],
+    "creative-shaped-planter.html": {
+      "title": "Chau Tao Hinh Sang Tao Gia Si — Hinh Thu, Da Gia, Trung Khung Long | GreenSmart",
+      "description": "Chau tao hinh sang tao gia si tu Trung Quoc — hinh thu, mat bieu cam, da gia, trung khung long. MOQ 50 cai moi mau, resin/MGO, OEM. Hot tren Shopee & TikTok.",
+      "h1": "Chau Tao Hinh Sang Tao & Doc La",
+      "intro": "Chau qua tang va trang tri bien loi nhuan cao, de viral tren Shopee, Lazada va TikTok Shop khap Dong Nam A. Hinh thu, mat bieu cam, van da gia va trung khung long — bo suu tap moi moi mua.",
+      "points": [
+        "Dong hinh thu: meo, tho, gau, nhim, mat xuong rong",
+        "Dong bieu cam: vui, cau, ngac nhien, then thung",
+        "Hoan thien van da gia & be tong gia",
+        "Trung khung long & thiet ke doc la theo mua",
+        "Hop qua, the treo, logo OEM co san"
+      ],
+      "quickSpecs": [
+        ["MOQ", "Tu 50 cai/mau"],
+        ["Thoi gian giao", "20-35 ngay"],
+        ["Cang FOB", "Shenzhen / Yiwu"],
+        ["Hang mau", "$8-25, hoan phi"]
+      ],
+      "specsTitle": "Cac dong thiet ke va thong so",
+      "specsRows": [
+        ["Dong hinh thu", "Meo · Tho · Gau · Nhim · Corgi · Mat xuong rong"],
+        ["Dong bieu cam", "Mat vui · Cau kinh · Ngac nhien · Nhay mat · Then thung"],
+        ["Dong van da", "Da gia · Be tong gia · Dat nung gia · Van cam thach"],
+        ["Dong doc la", "Trung khung long · Hat de · Nam · Goc cay mini"],
+        ["Vat lieu", "Resin (nhe), MGO xi mang composite, hoac poly-resin"],
+        ["Kich thuoc", "Nho: 8-12 cm · Vua: 13-18 cm · Lon: 19-25 cm"],
+        ["MOQ", "50 cai moi mau (chap nhan tron mau trong mot don)"],
+        ["Bao bi", "Hop qua rieng, boc bong khi, the OEM"],
+        ["Gia FOB", "USD 1,80-6,50 moi cai tuy size va thiet ke"]
+      ],
+      "buyerTitle": "Nguoi mua phu hop nhat",
+      "tags": ["Shop qua tang DNA", "Nguoi ban TikTok / IG", "Boutique trang tri nha", "Tiem hoa", "Qua tang trung tam thuong mai", "Nguoi chon hop qua dinh ky"],
+      "whyTitle": "Vi sao ban chay tren cac san Dong Nam A",
+      "whyItems": [
+        ["Noi dung viral", "chau hinh thu va bieu cam tao UGC tu nhien tren TikTok va Instagram — ty le chia se cao gap 3-5 lan chau thuong."],
+        ["Cao diem mua qua", "Valentine, Songkran, Hari Raya, Tet — chau doc la ban gap 4 lan chau thuong trong tuan le qua tang tren Shopee."],
+        ["Bien loi nhuan cao", "gia von USD 2-4, gia ban le THB 250-450 / VND 80.000-150.000 / SGD 12-22."],
+        ["MOQ thap moi mau", "nguoi mua co the nhap 6-8 mau, moi mau 50 cai thay vi don cuoc vao mot mau."]
+      ],
+      "galleryTitle": "Bo suu tap thiet ke",
+      "galleryNote": "Catalogue day du (50+ mau) gui qua WhatsApp hoac email sau khi lien he. Bo suu tap moi ra hang quy.",
+      "galleryCaptions": ["Phu dieu noi · can canh chi tiet", "Phong cach qua tang · trung bay"],
       "focus": {
-        "leftTitle": "Uu tien cua nguoi mua",
-        "leftItems": [["Kiem soat vo vo", "Nen thoa thuan ty le vo chap nhan duoc va quy trinh khieu nai truoc."], ["Do hut nuoc", "Xac nhan do xop dat nung theo khi hau va loai cay dia phuong."], ["Dong deu mau sac", "Nen khoa pham vi sai mau dat do theo lo."], ["Chiu dung mua vu", "Xac nhan ranh gioi su dung nhiet cao/thap truoc."]],
-        "rightTitle": "Thong tin RFQ khuyen nghi",
-        "rightItems": [["Cau truc bo set", "Xac dinh co can to hop chau + dia khong."], ["Dinh vi kenh", "Ban le lam vuon, trang tri noi that hoac cung cap cong trinh."], ["Phuong an dong goi", "Thung chan, giay to ong hoac goi boc co."], ["Nhip nhang du hang", "Cho thang cao diem va chu ky tai hang."]]
+        "leftTitle": "Cau hoi nguoi mua thuong gap",
+        "leftItems": [
+          ["Lam mau doc quyen duoc khong?", "Duoc — khuon OEM doc quyen tu MOQ 500 cai/mau. Phi khuon bao rieng."],
+          ["Co chong nuoc khong?", "Resin va MGO chiu nuoc. Moi mau deu co lo thoat nuoc tieu chuan. Khong phu hop ngap nuoc ngoai troi keo dai."],
+          ["Chong vo khi van chuyen the nao?", "Hop qua rieng + xop lot + lop bong khi thung ngoai. Ty le vo duoi 1% van chuyen tieu chuan."],
+          ["Co mau moi theo mua?", "Chung toi ra 10-15 mau moi moi quy. Khach WhatsApp nhan catalogue som nhat."]
+        ],
+        "rightTitle": "Ghi chu cuoc van va xuat khau",
+        "rightItems": [
+          "Mau resin: nhe (150-400 g moi cai) — bay duoc cho don thu nghiem nho.",
+          "Mau MGO xi mang: nang hon — nen di bien FCL cho don tren 500 cai.",
+          "HS 6913.90 (gia gom) hoac 3926.90 (resin) — xac nhan voi khai quan theo tung mau.",
+          "FOB Yiwu hoac FOB Shenzhen tuy phan bo nha may — bao gia ghi ro cang."
+        ]
       },
-      "moq": ["100-399 cai: dang tieu chuan va mau do dat kinh dien", "400-999 cai: co the hon nhieu co trong mot don", "1000+ cai: tuy chinh nhan va dong goi tang cuong"],
-      "lead": ["Mau: 6-8 ngay cho cac co da chon", "Don lon: 22-32 ngay sau khi nhan coc va xac nhan dong goi", "Mua cao diem: nen dat truoc 2-3 tuan cho lich lo nung"]
-    },
-    "balcony-planter-box.html": {
-      "title": "Thung Trong Cay Ban Cong | GreenSmart",
-      "description": "Thung trong cay ban cong danh cho lam vuon thanh pho va du an nha o.",
-      "h1": "Thung Trong Cay Ban Cong",
-      "intro": "Phu hop cho ban cong chung cu, goi ban le khu vuc nho va hop dong nha o theo du an dai.",
-      "points": ["Cau truc dai, phu hop khong gian thanh pho chat che", "Co the cung cap tuy chon ket hop khay va lop trong", "Phu hop voi du an nha o va quang ba lam vuon ban cong"],
-      "specsTitle": "Quy cach si khuyen nghi",
-      "specsRows": [["Chat lieu", "Nhua chong thoi tiet hoac vat lieu phuc hop"], ["Dang", "Thung trong + khay hoac de phu tro"], ["Kich thuoc", "Kich thuoc ban cong, ban cua so va du an"], ["MOQ tham chieu", "Tu 20 cai"], ["Co the tuy chinh", "Mau sac, dong goi, dieu chinh kich thuoc du an"]],
-      "buyerTitle": "Loai nguoi mua phu hop",
-      "tags": ["Ban le lam vuon thanh pho", "Du an nha o", "Cung cap canh quan", "Bo set trong cay"],
-      "focus": {
-        "leftTitle": "Uu tien cua nguoi mua",
-        "leftItems": [["Kha nang chiu tai", "Bieu hien day ho va tang cuong day thung khi dat day dat uot."], ["Thiet ke thoat nuoc", "Xac nhan duong tran khe de tranh khieu nai tham ban cong."], ["Khang UV va bac mau", "Dat tieu chuan chong thoi tiet theo cuong do nang o thi truong muc tieu."], ["Phu kien tuong thich", "Xac nhan kha nang tuong thich cua khay, gia do va giang do."]],
-        "rightTitle": "Thong tin RFQ khuyen nghi",
-        "rightItems": [["Kich ban du an", "Nha o, goi ban le hay cong trinh canh quan."], ["Kich thuoc muc tieu", "Neu ro chieu dai, chieu rong, chieu cao va do sau trong hieu qua."], ["Don vi ban hang", "Ca the, bo hoac giao hang tong hop theo du an."], ["Sap xep giao hang", "Nhip giao hang chia dot va cua so lap dat."]]
-      },
-      "moq": ["20-99 bo: thung trong tieu chuan va khay phu", "100-299 bo: co the hon nhieu co voi dong goi du an", "300+ bo: ho tro mau OEM va nhan du an"],
-      "lead": ["Mau: 5-7 ngay cho kich thuoc tieu chuan", "Don lon: 20-30 ngay sau khi nhan coc va xac nhan thong so cuoi", "Mua cao diem: nen dat truoc 2 tuan cho tien do du an"]
-    },
-    "hanging-coir-basket.html": {
-      "title": "Gio Treo Soi Dua | GreenSmart",
-      "description": "Gio treo soi dua danh cho trang tri va bo san pham lam vuon dung.",
-      "h1": "Gio Treo Soi Dua",
-      "intro": "Gio treo phong cach tu nhien, phu hop cho ban le trang tri, trung bay san vuon va to hop san pham lam vuon than thien moi truong.",
-      "points": ["Lot soi dua, chat lieu tu nhien noi bat", "Co the chon phu kien xich va moc kim loai", "Phu hop cho trung tam lam vuon va dong san pham eco trang tri"],
-      "specsTitle": "Quy cach si khuyen nghi",
-      "specsRows": [["Chat lieu", "Lot soi dua + khung kim loai"], ["Dang", "Gio tron + bo xich treo"], ["Kich thuoc", "Quy cach trang tri ban le va trung bay san vuon"], ["MOQ tham chieu", "Tu 100 bo"], ["Co the tuy chinh", "Mau sac xich, nhan, dong goi, hon hop"]],
-      "buyerTitle": "Loai nguoi mua phu hop",
-      "tags": ["Trung tam lam vuon", "Ban le trang tri san vuon", "Trung bay theo mua", "Lam vuon dung"],
-      "focus": {
-        "leftTitle": "Uu tien cua nguoi mua",
-        "leftItems": [["Xich chong gi", "Khi hau am nen xac nhan cap do chong gi."], ["Thong so lot soi dua", "Do day soi va mat do anh huong kha nang giu nuoc."], ["An toan khi treo", "Can ro gioi han tai trong va do ben moc."], ["Dong goi trung bay theo mua", "Quang cao mua xuan thuong can bao bi than thien voi ke hang."]],
-        "rightTitle": "Thong tin RFQ khuyen nghi",
-        "rightItems": [["To hop kich thuoc", "Cung cap duong kinh, do sau va chieu dai xich cung nhau."], ["Be mat khung", "Phuong an den, dong, bot hoac ma kem."], ["Dang lot", "Soi dua lap san hay dong goi rieng."], ["Nhip ban hang", "Thang len ke muc tieu va ke hoach tai hang."]]
-      },
-      "moq": ["100-299 bo: khung gio va chieu dai xich tieu chuan", "300-799 bo: co the hon cac duong kinh khac nhau", "800+ bo: tuy chinh be mat xich va dong goi co thuong hieu"],
-      "lead": ["Mau: 5-8 ngay cho xac nhan gio va xich", "Don lon: 20-30 ngay sau khi nhan coc va xac nhan phu kien", "Mua cao diem: dat truoc 2-3 tuan truoc mua cao diem xuan"]
+      "ctaPrimary": "Yeu cau catalogue",
+      "ctaWhatsapp": "WhatsApp xem mau moi",
+      "moq": [
+        "50-199 cai moi mau: chap nhan tron mau trong mot don",
+        "200-499 cai: bao bi hop qua va the OEM",
+        "500+ cai moi mau: chuong trinh khuon OEM doc quyen"
+      ],
+      "lead": [
+        "Lam mau: 7-10 ngay cho mau trong catalogue",
+        "Don lon: 20-35 ngay sau dat coc va duyet bao bi",
+        "Mua cao diem: dat truoc 3-4 tuan truoc mua qua tang"
+      ]
     }
   }
 }
