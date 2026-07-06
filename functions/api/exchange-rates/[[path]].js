@@ -1,5 +1,6 @@
 import { json, newId, hasText, nowIso, readBody } from '../../_lib/http.js';
 import { requireAuth } from '../../_lib/auth.js';
+import { getLatestExchangeRate } from '../../_lib/rates.js';
 
 function normalizeRate(row) {
   if (!row) return null;
@@ -38,14 +39,9 @@ async function handleLatest(request, env) {
   const quote = String(url.searchParams.get('quote') || '').trim().toUpperCase();
   if (!base || !quote) return json({ ok: false, error: 'base and quote currency are required.' }, { status: 400 });
 
-  const row = await env.DB.prepare(`
-    SELECT * FROM exchange_rates
-    WHERE base_currency = ? AND quote_currency = ? AND effective_date <= ?
-    ORDER BY effective_date DESC LIMIT 1
-  `).bind(base, quote, nowIso().slice(0, 10)).first();
-
-  if (!row) return json({ ok: false, error: `No exchange rate found for ${base}->${quote}.` }, { status: 404 });
-  return json({ ok: true, item: normalizeRate(row) });
+  const rate = await getLatestExchangeRate(env, base, quote, nowIso().slice(0, 10));
+  if (!rate) return json({ ok: false, error: `No exchange rate found for ${base}->${quote}.` }, { status: 404 });
+  return json({ ok: true, item: rate });
 }
 
 async function handleCreate(request, env) {
