@@ -106,6 +106,8 @@ const rfqFieldLabelMap = {
 function setAuthState(loggedIn) {
     loginCard.classList.toggle('hidden', loggedIn);
     dashboardCard.classList.toggle('hidden', !loggedIn);
+    const tabNav = document.getElementById('tabNav');
+    if (tabNav) tabNav.classList.toggle('hidden', !loggedIn);
 }
 
 function getToken() {

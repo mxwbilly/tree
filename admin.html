@@ -257,6 +257,57 @@
                 grid-template-columns: 1fr;
             }
         }
+        .tab-nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 18px;
+        }
+        .tab-btn {
+            background: #fff;
+            border: 1px solid #cbd5e1;
+            color: #334155;
+            border-radius: 999px;
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .tab-btn.active {
+            background: #16a34a;
+            border-color: #16a34a;
+            color: #fff;
+        }
+        .erp-form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            max-width: none;
+            margin-bottom: 12px;
+        }
+        .erp-form textarea {
+            grid-column: 1 / -1;
+        }
+        .line-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr auto;
+            gap: 8px;
+            margin-bottom: 8px;
+            align-items: center;
+        }
+        .kpi-value.small {
+            font-size: 16px;
+        }
+        .doc-badge {
+            display: inline-block;
+            border-radius: 999px;
+            padding: 2px 8px;
+            font-size: 11px;
+            font-weight: 700;
+            background: #e0f2fe;
+            color: #0369a1;
+            margin-right: 4px;
+        }
     </style>
 </head>
 <body>
@@ -271,6 +322,15 @@
             </form>
             <p id="loginFeedback" class="muted"></p>
         </section>
+
+        <nav class="tab-nav hidden" id="tabNav">
+            <button type="button" class="tab-btn active" data-tab="inquiries">询盘管理</button>
+            <button type="button" class="tab-btn" data-tab="products">产品</button>
+            <button type="button" class="tab-btn" data-tab="suppliers">供应商</button>
+            <button type="button" class="tab-btn" data-tab="rates">汇率与运费</button>
+            <button type="button" class="tab-btn" data-tab="orders">订单</button>
+            <button type="button" class="tab-btn" data-tab="erpDashboard">统计看板</button>
+        </nav>
 
         <section class="card hidden" id="dashboardCard">
             <h2>询盘管理看板</h2>
@@ -448,7 +508,200 @@
                 <p id="mailStatusText" style="margin:8px 0 0;font-size:13px;color:#64748b;"></p>
             </div>
         </section>
+
+        <section class="card hidden" id="productsCard">
+            <h2>产品</h2>
+            <p class="muted">产品主数据：包装规格用于装柜计算，默认供应商用于成本计算的兜底。</p>
+            <form id="productForm" class="erp-form">
+                <input type="hidden" id="productIdInput">
+                <input id="productSkuInput" type="text" placeholder="SKU（必填）" required>
+                <input id="productNameInput" type="text" placeholder="产品名称（必填）" required>
+                <input id="productCategoryInput" type="text" placeholder="分类（可选）">
+                <select id="productSupplierSelect">
+                    <option value="">默认供应商（可选）</option>
+                </select>
+                <input id="productUnitsPerCartonInput" type="number" min="1" step="1" placeholder="每箱数量">
+                <input id="productCartonLInput" type="number" min="0" step="0.1" placeholder="箱长(cm)">
+                <input id="productCartonWInput" type="number" min="0" step="0.1" placeholder="箱宽(cm)">
+                <input id="productCartonHInput" type="number" min="0" step="0.1" placeholder="箱高(cm)">
+                <button id="productSubmitBtn" type="submit">新建产品</button>
+                <button id="productCancelEditBtn" type="button" class="btn-outline hidden">取消编辑</button>
+            </form>
+            <div class="toolbar">
+                <input id="productSearchInput" type="text" placeholder="搜索SKU/名称/分类">
+                <button id="productSearchBtn" type="button" class="btn-outline">搜索</button>
+                <button id="productRefreshBtn" type="button" class="btn-outline">刷新</button>
+            </div>
+            <div style="overflow-x:auto;">
+                <table>
+                    <thead><tr><th>SKU</th><th>名称</th><th>分类</th><th>默认供应商</th><th>包装</th><th>状态</th><th>操作</th></tr></thead>
+                    <tbody id="productRows"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="card hidden" id="suppliersCard">
+            <h2>供应商</h2>
+            <p class="muted">供应商是成本的真正来源——报价阶梯（起订量→单价）驱动计算引擎的成本计算。</p>
+            <form id="supplierForm" class="erp-form">
+                <input type="hidden" id="supplierIdInput">
+                <input id="supplierNameInput" type="text" placeholder="供应商名称（必填）" required>
+                <input id="supplierContactNameInput" type="text" placeholder="联系人">
+                <input id="supplierContactPhoneInput" type="text" placeholder="电话">
+                <input id="supplierContactEmailInput" type="email" placeholder="邮箱">
+                <input id="supplierLocationInput" type="text" placeholder="所在地">
+                <input id="supplierPaymentTermsInput" type="text" placeholder="付款条款">
+                <button id="supplierSubmitBtn" type="submit">新建供应商</button>
+                <button id="supplierCancelEditBtn" type="button" class="btn-outline hidden">取消编辑</button>
+            </form>
+            <div class="toolbar">
+                <input id="supplierSearchInput" type="text" placeholder="搜索名称/地区/邮箱">
+                <button id="supplierSearchBtn" type="button" class="btn-outline">搜索</button>
+                <button id="supplierRefreshBtn" type="button" class="btn-outline">刷新</button>
+            </div>
+            <div style="overflow-x:auto;">
+                <table>
+                    <thead><tr><th>名称</th><th>联系人</th><th>地区</th><th>状态</th><th>操作</th></tr></thead>
+                    <tbody id="supplierRows"></tbody>
+                </table>
+            </div>
+            <div class="detail-box hidden" id="tierPanel" style="margin-top:16px;">
+                <h3 style="margin-top:0;">价格阶梯 — <span id="tierSupplierName"></span></h3>
+                <form id="tierForm" class="erp-form">
+                    <select id="tierProductSelect" required></select>
+                    <input id="tierMinQtyInput" type="number" min="1" step="1" placeholder="起订量" required>
+                    <input id="tierUnitCostInput" type="number" min="0" step="0.01" placeholder="单价" required>
+                    <input id="tierCurrencyInput" type="text" value="CNY" maxlength="3" placeholder="币种">
+                    <button type="submit">添加阶梯</button>
+                </form>
+                <table>
+                    <thead><tr><th>产品</th><th>起订量</th><th>单价</th><th>币种</th><th>操作</th></tr></thead>
+                    <tbody id="tierRows"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="card hidden" id="ratesCard">
+            <h2>汇率与运费</h2>
+            <div class="details-grid">
+                <div class="detail-box">
+                    <h3 style="margin-top:0;">汇率</h3>
+                    <form id="fxForm" class="erp-form">
+                        <input id="fxBaseInput" type="text" maxlength="3" placeholder="base（如CNY）" required>
+                        <input id="fxQuoteInput" type="text" maxlength="3" placeholder="quote（如USD）" required>
+                        <input id="fxRateInput" type="number" min="0" step="0.0001" placeholder="汇率" required>
+                        <input id="fxDateInput" type="date" required>
+                        <button type="submit">新增汇率</button>
+                    </form>
+                    <table>
+                        <thead><tr><th>货币对</th><th>汇率</th><th>生效日期</th><th>操作</th></tr></thead>
+                        <tbody id="fxRows"></tbody>
+                    </table>
+                </div>
+                <div class="detail-box">
+                    <h3 style="margin-top:0;">运费</h3>
+                    <form id="freightForm" class="erp-form">
+                        <input id="freightOriginInput" type="text" placeholder="起运港" required>
+                        <input id="freightDestInput" type="text" placeholder="目的港" required>
+                        <select id="freightContainerSelect">
+                            <option value="20GP">20GP</option>
+                            <option value="40GP">40GP</option>
+                            <option value="40HQ">40HQ</option>
+                        </select>
+                        <input id="freightRateInput" type="number" min="0" step="0.01" placeholder="运费金额" required>
+                        <input id="freightCurrencyInput" type="text" value="USD" maxlength="3" placeholder="币种">
+                        <button type="submit">新增运费</button>
+                    </form>
+                    <table>
+                        <thead><tr><th>航线</th><th>柜型</th><th>运费</th><th>操作</th></tr></thead>
+                        <tbody id="freightRows"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section class="card hidden" id="ordersCard">
+            <h2>订单</h2>
+            <p class="muted">SalesOrder 聚合根 — 报价/PI/装箱单/发票都是订单的文档快照，不是独立单据。</p>
+            <form id="orderForm" class="erp-form" style="grid-template-columns: repeat(auto-fit, minmax(180px,1fr));">
+                <input id="orderCustomerSearchInput" type="text" placeholder="搜索客户（姓名/邮箱/公司）">
+                <select id="orderCustomerSelect" required><option value="">选择客户</option></select>
+                <input id="orderCurrencyInput" type="text" value="USD" maxlength="3" placeholder="币种">
+                <input id="orderIncotermInput" type="text" placeholder="贸易条款（如FOB）">
+            </form>
+            <div id="orderLinesContainer"></div>
+            <div class="toolbar">
+                <button id="addOrderLineBtn" type="button" class="btn-outline">+ 添加产品行</button>
+                <button id="createOrderBtn" type="button">创建订单</button>
+                <span class="muted" id="orderTotalPreview"></span>
+            </div>
+            <div class="toolbar">
+                <select id="orderStatusFilter">
+                    <option value="">全部状态</option>
+                    <option value="quoted">已报价</option>
+                    <option value="pi_issued">已出PI</option>
+                    <option value="confirmed">已确认</option>
+                    <option value="packing_ready">已出装箱单</option>
+                    <option value="invoiced">已出发票</option>
+                    <option value="paid">已付款</option>
+                    <option value="closed">已结案</option>
+                    <option value="lost">已流失</option>
+                </select>
+                <button id="orderRefreshBtn" type="button" class="btn-outline">刷新</button>
+            </div>
+            <div style="overflow-x:auto;">
+                <table>
+                    <thead><tr><th>订单号</th><th>状态</th><th>币种</th><th>总额</th><th>创建时间</th><th>操作</th></tr></thead>
+                    <tbody id="orderRows"></tbody>
+                </table>
+            </div>
+            <div class="detail-box hidden" id="orderDetailPanel" style="margin-top:16px;">
+                <h3 style="margin-top:0;" id="orderDetailTitle">订单详情</h3>
+                <p class="muted" id="orderDetailMeta"></p>
+                <div class="toolbar" id="orderActionButtons"></div>
+                <div class="toolbar" id="orderDocButtons"></div>
+                <h4>已出具文档</h4>
+                <ul class="timeline-list" id="orderDocList"></ul>
+            </div>
+        </section>
+
+        <section class="card hidden" id="erpDashboardCard">
+            <h2>统计看板</h2>
+            <p class="muted">仅统计已确认及以后状态的订单收入/利润；已流失订单只计入成交率分母，运费暂未计入（尚无货代模块）。</p>
+            <div class="kpi-grid" id="erpKpiGrid">
+                <div class="kpi-card"><div class="kpi-label">已成交订单数</div><div class="kpi-value" id="erpKpiOrders">0</div></div>
+                <div class="kpi-card"><div class="kpi-label">总收入</div><div class="kpi-value" id="erpKpiRevenue">0</div></div>
+                <div class="kpi-card"><div class="kpi-label">总利润</div><div class="kpi-value" id="erpKpiProfit">0</div></div>
+                <div class="kpi-card"><div class="kpi-label">利润率</div><div class="kpi-value" id="erpKpiMargin">-</div></div>
+                <div class="kpi-card"><div class="kpi-label">成交率</div><div class="kpi-value" id="erpKpiWinRate">-</div></div>
+            </div>
+            <button id="erpDashboardRefreshBtn" type="button" class="btn-outline" style="margin-bottom:14px;">刷新数据</button>
+            <div class="details-grid">
+                <div class="detail-box">
+                    <h4 style="margin-top:0;">月度利润趋势</h4>
+                    <table>
+                        <thead><tr><th>月份</th><th>订单数</th><th>收入</th><th>成本</th><th>利润</th><th>利润率</th></tr></thead>
+                        <tbody id="profitTrendRows"></tbody>
+                    </table>
+                </div>
+                <div class="detail-box">
+                    <h4 style="margin-top:0;">客户排行（按利润）</h4>
+                    <table>
+                        <thead><tr><th>客户</th><th>国家</th><th>订单数</th><th>收入</th><th>利润</th></tr></thead>
+                        <tbody id="customerAnalysisRows"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="detail-box" style="margin-top:16px;">
+                <h4 style="margin-top:0;">国家分析</h4>
+                <table>
+                    <thead><tr><th>国家</th><th>客户数</th><th>订单数</th><th>收入</th><th>利润</th><th>利润率</th></tr></thead>
+                    <tbody id="countryAnalysisRows"></tbody>
+                </table>
+            </div>
+        </section>
     </div>
     <script src="src/scripts/admin.js"></script>
+    <script src="src/scripts/erp-admin.js"></script>
 </body>
 </html>

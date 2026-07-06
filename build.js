@@ -71,6 +71,7 @@ const staticEntries = [
 const jsEntries = [
   { src: 'src/scripts/main.js',        out: 'src/scripts/main.js' },
   { src: 'src/scripts/admin.js',       out: 'src/scripts/admin.js' },
+  { src: 'src/scripts/erp-admin.js',   out: 'src/scripts/erp-admin.js' },
   { src: 'src/scripts/detail-page.js', out: 'src/scripts/detail-page.js' },
 ];
 
