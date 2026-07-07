@@ -14,23 +14,50 @@ import { computeProfit } from '../../_lib/calc-engine.js';
 // 'pi_issued' are still pipeline, not booked business; 'lost' is excluded.
 const COMMITTED_STATUSES = ['confirmed', 'packing_ready', 'invoiced', 'paid', 'closed'];
 
-async function committedOrders(env) {
+// ?from=YYYY-MM-DD&to=YYYY-MM-DD, both optional and inclusive. Filters on
+// sales_orders.created_at (when the deal entered the pipeline), not on
+// document issue dates — a single, consistent "when did this order happen"
+// axis across all 4 dashboard endpoints.
+function getDateRange(request) {
+  const url = new URL(request.url);
+  const from = String(url.searchParams.get('from') || '').trim();
+  const to = String(url.searchParams.get('to') || '').trim();
+  const isValidDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value);
+  return {
+    from: isValidDate(from) ? from : null,
+    to: isValidDate(to) ? to : null
+  };
+}
+
+async function committedOrders(env, range) {
   const placeholders = COMMITTED_STATUSES.map(() => '?').join(',');
+  const conditions = [`so.status IN (${placeholders})`];
+  const bindings = [...COMMITTED_STATUSES];
+  if (range.from) { conditions.push('so.created_at >= ?'); bindings.push(range.from); }
+  if (range.to) { conditions.push('so.created_at <= ?'); bindings.push(`${range.to}T23:59:59.999Z`); }
+
   const { results } = await env.DB.prepare(`
     SELECT so.*, c.name AS customer_name, c.company AS customer_company, c.country AS customer_country
     FROM sales_orders so
     JOIN customers c ON c.id = so.customer_id
-    WHERE so.status IN (${placeholders})
-  `).bind(...COMMITTED_STATUSES).all();
+    WHERE ${conditions.join(' AND ')}
+  `).bind(...bindings).all();
   return results || [];
 }
 
 async function handleSummary(request, env) {
-  const { results: statusCounts } = await env.DB.prepare(`
-    SELECT status, COUNT(*) AS count, SUM(total_amount) AS total FROM sales_orders GROUP BY status
-  `).all();
+  const range = getDateRange(request);
+  const statusConditions = [];
+  const statusBindings = [];
+  if (range.from) { statusConditions.push('created_at >= ?'); statusBindings.push(range.from); }
+  if (range.to) { statusConditions.push('created_at <= ?'); statusBindings.push(`${range.to}T23:59:59.999Z`); }
+  const statusWhere = statusConditions.length ? `WHERE ${statusConditions.join(' AND ')}` : '';
 
-  const orders = await committedOrders(env);
+  const { results: statusCounts } = await env.DB.prepare(`
+    SELECT status, COUNT(*) AS count, SUM(total_amount) AS total FROM sales_orders ${statusWhere} GROUP BY status
+  `).bind(...statusBindings).all();
+
+  const orders = await committedOrders(env, range);
   let revenue = 0;
   let profit = 0;
   let hasWarnings = false;
@@ -58,7 +85,7 @@ async function handleSummary(request, env) {
 }
 
 async function handleProfitTrend(request, env) {
-  const orders = await committedOrders(env);
+  const orders = await committedOrders(env, getDateRange(request));
   const byMonth = new Map();
 
   for (const order of orders) {
@@ -93,7 +120,7 @@ async function handleCustomerAnalysis(request, env) {
   const url = new URL(request.url);
   const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 10, 1), 100);
 
-  const orders = await committedOrders(env);
+  const orders = await committedOrders(env, getDateRange(request));
   const byCustomer = new Map();
 
   for (const order of orders) {
@@ -131,7 +158,7 @@ async function handleCustomerAnalysis(request, env) {
 }
 
 async function handleCountryAnalysis(request, env) {
-  const orders = await committedOrders(env);
+  const orders = await committedOrders(env, getDateRange(request));
   const byCountry = new Map();
 
   for (const order of orders) {

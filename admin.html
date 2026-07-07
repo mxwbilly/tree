@@ -668,6 +668,14 @@
         <section class="card hidden" id="erpDashboardCard">
             <h2>统计看板</h2>
             <p class="muted">仅统计已确认及以后状态的订单收入/利润；已流失订单只计入成交率分母，运费暂未计入（尚无货代模块）。</p>
+            <div class="toolbar">
+                <label for="erpDateFrom" class="muted">从</label>
+                <input id="erpDateFrom" type="date">
+                <label for="erpDateTo" class="muted">到</label>
+                <input id="erpDateTo" type="date">
+                <button id="erpDateApplyBtn" type="button" class="btn-outline">应用筛选</button>
+                <button id="erpDateClearBtn" type="button" class="btn-outline">清空筛选</button>
+            </div>
             <div class="kpi-grid" id="erpKpiGrid">
                 <div class="kpi-card"><div class="kpi-label">已成交订单数</div><div class="kpi-value" id="erpKpiOrders">0</div></div>
                 <div class="kpi-card"><div class="kpi-label">总收入</div><div class="kpi-value" id="erpKpiRevenue">0</div></div>

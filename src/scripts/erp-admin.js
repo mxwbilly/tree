@@ -662,9 +662,24 @@ document.getElementById('orderDocList').addEventListener('click', async (event) 
 });
 
 // --- ERP Dashboard -----------------------------------------------------
+function erpDateRangeQuery() {
+    const from = document.getElementById('erpDateFrom').value;
+    const to = document.getElementById('erpDateTo').value;
+    const params = new URLSearchParams();
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    return params.toString();
+}
+
 async function loadErpDashboard() {
+    const range = erpDateRangeQuery();
+    const withRange = (path, existingQuery) => {
+        if (!range) return path;
+        return `${path}${existingQuery ? '&' : '?'}${range}`;
+    };
+
     try {
-        const summary = await apiFetch('/api/dashboard/summary');
+        const summary = await apiFetch(withRange('/api/dashboard/summary'));
         document.getElementById('erpKpiOrders').textContent = summary.committedOrderCount;
         document.getElementById('erpKpiRevenue').textContent = fmtMoney(summary.revenue);
         document.getElementById('erpKpiProfit').textContent = fmtMoney(summary.profit);
@@ -675,7 +690,7 @@ async function loadErpDashboard() {
     }
 
     try {
-        const profit = await apiFetch('/api/dashboard/profit');
+        const profit = await apiFetch(withRange('/api/dashboard/profit'));
         const rows = document.getElementById('profitTrendRows');
         const items = profit.items || [];
         rows.innerHTML = items.length ? items.map((row) => `<tr>
@@ -691,7 +706,7 @@ async function loadErpDashboard() {
     }
 
     try {
-        const customers = await apiFetch('/api/dashboard/customers?limit=10');
+        const customers = await apiFetch(withRange('/api/dashboard/customers?limit=10', true));
         const rows = document.getElementById('customerAnalysisRows');
         const items = customers.items || [];
         rows.innerHTML = items.length ? items.map((row) => `<tr>
@@ -706,7 +721,7 @@ async function loadErpDashboard() {
     }
 
     try {
-        const countries = await apiFetch('/api/dashboard/countries');
+        const countries = await apiFetch(withRange('/api/dashboard/countries'));
         const rows = document.getElementById('countryAnalysisRows');
         const items = countries.items || [];
         rows.innerHTML = items.length ? items.map((row) => `<tr>
@@ -723,3 +738,9 @@ async function loadErpDashboard() {
 }
 
 document.getElementById('erpDashboardRefreshBtn').addEventListener('click', loadErpDashboard);
+document.getElementById('erpDateApplyBtn').addEventListener('click', loadErpDashboard);
+document.getElementById('erpDateClearBtn').addEventListener('click', () => {
+    document.getElementById('erpDateFrom').value = '';
+    document.getElementById('erpDateTo').value = '';
+    loadErpDashboard();
+});
