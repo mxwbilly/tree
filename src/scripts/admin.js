@@ -80,12 +80,10 @@ const statusLabelMap = {
 };
 
 const productLabelMap = {
-    bamboo: '竹纤维花盆',
-    'self-watering': '自动浇水陶瓷花盆',
-    nursery: '可堆叠育苗盘套装',
-    terracotta: '透气红陶花盆',
-    balcony: '阳台菜园花箱',
-    coir: '悬挂椰棕花篮',
+    'self-watering-double-layer': '双层自动浇水花盆',
+    'root-control-gallon': '控根加仑育苗盆',
+    'transparent-orchid': '透明兰花盆',
+    'creative-shaped': '创意造型花盆',
     other: '其他/定制需求'
 };
 
