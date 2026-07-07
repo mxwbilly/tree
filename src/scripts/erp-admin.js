@@ -604,6 +604,7 @@ async function viewOrder(orderId) {
         docList.innerHTML = (order.documents || []).map((doc) => `<li>
             <span class="doc-badge">${escapeHtml(DOCUMENT_TYPE_LABEL[doc.type] || doc.type)}</span>
             ${escapeHtml(doc.docNo)} · v${doc.version} · ${escapeHtml(String(doc.issuedAt).slice(0, 16).replace('T', ' '))}
+            <button type="button" class="btn-compact btn-outline" data-print-doc="${doc.id}">打印/导出PDF</button>
         </li>`).join('') || '<li class="muted">暂无文档</li>';
     } catch (error) {
         document.getElementById('orderDetailTitle').textContent = '加载失败';
@@ -635,6 +636,26 @@ document.getElementById('orderDocButtons').addEventListener('click', async (even
         await apiFetch(`/api/orders/${activeOrderId}/documents`, { method: 'POST', body: JSON.stringify({ type }) });
         viewOrder(activeOrderId);
         loadOrders();
+    } catch (error) {
+        alert(error.message);
+    }
+});
+
+// Fetched (not navigated to) so the Authorization header can be attached —
+// a plain link/new-tab navigation can't carry a custom header. The HTML is
+// opened from a Blob URL instead; the page's own "Print to PDF" button (or
+// Ctrl+P) is the actual PDF path, since Workers can't run a PDF renderer.
+document.getElementById('orderDocList').addEventListener('click', async (event) => {
+    const docId = event.target.dataset.printDoc;
+    if (!docId || !activeOrderId) return;
+    try {
+        const response = await fetch(`/api/orders/${activeOrderId}/documents/${docId}/render`, {
+            headers: { Authorization: `Bearer ${getToken()}` }
+        });
+        if (!response.ok) throw new Error(`渲染失败 (${response.status})`);
+        const html = await response.text();
+        const blobUrl = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+        window.open(blobUrl, '_blank');
     } catch (error) {
         alert(error.message);
     }

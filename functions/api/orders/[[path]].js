@@ -1,5 +1,8 @@
 import { json, newId, hasText, parseJson, nowIso, readBody } from '../../_lib/http.js';
 import { requireAuth } from '../../_lib/auth.js';
+import { getCompanyInfo } from '../../_lib/company.js';
+import { renderDocumentHtml } from '../../_lib/document-renderer.js';
+import { computeCbm } from '../../_lib/calc-engine.js';
 
 // Issuing a document of `type` is only allowed while the order is in one of
 // `allowedFrom`. First issuance advances status to `nextStatus`; issuing
@@ -220,6 +223,43 @@ async function handleDocumentDetail(env, orderId, docId) {
   return json({ ok: true, item: normalizeDocument(row) });
 }
 
+// Print-friendly HTML for a single document snapshot — the v1 "PDF" path
+// (browser Print to PDF), since Workers has no filesystem/Puppeteer. Shares
+// the Calculation Engine's computeCbm for packing lists rather than
+// re-deriving cartons/CBM here.
+async function handleRenderDocument(env, orderId, docId) {
+  const order = await env.DB.prepare('SELECT * FROM sales_orders WHERE id = ?').bind(orderId).first();
+  if (!order) return new Response('Order not found.', { status: 404 });
+  const docRow = await env.DB.prepare('SELECT * FROM documents WHERE id = ? AND order_id = ?').bind(docId, orderId).first();
+  if (!docRow) return new Response('Document not found.', { status: 404 });
+  const doc = normalizeDocument(docRow);
+
+  const customer = await env.DB.prepare('SELECT * FROM customers WHERE id = ?').bind(order.customer_id).first();
+  const lines = doc.snapshot.lines || [];
+  const productIds = [...new Set(lines.map((line) => line.productId))];
+  const productMap = new Map();
+  for (const productId of productIds) {
+    const product = await env.DB.prepare('SELECT id, sku, name FROM products WHERE id = ?').bind(productId).first();
+    if (product) productMap.set(productId, product);
+  }
+
+  let cbmResult = null;
+  if (doc.type === 'packing_list') {
+    cbmResult = await computeCbm(env, { lines: lines.map((line) => ({ productId: line.productId, qty: line.qty })) });
+  }
+
+  const html = renderDocumentHtml({
+    order: normalizeOrder(order),
+    doc,
+    customer: customer ? { name: customer.name, company: customer.company, country: customer.country, email: customer.email, phone: customer.phone } : null,
+    productMap,
+    company: getCompanyInfo(env),
+    cbmResult
+  });
+
+  return new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+}
+
 // The core Document-snapshot operation: freeze the order's current lines
 // into an immutable record, auto-advance the order's status per
 // DOCUMENT_RULES, and compute the next version/doc number.
@@ -299,6 +339,11 @@ export async function onRequest(context) {
   const docItemMatch = path.match(/^\/api\/orders\/([^/]+)\/documents\/([^/]+)$/);
   if (docItemMatch && request.method === 'GET') {
     return handleDocumentDetail(env, decodeURIComponent(docItemMatch[1]), decodeURIComponent(docItemMatch[2]));
+  }
+
+  const docRenderMatch = path.match(/^\/api\/orders\/([^/]+)\/documents\/([^/]+)\/render$/);
+  if (docRenderMatch && request.method === 'GET') {
+    return handleRenderDocument(env, decodeURIComponent(docRenderMatch[1]), decodeURIComponent(docRenderMatch[2]));
   }
 
   const detailMatch = path.match(/^\/api\/orders\/([^/]+)$/);
