@@ -527,18 +527,6 @@ document.addEventListener('DOMContentLoaded', async function () {
     const urlLangParam = new URLSearchParams(window.location.search).get('lang');
     const savedLangParam = localStorage.getItem('greensmart-lang');
     const supportedLangList = ['en', 'vi', 'th', 'id'];
-    const COUNTRY_LANG = { VN: 'vi', TH: 'th', ID: 'id' };
-
-    async function detectGeoLang() {
-        try {
-            const r = await fetch('/api/geo', { cache: 'no-store' });
-            if (!r.ok) return null;
-            const { country } = await r.json();
-            return COUNTRY_LANG[country] || null;
-        } catch {
-            return null;
-        }
-    }
 
     let initialLang;
     if (supportedLangList.includes(urlLangParam)) {
@@ -546,8 +534,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     } else if (supportedLangList.includes(savedLangParam)) {
         initialLang = savedLangParam;
     } else {
-        const geoLang = await detectGeoLang();
-        initialLang = geoLang || 'en';
+        initialLang = 'en';
     }
     await applyTranslations(initialLang);
     trackEvent('ab_variant_exposure', withTrackingMeta({

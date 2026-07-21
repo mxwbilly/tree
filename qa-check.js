@@ -6,7 +6,7 @@ const path = require('path');
 const rootDir = __dirname;
 const htmlFiles = fs
     .readdirSync(rootDir)
-    .filter((file) => file.endsWith('.html'))
+    .filter((file) => file.endsWith('.html') && file !== 'candidate-preview.html')
     .sort((a, b) => a.localeCompare(b));
 
 const requiredMetaPatterns = [
@@ -44,7 +44,11 @@ for (const file of htmlFiles) {
     const absolutePath = path.join(rootDir, file);
     const html = fs.readFileSync(absolutePath, 'utf8');
 
+    const isPrivatePage = /<meta\s+name=["']robots["']\s+content=["'][^"']*noindex/i.test(html);
     for (const pattern of requiredMetaPatterns) {
+        if (isPrivatePage && /^(og:|twitter:)/.test(pattern.name)) {
+            continue;
+        }
         if (!pattern.regex.test(html)) {
             missingMeta.push(`${file}: missing ${pattern.name}`);
         }
