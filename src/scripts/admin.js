@@ -1,4 +1,3 @@
-const tokenKey = 'greensmart-admin-token';
 const pageSize = 20;
 const adminApiBase = '/api/admin';
 
@@ -106,18 +105,6 @@ function setAuthState(loggedIn) {
     dashboardCard.classList.toggle('hidden', !loggedIn);
     const tabNav = document.getElementById('tabNav');
     if (tabNav) tabNav.classList.toggle('hidden', !loggedIn);
-}
-
-function getToken() {
-    return localStorage.getItem(tokenKey) || '';
-}
-
-function setToken(value) {
-    if (value) {
-        localStorage.setItem(tokenKey, value);
-    } else {
-        localStorage.removeItem(tokenKey);
-    }
 }
 
 function escapeHtml(value) {
@@ -245,15 +232,11 @@ function buildReminderMessage(item) {
 }
 
 async function apiFetch(url, options = {}) {
-    const token = getToken();
     const headers = {
         'Content-Type': 'application/json',
         ...(options.headers || {})
     };
-    if (token) {
-        headers.Authorization = `Bearer ${token}`;
-    }
-    const response = await fetch(url, { ...options, headers });
+    const response = await fetch(url, { ...options, credentials: 'same-origin', headers });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
         const detail = payload.error ?? payload.message ?? payload.item?.error;
@@ -535,12 +518,11 @@ async function patchInquiry(inquiryId, payload) {
 }
 
 async function exportCsv() {
-    const token = getToken();
     const query = buildQueryFromFilters();
     query.delete('page');
     query.delete('pageSize');
     const response = await fetch(`${adminApiBase}/inquiries/export.csv?${query.toString()}`, {
-        headers: { Authorization: `Bearer ${token}` }
+        credentials: 'same-origin'
     });
     if (!response.ok) {
         throw new Error(`Export failed (${response.status})`);
@@ -588,7 +570,6 @@ loginForm?.addEventListener('submit', async (event) => {
             method: 'POST',
             body: JSON.stringify(payload)
         });
-        setToken(result.token);
         currentUser = result.user || null;
         setAuthState(true);
         loginFeedback.textContent = '';
@@ -648,8 +629,12 @@ nextPageBtn?.addEventListener('click', async () => {
     await loadInquiries();
 });
 
-logoutBtn?.addEventListener('click', () => {
-    setToken('');
+logoutBtn?.addEventListener('click', async () => {
+    try {
+        await apiFetch(`${adminApiBase}/auth/logout`, { method: 'POST' });
+    } catch {
+        // The local UI still clears when an expired session cannot be revoked.
+    }
     setAuthState(false);
     inquiryRows.innerHTML = '';
     detailsPanel.classList.add('hidden');
@@ -803,11 +788,7 @@ testMailBtn?.addEventListener('click', async () => {
 });
 
 async function boot() {
-    const token = getToken();
-    if (!token) {
-        setAuthState(false);
-        return;
-    }
+    localStorage.removeItem('greensmart-admin-token');
     try {
         const me = await apiFetch(`${adminApiBase}/auth/me`);
         currentUser = me.user || null;
@@ -816,7 +797,6 @@ async function boot() {
         await loadSettings();
         await loadInquiries();
     } catch (error) {
-        setToken('');
         setAuthState(false);
     }
 }

@@ -22,6 +22,8 @@ CREATE TABLE IF NOT EXISTS customers (
   last_inquiry_at TEXT
 );
 
+CREATE INDEX IF NOT EXISTS idx_customers_created_at ON customers(created_at);
+
 CREATE TABLE IF NOT EXISTS inquiries (
   id TEXT PRIMARY KEY,
   customer_id TEXT,
@@ -183,6 +185,7 @@ CREATE TABLE IF NOT EXISTS sales_orders (
 CREATE INDEX IF NOT EXISTS idx_sales_orders_customer_id ON sales_orders(customer_id);
 CREATE INDEX IF NOT EXISTS idx_sales_orders_status ON sales_orders(status);
 CREATE INDEX IF NOT EXISTS idx_sales_orders_created_at ON sales_orders(created_at);
+CREATE INDEX IF NOT EXISTS idx_sales_orders_status_created_at ON sales_orders(status, created_at);
 
 -- One shared table for all 4 document types (quote / pi / packing_list /
 -- invoice). Each row is an immutable snapshot — later changes to the order,

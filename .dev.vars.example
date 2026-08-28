@@ -1,0 +1,16 @@
+# Local-only variables for `wrangler pages dev`.
+# Copy this file to `.dev.vars` and fill in local values. Never commit `.dev.vars`.
+JWT_SECRET=
+ADMIN_EMAIL=
+ADMIN_PASSWORD=
+ADMIN_NAME=Site Administrator
+
+# Required to submit inquiries locally. Use a Turnstile test key or a key
+# whose allowed hostnames include localhost.
+TURNSTILE_SITE_KEY=
+TURNSTILE_SECRET_KEY=
+
+# Optional local email notification settings.
+NOTIFY_EMAIL=
+RESEND_API_KEY=
+MAIL_FROM=GreenSmart <noreply@example.com>

@@ -114,6 +114,61 @@ document.addEventListener('DOMContentLoaded', async function () {
     initGa4(siteConfig.gaMeasurementId);
     const defaultInquiryApiUrl = siteConfig.inquiryApiUrl
         || ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? '/api/inquiries' : '');
+    const homeLanguagePaths = { en: '/', vi: '/vi/', th: '/th/', id: '/id/' };
+    const staticHomeLanguage = document.documentElement.dataset.siteLanguage || '';
+    let turnstileWidgetId = null;
+
+    function loadTurnstileScript() {
+        if (window.turnstile) return Promise.resolve();
+
+        return new Promise((resolve, reject) => {
+            const existingScript = document.querySelector('script[data-greensmart-turnstile]');
+            if (existingScript) {
+                existingScript.addEventListener('load', resolve, { once: true });
+                existingScript.addEventListener('error', reject, { once: true });
+                return;
+            }
+
+            const script = document.createElement('script');
+            script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+            script.async = true;
+            script.defer = true;
+            script.setAttribute('data-greensmart-turnstile', '1');
+            script.addEventListener('load', resolve, { once: true });
+            script.addEventListener('error', reject, { once: true });
+            document.head.appendChild(script);
+        });
+    }
+
+    async function initTurnstile() {
+        const container = contactForm?.querySelector('[data-turnstile-container]');
+        const submitButton = contactForm?.querySelector('button[type="submit"]');
+        if (!container || !submitButton || !defaultInquiryApiUrl) return;
+
+        try {
+            const configResponse = await fetch('/api/public-config');
+            const config = await configResponse.json();
+            if (!configResponse.ok || !config.turnstileSiteKey) {
+                throw new Error('Turnstile public configuration is unavailable.');
+            }
+
+            await loadTurnstileScript();
+            if (!window.turnstile) throw new Error('Turnstile did not load.');
+            turnstileWidgetId = window.turnstile.render(container, {
+                sitekey: config.turnstileSiteKey,
+                theme: 'light',
+                size: 'flexible',
+                action: 'inquiry'
+            });
+        } catch (error) {
+            container.classList.add('is-unavailable');
+            container.textContent = 'Security verification is unavailable. Please try again later.';
+            submitButton.disabled = true;
+            trackEvent('turnstile_unavailable', withTrackingMeta({
+                reason: error.message || 'unknown'
+            }));
+        }
+    }
 
     function updateProductMultiSelectDisplay() {
         if (!productMultiSelect) {
@@ -317,6 +372,13 @@ document.addEventListener('DOMContentLoaded', async function () {
     langButtons.forEach((button) => {
         button.addEventListener('click', async function () {
             const targetLang = button.dataset.lang;
+            if (staticHomeLanguage && homeLanguagePaths[targetLang]) {
+                const params = new URLSearchParams(window.location.search);
+                params.delete('lang');
+                const query = params.toString();
+                window.location.assign(`${homeLanguagePaths[targetLang]}${query ? `?${query}` : ''}${window.location.hash}`);
+                return;
+            }
             localStorage.setItem('greensmart-lang', targetLang);
             updateDetailPageLinks(targetLang);
             await applyTranslations(targetLang);
@@ -354,6 +416,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     });
 
     initProductMultiSelect();
+    initTurnstile();
 
     contactForm?.addEventListener('submit', async function (e) {
         e.preventDefault();
@@ -361,10 +424,10 @@ document.addEventListener('DOMContentLoaded', async function () {
         const formData = new FormData(this);
         const selectedProducts = formData.getAll('product').filter((item) => String(item || '').trim());
         const messages = {
-            en: { sending: 'Sending...', sent: 'Inquiry sent', failed: 'Send failed, please try again.' },
-            vi: { sending: 'Dang gui...', sent: 'Da gui inquiry', failed: 'Gui that bai, vui long thu lai.' },
-            th: { sending: 'กําลังส่ง...', sent: 'ส่งคำถามแล้ว', failed: 'ส่งไม่สำเร็จ โปรดลองอีกครั้ง' },
-            id: { sending: 'Mengirim...', sent: 'Inquiry terkirim', failed: 'Gagal kirim, silakan coba lagi.' }
+            en: { sending: 'Sending...', sent: 'Inquiry sent', failed: 'Send failed, please try again.', verify: 'Complete security verification first.' },
+            vi: { sending: 'Dang gui...', sent: 'Da gui inquiry', failed: 'Gui that bai, vui long thu lai.', verify: 'Vui long hoan thanh xac minh bao mat.' },
+            th: { sending: 'กําลังส่ง...', sent: 'ส่งคำถามแล้ว', failed: 'ส่งไม่สำเร็จ โปรดลองอีกครั้ง', verify: 'โปรดทำการยืนยันความปลอดภัยก่อน' },
+            id: { sending: 'Mengirim...', sent: 'Inquiry terkirim', failed: 'Gagal kirim, silakan coba lagi.', verify: 'Selesaikan verifikasi keamanan terlebih dahulu.' }
         };
         const submitButton = this.querySelector('button[type="submit"]');
         const originalText = submitButton.textContent;
@@ -375,6 +438,15 @@ document.addEventListener('DOMContentLoaded', async function () {
             const trigger = productMultiSelect?.querySelector('[data-multi-select-trigger]');
             trigger?.setAttribute('aria-expanded', 'true');
             trigger?.focus();
+            return;
+        }
+        if (!formData.get('cf-turnstile-response')) {
+            submitButton.textContent = current.verify;
+            submitButton.style.backgroundColor = '#dc2626';
+            setTimeout(() => {
+                submitButton.textContent = originalText;
+                submitButton.style.backgroundColor = '#22c55e';
+            }, 1800);
             return;
         }
         submitButton.disabled = true;
@@ -423,6 +495,9 @@ document.addEventListener('DOMContentLoaded', async function () {
                 reason: error.message || 'unknown'
             }));
         } finally {
+            if (turnstileWidgetId !== null && window.turnstile) {
+                window.turnstile.reset(turnstileWidgetId);
+            }
             setTimeout(() => {
                 submitButton.textContent = originalText;
                 submitButton.style.backgroundColor = '#22c55e';
@@ -528,8 +603,22 @@ document.addEventListener('DOMContentLoaded', async function () {
     const savedLangParam = localStorage.getItem('greensmart-lang');
     const supportedLangList = ['en', 'vi', 'th', 'id'];
 
+    if (staticHomeLanguage && supportedLangList.includes(urlLangParam) && homeLanguagePaths[urlLangParam]) {
+        const currentPath = window.location.pathname.replace(/\/index\.html$/i, '/').replace(/\/+$/, '/') || '/';
+        const targetPath = homeLanguagePaths[urlLangParam];
+        if (currentPath !== targetPath) {
+            const params = new URLSearchParams(window.location.search);
+            params.delete('lang');
+            const query = params.toString();
+            window.location.replace(`${targetPath}${query ? `?${query}` : ''}${window.location.hash}`);
+            return;
+        }
+    }
+
     let initialLang;
-    if (supportedLangList.includes(urlLangParam)) {
+    if (supportedLangList.includes(staticHomeLanguage)) {
+        initialLang = staticHomeLanguage;
+    } else if (supportedLangList.includes(urlLangParam)) {
         initialLang = urlLangParam;
     } else if (supportedLangList.includes(savedLangParam)) {
         initialLang = savedLangParam;

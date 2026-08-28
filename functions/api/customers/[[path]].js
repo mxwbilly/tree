@@ -24,17 +24,36 @@ function normalizeCustomer(row) {
 
 async function handleList(request, env) {
   const url = new URL(request.url);
-  const q = String(url.searchParams.get('q') || '').trim().toLowerCase();
-  const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 50, 1), 200);
+  const q = String(url.searchParams.get('q') || '').trim();
+  const page = Math.max(1, Number.parseInt(url.searchParams.get('page') || '1', 10) || 1);
+  // Keep the existing ?limit=30 client contract while also supporting the
+  // shared pageSize convention used by the other ERP list endpoints.
+  const requestedSize = url.searchParams.get('pageSize') || url.searchParams.get('limit') || '50';
+  const pageSize = Math.min(Math.max(Number.parseInt(requestedSize, 10) || 50, 1), 200);
+  const conditions = [];
+  const bindings = [];
 
-  const { results } = await env.DB.prepare('SELECT * FROM customers ORDER BY created_at DESC').all();
-  let items = (results || []).map(normalizeCustomer);
   if (q) {
-    items = items.filter((item) => [item.name, item.email, item.company]
-      .map((value) => String(value || '').toLowerCase())
-      .some((value) => value.includes(q)));
+    const needle = `%${q.toLowerCase()}%`;
+    conditions.push('(LOWER(name) LIKE ? OR LOWER(email) LIKE ? OR LOWER(company) LIKE ?)');
+    bindings.push(needle, needle, needle);
   }
-  return json({ ok: true, items: items.slice(0, limit) });
+
+  const where = conditions.length ? ` WHERE ${conditions.join(' AND ')}` : '';
+  const totalRow = await env.DB.prepare(`SELECT COUNT(*) AS total FROM customers${where}`).bind(...bindings).first();
+  const { results } = await env.DB.prepare(`
+    SELECT * FROM customers${where}
+    ORDER BY created_at DESC
+    LIMIT ? OFFSET ?
+  `).bind(...bindings, pageSize, (page - 1) * pageSize).all();
+
+  return json({
+    ok: true,
+    items: (results || []).map(normalizeCustomer),
+    page,
+    pageSize,
+    total: Number(totalRow?.total || 0)
+  });
 }
 
 async function handleDetail(env, id) {

@@ -1,4 +1,21 @@
 const TOKEN_EXPIRES_SECONDS = 12 * 60 * 60;
+const SESSION_COOKIE_NAME = 'greensmart_admin_session';
+const MIN_JWT_SECRET_LENGTH = 32;
+const INSECURE_JWT_SECRETS = new Set([
+  'change-this-secret',
+  'change-this-secret-in-production',
+  'change-this-secret-before-production'
+]);
+
+class SecurityConfigurationError extends Error {}
+
+function getJwtSecret(env) {
+  const secret = String(env?.JWT_SECRET || '').trim();
+  if (secret.length < MIN_JWT_SECRET_LENGTH || INSECURE_JWT_SECRETS.has(secret)) {
+    throw new SecurityConfigurationError('JWT_SECRET is missing or insecure.');
+  }
+  return secret;
+}
 
 function base64UrlEncode(bytes) {
   const text = String.fromCharCode(...new Uint8Array(bytes));
@@ -41,7 +58,7 @@ export async function createToken(payload, env) {
     exp: Math.floor(Date.now() / 1000) + TOKEN_EXPIRES_SECONDS
   }));
   const unsigned = `${header}.${body}`;
-  const signature = await hmacSign(unsigned, env.JWT_SECRET || 'change-this-secret');
+  const signature = await hmacSign(unsigned, getJwtSecret(env));
   return `${unsigned}.${signature}`;
 }
 
@@ -49,7 +66,7 @@ export async function verifyToken(token, env) {
   const parts = String(token || '').split('.');
   if (parts.length !== 3) throw new Error('Invalid token.');
   const [header, body, signature] = parts;
-  const expected = await hmacSign(`${header}.${body}`, env.JWT_SECRET || 'change-this-secret');
+  const expected = await hmacSign(`${header}.${body}`, getJwtSecret(env));
   if (signature !== expected) throw new Error('Invalid signature.');
   const payload = JSON.parse(base64UrlDecodeText(body));
   if (!payload.exp || payload.exp < Math.floor(Date.now() / 1000)) {
@@ -64,8 +81,29 @@ function parseBearerToken(request) {
   return scheme?.toLowerCase() === 'bearer' ? token : '';
 }
 
+function parseCookieToken(request) {
+  const cookie = request.headers.get('Cookie') || '';
+  const prefix = `${SESSION_COOKIE_NAME}=`;
+  const part = cookie.split(';').map((item) => item.trim()).find((item) => item.startsWith(prefix));
+  return part ? decodeURIComponent(part.slice(prefix.length)) : '';
+}
+
+export function getRequestToken(request) {
+  return parseBearerToken(request) || parseCookieToken(request);
+}
+
+export function sessionCookie(request, token) {
+  const secure = new URL(request.url).protocol === 'https:' ? '; Secure' : '';
+  return `${SESSION_COOKIE_NAME}=${encodeURIComponent(token)}; HttpOnly; SameSite=Strict; Path=/api; Max-Age=${TOKEN_EXPIRES_SECONDS}${secure}`;
+}
+
+export function expiredSessionCookie(request) {
+  const secure = new URL(request.url).protocol === 'https:' ? '; Secure' : '';
+  return `${SESSION_COOKIE_NAME}=; HttpOnly; SameSite=Strict; Path=/api; Max-Age=0${secure}`;
+}
+
 export async function requireAuth(request, env, roles = []) {
-  const token = parseBearerToken(request);
+  const token = getRequestToken(request);
   if (!token) {
     return { response: jsonUnauthorized('Missing authorization token.') };
   }
@@ -75,7 +113,10 @@ export async function requireAuth(request, env, roles = []) {
       return { response: jsonForbidden() };
     }
     return { auth };
-  } catch {
+  } catch (error) {
+    if (error instanceof SecurityConfigurationError) {
+      return { response: jsonServerConfigurationError() };
+    }
     return { response: jsonUnauthorized('Invalid or expired token.') };
   }
 }
@@ -94,18 +135,37 @@ function jsonForbidden() {
   });
 }
 
+function jsonServerConfigurationError() {
+  return new Response(JSON.stringify({ ok: false, error: 'Server security configuration is incomplete.' }), {
+    status: 500,
+    headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }
+  });
+}
+
 export async function checkRateLimit(env, request, bucket, limit, windowSeconds) {
-  if (!env.RATE_LIMIT) return null;
-  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-  const slot = Math.floor(Date.now() / (windowSeconds * 1000));
-  const key = `${bucket}:${ip}:${slot}`;
-  const count = Number(await env.RATE_LIMIT.get(key) || '0') + 1;
-  await env.RATE_LIMIT.put(key, String(count), { expirationTtl: windowSeconds + 60 });
-  if (count > limit) {
-    return new Response(JSON.stringify({ ok: false, error: `Too many ${bucket} requests. Please retry later.` }), {
-      status: 429,
-      headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }
-    });
+  if (!env.RATE_LIMIT) return jsonRateLimitUnavailable();
+  try {
+    const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+    const slot = Math.floor(Date.now() / (windowSeconds * 1000));
+    const key = `${bucket}:${ip}:${slot}`;
+    const count = Number(await env.RATE_LIMIT.get(key) || '0') + 1;
+    await env.RATE_LIMIT.put(key, String(count), { expirationTtl: windowSeconds + 60 });
+    if (count > limit) {
+      return new Response(JSON.stringify({ ok: false, error: `Too many ${bucket} requests. Please retry later.` }), {
+        status: 429,
+        headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }
+      });
+    }
+  } catch (error) {
+    console.error(`[rate-limit] ${bucket} failed:`, error);
+    return jsonRateLimitUnavailable();
   }
   return null;
+}
+
+function jsonRateLimitUnavailable() {
+  return new Response(JSON.stringify({ ok: false, error: 'Request protection is temporarily unavailable.' }), {
+    status: 503,
+    headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }
+  });
 }

@@ -89,19 +89,19 @@ async function handleListOrders(request, env) {
   const status = String(params.get('status') || '').trim();
   const customerId = String(params.get('customerId') || '').trim();
 
-  let query = 'SELECT * FROM sales_orders';
   const conditions = [];
   const bindings = [];
   if (status) { conditions.push('status = ?'); bindings.push(status); }
   if (customerId) { conditions.push('customer_id = ?'); bindings.push(customerId); }
-  if (conditions.length) query += ' WHERE ' + conditions.join(' AND ');
-  query += ' ORDER BY created_at DESC';
-
-  const { results } = await env.DB.prepare(query).bind(...bindings).all();
-  const items = (results || []).map(normalizeOrder);
-  const total = items.length;
+  const where = conditions.length ? ` WHERE ${conditions.join(' AND ')}` : '';
+  const totalRow = await env.DB.prepare(`SELECT COUNT(*) AS total FROM sales_orders${where}`).bind(...bindings).first();
   const offset = (page - 1) * pageSize;
-  return json({ ok: true, items: items.slice(offset, offset + pageSize), page, pageSize, total });
+  const { results } = await env.DB.prepare(`
+    SELECT * FROM sales_orders${where}
+    ORDER BY created_at DESC
+    LIMIT ? OFFSET ?
+  `).bind(...bindings, pageSize, offset).all();
+  return json({ ok: true, items: (results || []).map(normalizeOrder), page, pageSize, total: Number(totalRow?.total || 0) });
 }
 
 async function handleOrderDetail(env, id) {

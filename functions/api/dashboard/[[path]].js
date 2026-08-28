@@ -7,7 +7,7 @@
 // not supplied.
 import { json } from '../../_lib/http.js';
 import { requireAuth } from '../../_lib/auth.js';
-import { computeProfit } from '../../_lib/calc-engine.js';
+import { computeProfitForOrder } from '../../_lib/calc-engine.js';
 
 // Orders that have moved past the quoting stage — i.e. a deposit or firm
 // commitment exists — count as real revenue/profit. 'quoted' and
@@ -37,12 +37,26 @@ async function committedOrders(env, range) {
   if (range.to) { conditions.push('so.created_at <= ?'); bindings.push(`${range.to}T23:59:59.999Z`); }
 
   const { results } = await env.DB.prepare(`
-    SELECT so.*, c.name AS customer_name, c.company AS customer_company, c.country AS customer_country
+    SELECT so.id, so.customer_id, so.currency, so.current_lines_json, so.total_amount, so.created_at,
+      c.name AS customer_name, c.company AS customer_company, c.country AS customer_country
     FROM sales_orders so
     JOIN customers c ON c.id = so.customer_id
     WHERE ${conditions.join(' AND ')}
   `).bind(...bindings).all();
   return results || [];
+}
+
+// A dashboard request often contains many orders using the same product,
+// quantity and supplier. Cache those D1-backed cost and FX lookups for the
+// lifetime of this one request while preserving the shared profit engine.
+function createProfitCalculator(env) {
+  const profitCache = new Map();
+  const calculationCache = { costs: new Map(), rates: new Map() };
+  return async (order) => {
+    const key = order.id;
+    if (!profitCache.has(key)) profitCache.set(key, computeProfitForOrder(env, order, { cache: calculationCache }));
+    return profitCache.get(key);
+  };
 }
 
 async function handleSummary(request, env) {
@@ -58,12 +72,13 @@ async function handleSummary(request, env) {
   `).bind(...statusBindings).all();
 
   const orders = await committedOrders(env, range);
+  const calculateProfit = createProfitCalculator(env);
   let revenue = 0;
   let profit = 0;
   let hasWarnings = false;
   for (const order of orders) {
     revenue += order.total_amount;
-    const result = await computeProfit(env, { orderId: order.id });
+    const result = await calculateProfit(order);
     if (result.ok) profit += result.profit;
     else hasWarnings = true;
   }
@@ -86,13 +101,14 @@ async function handleSummary(request, env) {
 
 async function handleProfitTrend(request, env) {
   const orders = await committedOrders(env, getDateRange(request));
+  const calculateProfit = createProfitCalculator(env);
   const byMonth = new Map();
 
   for (const order of orders) {
     const month = String(order.created_at).slice(0, 7);
     if (!byMonth.has(month)) byMonth.set(month, { month, orderCount: 0, revenue: 0, cost: 0, profit: 0, hasWarnings: false });
     const bucket = byMonth.get(month);
-    const result = await computeProfit(env, { orderId: order.id });
+    const result = await calculateProfit(order);
     bucket.orderCount += 1;
     bucket.revenue += order.total_amount;
     if (result.ok) {
@@ -121,6 +137,7 @@ async function handleCustomerAnalysis(request, env) {
   const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 10, 1), 100);
 
   const orders = await committedOrders(env, getDateRange(request));
+  const calculateProfit = createProfitCalculator(env);
   const byCustomer = new Map();
 
   for (const order of orders) {
@@ -137,7 +154,7 @@ async function handleCustomerAnalysis(request, env) {
       });
     }
     const bucket = byCustomer.get(order.customer_id);
-    const result = await computeProfit(env, { orderId: order.id });
+    const result = await calculateProfit(order);
     bucket.orderCount += 1;
     bucket.revenue += order.total_amount;
     if (result.ok) bucket.profit += result.profit;
@@ -159,6 +176,7 @@ async function handleCustomerAnalysis(request, env) {
 
 async function handleCountryAnalysis(request, env) {
   const orders = await committedOrders(env, getDateRange(request));
+  const calculateProfit = createProfitCalculator(env);
   const byCountry = new Map();
 
   for (const order of orders) {
@@ -167,7 +185,7 @@ async function handleCountryAnalysis(request, env) {
       byCountry.set(country, { country, orderCount: 0, customerIds: new Set(), revenue: 0, profit: 0, hasWarnings: false });
     }
     const bucket = byCountry.get(country);
-    const result = await computeProfit(env, { orderId: order.id });
+    const result = await calculateProfit(order);
     bucket.orderCount += 1;
     bucket.customerIds.add(order.customer_id);
     bucket.revenue += order.total_amount;

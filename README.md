@@ -1,183 +1,84 @@
-# GreenSmart - 智能自动浇水花盆官网
+# GreenSmart 花盆外贸独立站
 
-## 项目简介
+GreenSmart 是面向东南亚进口商、经销商和零售买家的询盘型独立站。生产环境统一运行在 Cloudflare Pages，后端使用 Pages Functions，数据存储使用 D1，接口限流使用 KV。
 
-GreenSmart 是一个现代化的单页面展示网站，用于展示智能自动浇水花盆产品系列。
+## 架构
 
-## 技术栈
+- HTML、CSS、JavaScript：前台静态页面与多语言交互
+- Cloudflare Pages Functions：询盘、后台和业务 API
+- Cloudflare D1：询盘、客户、产品、供应商和订单数据
+- Cloudflare KV：登录与询盘接口限流
+- Wrangler：本地模拟 Pages、D1 和 KV
 
-- **HTML5** - 语义化标记
-- **CSS3** - 现代样式和动画
-- **JavaScript (ES6+)** - 交互效果
-- **Express.js** - 轻量 API 与后台登录
-- **JSON Data Store** - 询盘与客户数据落盘
-- **Font Awesome** - 图标库
-- **Google Fonts** - 字体
+`server.js`、Express 和 JSON Data Store 已不再使用。本地与线上执行同一套 Functions 代码，避免两套接口行为不一致。
 
 ## 目录结构
 
-```
-├── index.html          # 主页面
-├── package.json        # 项目配置
-├── README.md           # 项目说明
-└── src/                # 源代码目录
-    ├── assets/         # 静态资源（图片、图标等）
-    ├── components/     # 组件（可扩展）
-    ├── scripts/        # JavaScript脚本
-    │   └── main.js     # 主脚本文件
-    └── styles/         # 样式文件
-        └── main.css    # 主样式文件
-```
-
-## 快速开始
-
-### 安装依赖
-
-```bash
-npm install
+```text
+├── index.html                 # 首页
+├── admin.html                 # 询盘与业务后台
+├── functions/                 # Cloudflare Pages Functions
+│   ├── _lib/                  # 认证、计算和文档共享逻辑
+│   └── api/                   # API 路由
+├── src/                       # 前端脚本、样式和多语言资源
+├── articles/                  # SEO 文章
+├── schema.sql                 # D1 数据库结构
+├── build.js                   # 生产构建
+├── qa-check.js                # 页面与资源检查
+├── wrangler.example.jsonc     # 本地 Cloudflare 配置模板
+└── CLOUDFLARE_DEPLOY.md       # 线上部署说明
 ```
 
-### 开发模式
+## 本地运行
 
-```bash
+安装依赖：
+
+```powershell
+npm ci
+```
+
+首次运行时创建本地变量和 Wrangler 配置：
+
+```powershell
+Copy-Item .dev.vars.example .dev.vars
+Copy-Item wrangler.example.jsonc wrangler.jsonc
+```
+
+在 `.dev.vars` 中填写以下必填项：
+
+```text
+JWT_SECRET=至少32位随机字符串
+ADMIN_EMAIL=实际管理员邮箱
+ADMIN_PASSWORD=至少12位强密码
+```
+
+初始化本地 D1，然后启动完整网站：
+
+```powershell
+npm run dev:init
 npm run dev
 ```
 
-访问 http://localhost:8000 查看页面
-访问 http://localhost:8000/admin.html 查看后台登录页
+默认地址：
 
-首次运行建议复制环境变量模板：
+- 网站：http://localhost:8788/
+- 后台：http://localhost:8788/admin.html
+- 健康检查：http://localhost:8788/api/health
 
-```bash
-cp .env.example .env
+Wrangler 默认使用 `.wrangler/` 中的本地 D1 和 KV 数据，不会连接生产数据库。`.dev.vars` 与 `wrangler.jsonc` 都只用于本地且不会提交，Cloudflare 生产环境继续使用控制台中的变量和绑定。
+
+## 构建与检查
+
+```powershell
+npm run verify
 ```
 
-### 生产构建
+该命令依次检查全部正式源码页面、生成 `dist/`、检查实际发布页面，再用隔离的本地 D1 数据库执行 `schema.sql` 并写入一条测试询盘。候选页面不会参与检查，D1 测试库会在检查结束后自动清理。构建器会自动发现根目录中的正式 HTML 页面，并递归复制页面、样式和站点清单实际引用的本地资源；`candidate-preview.html` 等候选内容不会进入发布目录。每次构建还会生成 `dist/build-manifest.json`，用于核对最终输出文件。
 
-```bash
-npm run build
-```
+`sitemap.xml` 的 `lastmod` 在构建时按对应页面的实际 Git 变更日期生成。未修改的页面会保留自己的历史日期，不会因为重新构建而全部变成当天。Cloudflare Pages 的构建命令仍为 `npm run build`，输出目录仍为 `dist`。
 
-构建产物将生成在 `dist/` 目录
+## 生产部署
 
-## 部署指南
+生产环境通过 Git 仓库连接 Cloudflare Pages。推送生产分支后由 Cloudflare 自动构建和部署，不再使用 rsync、Nginx、Docker 或本地 Node.js 服务器。数据库结构发生变化时，先按部署文档单独执行 D1 更新；网站代码须经确认后才推送生产分支。
 
-### 本地部署
-
-```bash
-npm start
-```
-
-### 云服务器部署
-
-1. **安装依赖**
-   ```bash
-   npm install
-   ```
-
-2. **构建项目**
-   ```bash
-   npm run build
-   ```
-
-3. **部署到服务器**
-   ```bash
-   # 使用 rsync（推荐）
-   rsync -avz dist/ user@your-server:/var/www/html/
-   
-   # 或使用 scp
-   scp -r dist/* user@your-server:/var/www/html/
-   ```
-
-### Nginx 配置示例
-
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com;
-    root /var/www/html;
-    index index.html;
-
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-
-    location ~* \.(css|js|png|jpg|jpeg|gif|ico|svg)$ {
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-    }
-}
-```
-
-### Docker 部署
-
-创建 `Dockerfile`:
-
-```dockerfile
-FROM nginx:alpine
-COPY dist/ /usr/share/nginx/html/
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
-```
-
-构建并运行:
-
-```bash
-docker build -t greensmart .
-docker run -p 80:80 greensmart
-```
-
-## 功能特性
-
-- ✅ 响应式设计，支持移动端
-- ✅ 平滑滚动导航
-- ✅ 产品卡片悬停效果
-- ✅ 加入购物车动画
-- ✅ 表单提交反馈
-- ✅ 询盘 API 入库（`POST /api/inquiries`）
-- ✅ 后台登录（`POST /api/auth/login`）
-- ✅ 后台询盘列表（`GET /api/inquiries`）
-- ✅ 询盘筛选、分页与 CSV 导出
-- ✅ 询盘状态流转、负责人分配、跟进备注
-- ✅ 报价记录（Quote）创建与时间线沉淀
-- ✅ 后台摘要看板（总量、近7天、状态分布）
-- ✅ 系统设置（通知邮箱、默认负责人）
-- ✅ 可选 SMTP 邮件通知（新询盘/分配）
-- ✅ 图片懒加载动画
-- ✅ 订阅邮件功能
-
-## 自定义配置
-
-### 替换图片
-
-所有产品图片都在 `index.html` 中定义，替换方式：
-
-1. 将图片放入 `src/assets/` 目录
-2. 修改 `index.html` 中的 `<img>` 标签的 `src` 属性
-
-示例：
-```html
-<img src="src/assets/your-image.jpg" alt="产品图片">
-```
-
-### 修改主题色
-
-在 `src/styles/main.css` 中修改 CSS 变量：
-
-```css
-:root {
-    --primary-color: #22c55e;  /* 主色调 */
-    --primary-dark: #16a34a;   /* 深色版本 */
-}
-```
-
-## 浏览器支持
-
-- Chrome (推荐)
-- Firefox
-- Safari
-- Edge
-
-## 许可证
-
-MIT License
+生产变量、D1/KV 绑定、管理员凭据更新顺序和上线检查见 `CLOUDFLARE_DEPLOY.md`。

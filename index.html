@@ -1,5 +1,5 @@
 ﻿<!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-site-language="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,9 +13,9 @@
     <link rel="manifest" href="site.webmanifest">
     <link rel="canonical" href="https://novagardenhome.com/">
     <link rel="alternate" hreflang="en" href="https://novagardenhome.com/" />
-    <link rel="alternate" hreflang="vi" href="https://novagardenhome.com/?lang=vi" />
-    <link rel="alternate" hreflang="th" href="https://novagardenhome.com/?lang=th" />
-    <link rel="alternate" hreflang="id" href="https://novagardenhome.com/?lang=id" />
+    <link rel="alternate" hreflang="vi" href="https://novagardenhome.com/vi/" />
+    <link rel="alternate" hreflang="th" href="https://novagardenhome.com/th/" />
+    <link rel="alternate" hreflang="id" href="https://novagardenhome.com/id/" />
     <link rel="alternate" hreflang="x-default" href="https://novagardenhome.com/" />
     <meta property="og:type" content="website">
     <meta property="og:title" content="GreenSmart | Wholesale Flower Pots & Self-Watering Planters Manufacturer">
@@ -762,23 +762,23 @@
                         <div class="form-grid">
                             <label>
                                 <span data-i18n="form_name_label">Full name</span>
-                                <input type="text" name="name" required placeholder="Your full name" data-i18n-placeholder="form_name_placeholder">
+                                <input type="text" name="name" required maxlength="100" autocomplete="name" placeholder="Your full name" data-i18n-placeholder="form_name_placeholder">
                             </label>
                             <label>
                                 <span data-i18n="form_company_label">Company name</span>
-                                <input type="text" name="company" placeholder="Your company or store name" data-i18n-placeholder="form_company_placeholder">
+                                <input type="text" name="company" maxlength="150" autocomplete="organization" placeholder="Your company or store name" data-i18n-placeholder="form_company_placeholder">
                             </label>
                             <label>
                                 <span data-i18n="form_email_label">Business email</span>
-                                <input type="email" name="email" required placeholder="name@company.com" data-i18n-placeholder="form_email_placeholder">
+                                <input type="email" name="email" required maxlength="254" autocomplete="email" placeholder="name@company.com" data-i18n-placeholder="form_email_placeholder">
                             </label>
                             <label>
                                 <span data-i18n="form_phone_label">WhatsApp / phone</span>
-                                <input type="tel" name="phone" placeholder="Your contact number" data-i18n-placeholder="form_phone_placeholder">
+                                <input type="tel" name="phone" maxlength="50" autocomplete="tel" placeholder="Your contact number" data-i18n-placeholder="form_phone_placeholder">
                             </label>
                             <label>
                                 <span data-i18n="form_country_label">Buyer country</span>
-                                <input type="text" name="country" required placeholder="Vietnam / Thailand / Indonesia..." data-i18n-placeholder="form_country_placeholder">
+                                <input type="text" name="country" required maxlength="100" autocomplete="country-name" placeholder="Vietnam / Thailand / Indonesia..." data-i18n-placeholder="form_country_placeholder">
                             </label>
                             <label>
                                 <span data-i18n="form_product_label">Interested product</span>
@@ -818,7 +818,7 @@
                             </label>
                             <label>
                                 <span data-i18n="form_quantity_label">Estimated quantity</span>
-                                <input type="number" name="quantity" min="1" placeholder="Planned order quantity" data-i18n-placeholder="form_quantity_placeholder">
+                                <input type="number" name="quantity" min="1" max="999999999" placeholder="Planned order quantity" data-i18n-placeholder="form_quantity_placeholder">
                             </label>
                             <label>
                                 <span data-i18n="form_oem_label">OEM / private label</span>
@@ -831,17 +831,21 @@
                             </label>
                             <label>
                                 <span data-i18n="form_port_label">Target port / city</span>
-                                <input type="text" name="port" placeholder="Destination port or city" data-i18n-placeholder="form_port_placeholder">
+                                <input type="text" name="port" maxlength="120" placeholder="Destination port or city" data-i18n-placeholder="form_port_placeholder">
                             </label>
                             <label>
                                 <span data-i18n="form_date_label">Target delivery month</span>
-                                <input type="text" name="deadline" placeholder="Example: September 2026" data-i18n-placeholder="form_date_placeholder">
+                                <input type="text" name="deadline" maxlength="80" placeholder="Example: September 2026" data-i18n-placeholder="form_date_placeholder">
                             </label>
                         </div>
                         <label>
                             <span data-i18n="form_message_label">Requirements</span>
-                            <textarea name="message" required placeholder="Tell us size, colors, packaging, certification, and target order timeline." data-i18n-placeholder="form_message_placeholder"></textarea>
+                            <textarea name="message" required maxlength="5000" placeholder="Tell us size, colors, packaging, certification, and target order timeline." data-i18n-placeholder="form_message_placeholder"></textarea>
                         </label>
+                        <div class="form-honeypot" aria-hidden="true">
+                            <label>Website<input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+                        </div>
+                        <div class="turnstile-container" data-turnstile-container aria-live="polite"></div>
                         <p class="form-response-promise" data-i18n="form_response_promise">We reply within 24 hours (business time).</p>
                         <button type="submit" class="btn btn-primary btn-block" data-i18n="form_submit">Get Wholesale Quote</button>
                     </form>

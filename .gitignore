@@ -15,9 +15,17 @@ yarn-error.log*
 .env
 .env.local
 .env.*.local
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
 
 # Local runtime data store
 data/*.json
+
+# Cloudflare local runtime data and logs
+.wrangler/
+.wrangler-config/
+wrangler.jsonc
 
 # macOS/Windows junk
 .DS_Store

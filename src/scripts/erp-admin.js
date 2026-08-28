@@ -641,8 +641,8 @@ document.getElementById('orderDocButtons').addEventListener('click', async (even
     }
 });
 
-// Fetched (not navigated to) so the Authorization header can be attached —
-// a plain link/new-tab navigation can't carry a custom header. The HTML is
+// Fetched (not navigated to) so the same-origin session cookie is included.
+// A plain link/new-tab navigation can't keep this display flow. The HTML is
 // opened from a Blob URL instead; the page's own "Print to PDF" button (or
 // Ctrl+P) is the actual PDF path, since Workers can't run a PDF renderer.
 document.getElementById('orderDocList').addEventListener('click', async (event) => {
@@ -650,7 +650,7 @@ document.getElementById('orderDocList').addEventListener('click', async (event) 
     if (!docId || !activeOrderId) return;
     try {
         const response = await fetch(`/api/orders/${activeOrderId}/documents/${docId}/render`, {
-            headers: { Authorization: `Bearer ${getToken()}` }
+            credentials: 'same-origin'
         });
         if (!response.ok) throw new Error(`渲染失败 (${response.status})`);
         const html = await response.text();

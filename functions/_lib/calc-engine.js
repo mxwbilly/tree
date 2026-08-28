@@ -189,20 +189,37 @@ export async function computeProfit(env, { orderId, freightAmount, freightCurren
   const order = await env.DB.prepare('SELECT * FROM sales_orders WHERE id = ?').bind(orderId).first();
   if (!order) return { ok: false, error: 'Order not found.' };
 
+  return computeProfitForOrder(env, order, { freightAmount, freightCurrency });
+}
+
+// Dashboard read models already loaded the order rows in one query. Reusing
+// that row avoids one extra D1 query for every order without duplicating the
+// profit rules used by the order-detail API.
+export async function computeProfitForOrder(env, order, { freightAmount, freightCurrency, cache } = {}) {
+  if (!order?.id) return { ok: false, error: 'Order is required.' };
+
   const lines = parseJson(order.current_lines_json, []);
   if (!lines.length) return { ok: false, error: 'Order has no lines.' };
 
   let totalCostInOrderCurrency = 0;
   const lineCosts = [];
   for (const line of lines) {
-    const costResult = await computeCost(env, { productId: line.productId, qty: line.qty, supplierId: line.supplierId });
+    const costKey = `${line.productId || ''}|${Number(line.qty) || ''}|${line.supplierId || ''}`;
+    if (cache?.costs && !cache.costs.has(costKey)) {
+      cache.costs.set(costKey, computeCost(env, { productId: line.productId, qty: line.qty, supplierId: line.supplierId }));
+    }
+    const costResult = cache?.costs ? await cache.costs.get(costKey) : await computeCost(env, { productId: line.productId, qty: line.qty, supplierId: line.supplierId });
     if (!costResult.ok) {
       lineCosts.push({ productId: line.productId, ok: false, warning: costResult.error });
       continue;
     }
     let costInOrderCurrency = costResult.totalCost;
     if (costResult.currency !== order.currency) {
-      const rate = await getLatestExchangeRate(env, costResult.currency, order.currency, todayStr());
+      const rateKey = `${costResult.currency}|${order.currency}`;
+      if (cache?.rates && !cache.rates.has(rateKey)) {
+        cache.rates.set(rateKey, getLatestExchangeRate(env, costResult.currency, order.currency, todayStr()));
+      }
+      const rate = cache?.rates ? await cache.rates.get(rateKey) : await getLatestExchangeRate(env, costResult.currency, order.currency, todayStr());
       if (!rate) {
         lineCosts.push({ productId: line.productId, ok: false, warning: `No exchange rate ${costResult.currency}->${order.currency}.` });
         continue;
@@ -219,7 +236,11 @@ export async function computeProfit(env, { orderId, freightAmount, freightCurren
     if (!Number.isFinite(amt) || amt < 0) return { ok: false, error: 'freightAmount must be a non-negative number.' };
     const fCurrency = String(freightCurrency || order.currency).trim().toUpperCase();
     if (fCurrency !== order.currency) {
-      const rate = await getLatestExchangeRate(env, fCurrency, order.currency, todayStr());
+      const rateKey = `${fCurrency}|${order.currency}`;
+      if (cache?.rates && !cache.rates.has(rateKey)) {
+        cache.rates.set(rateKey, getLatestExchangeRate(env, fCurrency, order.currency, todayStr()));
+      }
+      const rate = cache?.rates ? await cache.rates.get(rateKey) : await getLatestExchangeRate(env, fCurrency, order.currency, todayStr());
       if (!rate) return { ok: false, error: `No exchange rate found for ${fCurrency}->${order.currency}.` };
       freightInOrderCurrency = Math.round(amt * rate.rate * 100) / 100;
     } else {
@@ -233,7 +254,7 @@ export async function computeProfit(env, { orderId, freightAmount, freightCurren
 
   return {
     ok: true,
-    orderId,
+    orderId: order.id,
     currency: order.currency,
     revenue,
     totalCost: Math.round(totalCostInOrderCurrency * 100) / 100,

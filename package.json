@@ -4,11 +4,15 @@
   "description": "GreenSmart - 智能自动浇水花盆官方网站",
   "main": "index.html",
   "scripts": {
-    "dev": "node server.js",
+    "dev": "npm run build && wrangler pages dev",
+    "dev:init": "wrangler d1 execute DB --local --file=./schema.sql",
     "build": "node build.js",
-    "deploy": "npm run build && rsync -avz dist/ user@your-server:/var/www/html/",
-    "start": "node server.js",
-    "qa:check": "node qa-check.js",
+    "start": "npm run dev",
+    "verify": "npm run qa:source && npm run build && npm run qa:dist && npm run qa:schema",
+    "qa:check": "npm run qa:source",
+    "qa:source": "node qa-check.js --source",
+    "qa:dist": "node qa-check.js --dist",
+    "qa:schema": "node schema-check.js",
     "fetch-trends": "node scripts/fetch-trends.js"
   },
   "keywords": [
@@ -22,15 +26,10 @@
   "license": "MIT",
   "devDependencies": {
     "esbuild": "^0.28.1",
-    "http-server": "^14.1.1",
-    "sharp": "^0.34.5"
+    "sharp": "^0.34.5",
+    "wrangler": "^4.126.0"
   },
   "dependencies": {
-    "bcryptjs": "^2.4.3",
-    "dotenv": "^16.6.1",
-    "express": "^4.21.2",
-    "google-trends-api": "^4.9.2",
-    "jsonwebtoken": "^9.0.2",
-    "nodemailer": "^6.10.1"
+    "google-trends-api": "^4.9.2"
   }
 }

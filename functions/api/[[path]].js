@@ -1,5 +1,33 @@
 const TOKEN_EXPIRES_SECONDS = 12 * 60 * 60;
+const SESSION_COOKIE_NAME = 'greensmart_admin_session';
 const STATUS_VALUES = new Set(['new', 'contacted', 'quoted', 'won', 'lost']);
+const MIN_JWT_SECRET_LENGTH = 32;
+const MIN_ADMIN_PASSWORD_LENGTH = 12;
+const MAX_INQUIRY_BODY_BYTES = 16 * 1024;
+const MAX_TURNSTILE_TOKEN_LENGTH = 2048;
+const INQUIRY_FIELD_LIMITS = {
+  name: 100,
+  email: 254,
+  country: 100,
+  message: 5000,
+  company: 150,
+  phone: 50,
+  product: 500,
+  quantity: 30,
+  oem: 30,
+  port: 120,
+  deadline: 80,
+  lang: 10,
+  source: 50,
+  pageUrl: 1000
+};
+const INSECURE_JWT_SECRETS = new Set([
+  'change-this-secret',
+  'change-this-secret-in-production',
+  'change-this-secret-before-production'
+]);
+const INSECURE_ADMIN_PASSWORDS = new Set(['ChangeMe123!']);
+const INSECURE_ADMIN_EMAILS = new Set(['admin@novagardenhome.com']);
 
 function nowIso() {
   return new Date().toISOString();
@@ -82,6 +110,30 @@ async function hmacSign(input, secret) {
   return base64UrlEncode(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(input)));
 }
 
+function getSecurityConfigIssues(env) {
+  const jwtSecret = String(env.JWT_SECRET || '').trim();
+  const adminEmail = String(env.ADMIN_EMAIL || '').trim().toLowerCase();
+  const adminPassword = String(env.ADMIN_PASSWORD || '');
+  const issues = [];
+
+  if (jwtSecret.length < MIN_JWT_SECRET_LENGTH || INSECURE_JWT_SECRETS.has(jwtSecret)) {
+    issues.push('JWT_SECRET');
+  }
+  if (!/^\S+@\S+\.\S+$/.test(adminEmail) || INSECURE_ADMIN_EMAILS.has(adminEmail)) {
+    issues.push('ADMIN_EMAIL');
+  }
+  if (adminPassword.length < MIN_ADMIN_PASSWORD_LENGTH || INSECURE_ADMIN_PASSWORDS.has(adminPassword)) {
+    issues.push('ADMIN_PASSWORD');
+  }
+  return issues;
+}
+
+function getJwtSecret(env) {
+  const issues = getSecurityConfigIssues(env);
+  if (issues.includes('JWT_SECRET')) throw new Error('JWT_SECRET is missing or insecure.');
+  return String(env.JWT_SECRET).trim();
+}
+
 async function createToken(payload, env) {
   const header = base64UrlEncodeText(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
   const body = base64UrlEncodeText(JSON.stringify({
@@ -89,7 +141,7 @@ async function createToken(payload, env) {
     exp: Math.floor(Date.now() / 1000) + TOKEN_EXPIRES_SECONDS
   }));
   const unsigned = `${header}.${body}`;
-  const signature = await hmacSign(unsigned, env.JWT_SECRET || 'change-this-secret');
+  const signature = await hmacSign(unsigned, getJwtSecret(env));
   return `${unsigned}.${signature}`;
 }
 
@@ -97,7 +149,7 @@ async function verifyToken(token, env) {
   const parts = String(token || '').split('.');
   if (parts.length !== 3) throw new Error('Invalid token.');
   const [header, body, signature] = parts;
-  const expected = await hmacSign(`${header}.${body}`, env.JWT_SECRET || 'change-this-secret');
+  const expected = await hmacSign(`${header}.${body}`, getJwtSecret(env));
   if (signature !== expected) throw new Error('Invalid signature.');
   const payload = JSON.parse(base64UrlDecodeText(body));
   if (!payload.exp || payload.exp < Math.floor(Date.now() / 1000)) {
@@ -112,8 +164,29 @@ function parseBearerToken(request) {
   return scheme?.toLowerCase() === 'bearer' ? token : '';
 }
 
+function parseCookieToken(request) {
+  const cookie = request.headers.get('Cookie') || '';
+  const prefix = `${SESSION_COOKIE_NAME}=`;
+  const part = cookie.split(';').map((item) => item.trim()).find((item) => item.startsWith(prefix));
+  return part ? decodeURIComponent(part.slice(prefix.length)) : '';
+}
+
+function getRequestToken(request) {
+  return parseBearerToken(request) || parseCookieToken(request);
+}
+
+function sessionCookie(request, token) {
+  const secure = new URL(request.url).protocol === 'https:' ? '; Secure' : '';
+  return `${SESSION_COOKIE_NAME}=${encodeURIComponent(token)}; HttpOnly; SameSite=Strict; Path=/api; Max-Age=${TOKEN_EXPIRES_SECONDS}${secure}`;
+}
+
+function expiredSessionCookie(request) {
+  const secure = new URL(request.url).protocol === 'https:' ? '; Secure' : '';
+  return `${SESSION_COOKIE_NAME}=; HttpOnly; SameSite=Strict; Path=/api; Max-Age=0${secure}`;
+}
+
 async function requireAuth(request, env, roles = []) {
-  const token = parseBearerToken(request);
+  const token = getRequestToken(request);
   if (!token) {
     return { response: json({ ok: false, error: 'Missing authorization token.' }, { status: 401 }) };
   }
@@ -359,13 +432,19 @@ function normalizeInquiry(row) {
 
 async function ensureBootstrap(env) {
   await env.DB.prepare(`
-    INSERT OR IGNORE INTO users (id, email, name, role, password_hash, created_at, updated_at)
+    INSERT INTO users (id, email, name, role, password_hash, created_at, updated_at)
     VALUES (?, ?, ?, 'admin', ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      email = excluded.email,
+      name = excluded.name,
+      role = 'admin',
+      password_hash = excluded.password_hash,
+      updated_at = excluded.updated_at
   `).bind(
     'user_admin',
-    String(env.ADMIN_EMAIL || 'admin@novagardenhome.com').trim().toLowerCase(),
-    env.ADMIN_NAME || 'Default Admin',
-    await sha256Hex(env.ADMIN_PASSWORD || 'ChangeMe123!'),
+    String(env.ADMIN_EMAIL).trim().toLowerCase(),
+    String(env.ADMIN_NAME || 'Site Administrator').trim(),
+    await sha256Hex(String(env.ADMIN_PASSWORD)),
     nowIso(),
     nowIso()
   ).run();
@@ -379,14 +458,22 @@ async function ensureBootstrap(env) {
 }
 
 async function checkRateLimit(env, request, bucket, limit, windowSeconds) {
-  if (!env.RATE_LIMIT) return null;
-  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-  const slot = Math.floor(Date.now() / (windowSeconds * 1000));
-  const key = `${bucket}:${ip}:${slot}`;
-  const count = Number(await env.RATE_LIMIT.get(key) || '0') + 1;
-  await env.RATE_LIMIT.put(key, String(count), { expirationTtl: windowSeconds + 60 });
-  if (count > limit) {
-    return json({ ok: false, error: `Too many ${bucket} requests. Please retry later.` }, { status: 429 });
+  if (!env.RATE_LIMIT) {
+    console.error('[config] RATE_LIMIT KV binding is not configured.');
+    return json({ ok: false, error: 'Request protection is temporarily unavailable.' }, { status: 503 });
+  }
+  try {
+    const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+    const slot = Math.floor(Date.now() / (windowSeconds * 1000));
+    const key = `${bucket}:${ip}:${slot}`;
+    const count = Number(await env.RATE_LIMIT.get(key) || '0') + 1;
+    await env.RATE_LIMIT.put(key, String(count), { expirationTtl: windowSeconds + 60 });
+    if (count > limit) {
+      return json({ ok: false, error: `Too many ${bucket} requests. Please retry later.` }, { status: 429 });
+    }
+  } catch (error) {
+    console.error(`[rate-limit] ${bucket} failed:`, error);
+    return json({ ok: false, error: 'Request protection is temporarily unavailable.' }, { status: 503 });
   }
   return null;
 }
@@ -394,6 +481,73 @@ async function checkRateLimit(env, request, bucket, limit, windowSeconds) {
 async function readBody(request) {
   if (!request.headers.get('Content-Type')?.includes('application/json')) return {};
   return request.json().catch(() => ({}));
+}
+
+async function readInquiryBody(request) {
+  if (!request.headers.get('Content-Type')?.includes('application/json')) {
+    return { response: json({ ok: false, error: 'Content-Type must be application/json.' }, { status: 415 }) };
+  }
+  const declaredLength = Number(request.headers.get('Content-Length') || 0);
+  if (declaredLength > MAX_INQUIRY_BODY_BYTES) {
+    return { response: json({ ok: false, error: 'Inquiry request is too large.' }, { status: 413 }) };
+  }
+  const text = await request.text();
+  if (new TextEncoder().encode(text).byteLength > MAX_INQUIRY_BODY_BYTES) {
+    return { response: json({ ok: false, error: 'Inquiry request is too large.' }, { status: 413 }) };
+  }
+  try {
+    const payload = JSON.parse(text);
+    if (!payload || Array.isArray(payload) || typeof payload !== 'object') throw new Error('Invalid body.');
+    return { payload };
+  } catch {
+    return { response: json({ ok: false, error: 'Invalid JSON body.' }, { status: 400 }) };
+  }
+}
+
+function validateInquiryPayload(payload) {
+  for (const field of ['name', 'email', 'country', 'product', 'message']) {
+    if (!String(payload[field] || '').trim()) return `${field} is required.`;
+  }
+  const email = String(payload.email).trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return 'A valid email address is required.';
+  for (const [field, limit] of Object.entries(INQUIRY_FIELD_LIMITS)) {
+    if (String(payload[field] || '').trim().length > limit) return `${field} is too long.`;
+  }
+  return '';
+}
+
+async function verifyTurnstile(env, request, token) {
+  const secret = String(env.TURNSTILE_SECRET_KEY || '').trim();
+  if (!secret) {
+    console.error('[config] TURNSTILE_SECRET_KEY is not configured.');
+    return json({ ok: false, error: 'Security verification is temporarily unavailable.' }, { status: 503 });
+  }
+  const responseToken = String(token || '').trim();
+  if (!responseToken || responseToken.length > MAX_TURNSTILE_TOKEN_LENGTH) {
+    return json({ ok: false, error: 'Please complete the security verification.' }, { status: 400 });
+  }
+  try {
+    const body = new URLSearchParams({
+      secret,
+      response: responseToken,
+      remoteip: request.headers.get('CF-Connecting-IP') || ''
+    });
+    const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body
+    });
+    if (!response.ok) throw new Error(`Siteverify returned ${response.status}.`);
+    const result = await response.json();
+    if (!result.success) {
+      console.warn('[turnstile] Verification rejected:', result['error-codes'] || []);
+      return json({ ok: false, error: 'Security verification failed. Please try again.' }, { status: 400 });
+    }
+    return null;
+  } catch (error) {
+    console.error('[turnstile] Siteverify failed:', error);
+    return json({ ok: false, error: 'Security verification is temporarily unavailable.' }, { status: 503 });
+  }
 }
 
 async function getSettings(env) {
@@ -475,16 +629,31 @@ async function handleHealth() {
   return json({ ok: true, service: 'greensmart-api', runtime: 'cloudflare-pages-functions', time: nowIso() });
 }
 
+async function handlePublicConfig(env) {
+  const turnstileSiteKey = String(env.TURNSTILE_SITE_KEY || '').trim();
+  if (!turnstileSiteKey) {
+    return json({ ok: false, error: 'Public security configuration is incomplete.' }, { status: 503 });
+  }
+  return json({ ok: true, turnstileSiteKey });
+}
+
 async function handleCreateInquiry(request, env, waitUntil) {
-  const limited = await checkRateLimit(env, request, 'inquiry', 40, 15 * 60);
+  const limited = await checkRateLimit(env, request, 'inquiry', 10, 15 * 60);
   if (limited) return limited;
 
-  const payload = await readBody(request);
-  for (const field of ['name', 'email', 'country', 'message']) {
-    if (!String(payload[field] || '').trim()) {
-      return json({ ok: false, error: `${field} is required.` }, { status: 400 });
-    }
+  const bodyResult = await readInquiryBody(request);
+  if (bodyResult.response) return bodyResult.response;
+  const payload = bodyResult.payload;
+
+  if (String(payload.website || '').trim()) {
+    return json({ ok: true, status: 'new', message: 'Inquiry received.' }, { status: 201 });
   }
+
+  const validationError = validateInquiryPayload(payload);
+  if (validationError) return json({ ok: false, error: validationError }, { status: 400 });
+
+  const turnstileError = await verifyTurnstile(env, request, payload['cf-turnstile-response']);
+  if (turnstileError) return turnstileError;
 
   const safeEmail = String(payload.email).trim().toLowerCase();
   const safeName = String(payload.name).trim();
@@ -591,7 +760,7 @@ async function handleCreateInquiry(request, env, waitUntil) {
 }
 
 async function handleLogin(request, env) {
-  const limited = await checkRateLimit(env, request, 'login', 12, 15 * 60);
+  const limited = await checkRateLimit(env, request, 'login', 8, 15 * 60);
   if (limited) return limited;
   const body = await readBody(request);
   const email = String(body.email || '').trim().toLowerCase();
@@ -605,7 +774,13 @@ async function handleLogin(request, env) {
   }
   const token = await createToken({ sub: user.id, role: user.role, email: user.email, name: user.name }, env);
   await appendActivityLog(env, { type: 'auth.login', actorId: user.id, payload: { email: user.email } });
-  return json({ ok: true, token, user: { id: user.id, email: user.email, role: user.role, name: user.name } });
+  return json({ ok: true, user: { id: user.id, email: user.email, role: user.role, name: user.name } }, {
+    headers: { 'Set-Cookie': sessionCookie(request, token) }
+  });
+}
+
+function handleLogout(request) {
+  return json({ ok: true }, { headers: { 'Set-Cookie': expiredSessionCookie(request) } });
 }
 
 async function handleUsers(env) {
@@ -860,7 +1035,11 @@ async function handleMailTest(env) {
 
 async function routeAdmin(request, env, path, waitUntil) {
   if (path === '/api/admin/auth/login' && request.method === 'POST') {
+    await ensureBootstrap(env);
     return handleLogin(request, env);
+  }
+  if (path === '/api/admin/auth/logout' && request.method === 'POST') {
+    return handleLogout(request);
   }
 
   const authResult = await requireAuth(request, env, ['admin', 'sales']);
@@ -915,12 +1094,17 @@ export async function onRequest(context) {
   if (!env.DB) {
     return json({ ok: false, error: 'D1 binding DB is not configured.' }, { status: 500 });
   }
-  await ensureBootstrap(env);
+  const securityIssues = getSecurityConfigIssues(env);
+  if (securityIssues.length) {
+    console.error(`[config] Missing or insecure values: ${securityIssues.join(', ')}`);
+    return json({ ok: false, error: 'Server security configuration is incomplete.' }, { status: 500 });
+  }
 
   const url = new URL(request.url);
   const path = url.pathname.replace(/\/+$/, '') || '/';
 
   if (path === '/api/health' && request.method === 'GET') return handleHealth();
+  if (path === '/api/public-config' && request.method === 'GET') return handlePublicConfig(env);
   if (path === '/api/inquiries' && request.method === 'POST') return handleCreateInquiry(request, env, waitUntil);
   if (path.startsWith('/api/admin/')) return routeAdmin(request, env, path, waitUntil);
   return json({ ok: false, error: 'Not found.' }, { status: 404 });

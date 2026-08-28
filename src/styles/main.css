@@ -2668,6 +2668,26 @@ body {
     color: var(--text-gray);
 }
 
+.form-honeypot {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+}
+
+.turnstile-container {
+    min-height: 65px;
+}
+
+.turnstile-container.is-unavailable {
+    min-height: 0;
+    color: #b91c1c;
+    font-size: 13px;
+    font-weight: 600;
+}
+
 .detail-hero {
     padding: 112px 0 76px;
     background: linear-gradient(180deg, #f7fbf5 0%, #ffffff 100%);
