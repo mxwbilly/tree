@@ -62,6 +62,8 @@ const defaultAssigneeInput = document.getElementById('defaultAssigneeInput');
 const saveSettingsBtn = document.getElementById('saveSettingsBtn');
 const testMailBtn = document.getElementById('testMailBtn');
 const mailStatusText = document.getElementById('mailStatusText');
+const refreshMailLogsBtn = document.getElementById('refreshMailLogsBtn');
+const mailLogList = document.getElementById('mailLogList');
 
 let inquiryItems = [];
 let selectedInquiryId = '';
@@ -470,6 +472,7 @@ async function loadSettings() {
     notifyEmailInput.value = result.item?.notifyEmail || '';
     defaultAssigneeInput.value = result.item?.defaultAssigneeId || '';
     await loadMailStatus();
+    await loadMailLogs();
 }
 
 async function loadMailStatus() {
@@ -484,6 +487,50 @@ async function loadMailStatus() {
         mailStatusText.textContent = parts.join(' · ');
     } catch (error) {
         mailStatusText.textContent = `邮件状态读取失败：${error.message}`;
+    }
+}
+
+function getMailLogLabel(type) {
+    const labels = {
+        'mail.test': '测试邮件',
+        'mail.inquiry_notify': '新询盘通知',
+        'mail.inquiry_assigned': '询盘分配通知'
+    };
+    return labels[type] || type || '邮件通知';
+}
+
+function getMailLogResult(payload) {
+    const results = [payload?.notify, payload?.assignee, payload].filter(Boolean);
+    if (results.some((item) => item?.ok === false)) return '发送失败';
+    if (results.some((item) => item?.ok === true)) return '已发送';
+    return '已记录';
+}
+
+async function loadMailLogs() {
+    if (!mailLogList) return;
+    if (!currentUser || currentUser.role !== 'admin') {
+        mailLogList.innerHTML = '';
+        return;
+    }
+    try {
+        const result = await apiFetch(`${adminApiBase}/mail/logs`);
+        const items = Array.isArray(result.items) ? result.items : [];
+        if (!items.length) {
+            mailLogList.innerHTML = '<li>暂无邮件通知记录</li>';
+            return;
+        }
+        mailLogList.innerHTML = items.map((item) => {
+            const payload = item.payload || {};
+            const recipient = payload.notifyEmail || '-';
+            const error = payload.error || payload.notify?.error || payload.assignee?.error || '';
+            return `<li data-mail-log-id="${escapeHtml(item.id)}">
+                <strong>${escapeHtml(getMailLogLabel(item.type))}</strong> · ${escapeHtml(getMailLogResult(payload))}<br>
+                <span class="muted">${escapeHtml(new Date(item.createdAt).toLocaleString())} · 收件：${escapeHtml(recipient)}${error ? ` · 原因：${escapeHtml(error)}` : ''}</span>
+                <button type="button" class="btn-compact btn-outline mail-log-delete" data-mail-log-id="${escapeHtml(item.id)}" style="margin-left:8px;">删除</button>
+            </li>`;
+        }).join('');
+    } catch (error) {
+        mailLogList.innerHTML = `<li>邮件记录读取失败：${escapeHtml(error.message)}</li>`;
     }
 }
 
@@ -779,6 +826,7 @@ testMailBtn?.addEventListener('click', async () => {
         const result = await apiFetch(`${adminApiBase}/mail/test`, { method: 'POST' });
         alert(result.message || '测试邮件已发送，请检查收件箱和垃圾箱。');
         await loadMailStatus();
+        await loadMailLogs();
     } catch (error) {
         alert(`测试邮件发送失败：${error.message}`);
         if (mailStatusText) {
@@ -786,6 +834,23 @@ testMailBtn?.addEventListener('click', async () => {
         }
     } finally {
         testMailBtn.disabled = false;
+    }
+});
+
+refreshMailLogsBtn?.addEventListener('click', loadMailLogs);
+
+mailLogList?.addEventListener('click', async (event) => {
+    const button = event.target.closest('.mail-log-delete');
+    if (!button) return;
+    const id = button.dataset.mailLogId;
+    if (!id || !confirm('删除这条邮件通知记录？已发送的邮件不会被撤回。')) return;
+    button.disabled = true;
+    try {
+        await apiFetch(`${adminApiBase}/mail/logs/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        await loadMailLogs();
+    } catch (error) {
+        alert(`删除失败：${error.message}`);
+        button.disabled = false;
     }
 });
 

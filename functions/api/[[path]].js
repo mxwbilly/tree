@@ -996,6 +996,34 @@ async function handleMailStatus(env) {
   });
 }
 
+async function handleMailLogs(env) {
+  const { results } = await env.DB.prepare(`
+    SELECT id, type, payload_json, created_at
+    FROM activity_logs
+    WHERE type LIKE 'mail.%'
+    ORDER BY created_at DESC
+    LIMIT 50
+  `).all();
+  return json({
+    ok: true,
+    items: (results || []).map((item) => ({
+      id: item.id,
+      type: item.type,
+      payload: parseJson(item.payload_json, {}),
+      createdAt: item.created_at
+    }))
+  });
+}
+
+async function handleDeleteMailLog(env, id) {
+  const log = await env.DB.prepare(`
+    SELECT id FROM activity_logs WHERE id = ? AND type LIKE 'mail.%'
+  `).bind(id).first();
+  if (!log) return json({ ok: false, error: 'Mail notification record not found.' }, { status: 404 });
+  await env.DB.prepare('DELETE FROM activity_logs WHERE id = ?').bind(id).run();
+  return json({ ok: true });
+}
+
 async function handleMailTest(env) {
   try {
     const settings = await getSettings(env);
@@ -1060,6 +1088,17 @@ async function routeAdmin(request, env, path, waitUntil) {
   if (path === '/api/admin/mail/status' && request.method === 'GET') {
     if (auth.role !== 'admin') return json({ ok: false, error: 'Forbidden.' }, { status: 403 });
     return handleMailStatus(env);
+  }
+
+  if (path === '/api/admin/mail/logs' && request.method === 'GET') {
+    if (auth.role !== 'admin') return json({ ok: false, error: 'Forbidden.' }, { status: 403 });
+    return handleMailLogs(env);
+  }
+
+  const mailLogMatch = path.match(/^\/api\/admin\/mail\/logs\/([^/]+)$/);
+  if (mailLogMatch && request.method === 'DELETE') {
+    if (auth.role !== 'admin') return json({ ok: false, error: 'Forbidden.' }, { status: 403 });
+    return handleDeleteMailLog(env, decodeURIComponent(mailLogMatch[1]));
   }
 
   if (path === '/api/admin/mail/test' && request.method === 'POST') {

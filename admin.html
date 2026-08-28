@@ -507,6 +507,14 @@
                     <button id="testMailBtn" type="button" class="btn-compact">发送测试邮件</button>
                 </div>
                 <p id="mailStatusText" style="margin:8px 0 0;font-size:13px;color:#64748b;"></p>
+                <div style="margin-top:16px;">
+                    <div class="toolbar" style="justify-content:space-between;">
+                        <h4 style="margin:0;">邮件通知记录</h4>
+                        <button id="refreshMailLogsBtn" type="button" class="btn-compact btn-outline">刷新记录</button>
+                    </div>
+                    <p class="muted" style="margin:8px 0;">仅保留最近 50 条发送结果；删除不会撤回已发送的邮件。</p>
+                    <ul id="mailLogList" class="timeline-list" style="max-height:260px;"></ul>
+                </div>
             </div>
         </section>
 
