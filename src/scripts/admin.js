@@ -2,6 +2,7 @@ const pageSize = 20;
 const adminApiBase = '/api/admin';
 
 const loginCard = document.getElementById('loginCard');
+const adminApp = document.getElementById('adminApp');
 const dashboardCard = document.getElementById('dashboardCard');
 const loginForm = document.getElementById('loginForm');
 const loginFeedback = document.getElementById('loginFeedback');
@@ -102,6 +103,7 @@ const rfqFieldLabelMap = {
 
 function setAuthState(loggedIn) {
     loginCard.classList.toggle('hidden', loggedIn);
+    adminApp.classList.toggle('hidden', !loggedIn);
     dashboardCard.classList.toggle('hidden', !loggedIn);
     const tabNav = document.getElementById('tabNav');
     if (tabNav) tabNav.classList.toggle('hidden', !loggedIn);

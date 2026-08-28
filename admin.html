@@ -314,7 +314,7 @@
     <div class="wrap">
         <section class="card" id="loginCard">
             <h1>GreenSmart 后台登录</h1>
-            <p class="muted">默认管理员账号来自服务器 `.env` 配置。</p>
+            <p class="muted">管理员账号由 Cloudflare Pages 的生产变量配置。</p>
             <form id="loginForm">
                 <input type="email" id="email" name="email" placeholder="请输入管理员邮箱" required>
                 <input type="password" id="password" name="password" placeholder="请输入密码" required>
@@ -323,7 +323,8 @@
             <p id="loginFeedback" class="muted"></p>
         </section>
 
-        <nav class="tab-nav hidden" id="tabNav">
+        <main id="adminApp" class="hidden" aria-live="polite">
+        <nav class="tab-nav" id="tabNav">
             <button type="button" class="tab-btn active" data-tab="inquiries">询盘管理</button>
             <button type="button" class="tab-btn" data-tab="products">产品</button>
             <button type="button" class="tab-btn" data-tab="suppliers">供应商</button>
@@ -708,6 +709,7 @@
                 </table>
             </div>
         </section>
+        </main>
     </div>
     <script src="src/scripts/admin.js"></script>
     <script src="src/scripts/erp-admin.js"></script>
