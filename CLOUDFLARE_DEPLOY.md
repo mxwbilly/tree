@@ -111,6 +111,7 @@ https://novagardenhome.com/admin.html
 
 - `RESEND_API_KEY`：Resend 控制台中的 API Key
 - `MAIL_FROM`：已在 Resend 验证过的发件地址（格式：`名称 <email@domain.com>`）
+- `RESEND_WEBHOOK_SECRET`：Resend Webhook 的 Signing Secret，用于验证并记录投递、退信和打开状态
 
 触发场景：
 
@@ -118,6 +119,16 @@ https://novagardenhome.com/admin.html
 - 询盘自动/手动分配负责人 → 同时通知负责人邮箱
 
 若未配置 Resend 变量，询盘仍会正常入库，只是跳过邮件发送。
+
+### 邮件送达状态 Webhook
+
+后台的“邮件通知记录”会在 Resend 接受发信后显示“已提交发送”。要显示真实的“已送达 / 已打开 / 投递失败”，在 Resend Dashboard 创建 Webhook：
+
+- Endpoint：`https://novagardenhome.com/api/webhooks/resend`
+- Events：至少勾选 `email.sent`、`email.delivered`、`email.bounced`、`email.failed`、`email.opened`
+- 将该 Webhook 的 Signing Secret 以 **Secret** 类型写入 Cloudflare Pages 生产变量 `RESEND_WEBHOOK_SECRET`
+
+Webhook 已使用 Svix 签名和时间戳校验，并以 `svix-id` 去重；Resend 重试或人工重放事件不会重复写入记录。
 
 ### Resend 常见失败原因
 

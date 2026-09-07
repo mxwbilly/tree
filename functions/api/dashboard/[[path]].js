@@ -5,7 +5,7 @@
 // no persisted Shipment/booking record yet — dashboard profit is therefore a
 // pre-freight figure, same as computeProfit's behavior when freightAmount is
 // not supplied.
-import { json } from '../../_lib/http.js';
+import { json, parseJson } from '../../_lib/http.js';
 import { requireAuth } from '../../_lib/auth.js';
 import { computeProfitForOrder } from '../../_lib/calc-engine.js';
 
@@ -84,6 +84,8 @@ async function handleSummary(request, env) {
   }
 
   const lostCount = (statusCounts || []).find((row) => row.status === 'lost')?.count || 0;
+  const quotedCount = (statusCounts || []).find((row) => row.status === 'quoted')?.count || 0;
+  const piIssuedCount = (statusCounts || []).find((row) => row.status === 'pi_issued')?.count || 0;
   const wonCount = orders.length;
   const winRate = wonCount + lostCount > 0 ? Math.round((wonCount / (wonCount + lostCount)) * 10000) / 100 : null;
 
@@ -95,6 +97,8 @@ async function handleSummary(request, env) {
     profit: Math.round(profit * 100) / 100,
     marginPercent: revenue > 0 ? Math.round((profit / revenue) * 10000) / 100 : null,
     winRate,
+    quotedCount,
+    piIssuedCount,
     hasWarnings
   });
 }
@@ -208,6 +212,41 @@ async function handleCountryAnalysis(request, env) {
   return json({ ok: true, items });
 }
 
+async function handleProductAnalysis(request, env) {
+  const orders = await committedOrders(env, getDateRange(request));
+  const calculateProfit = createProfitCalculator(env);
+  const byProduct = new Map();
+  const productNameCache = new Map();
+  for (const order of orders) {
+    const lines = parseJson(order.current_lines_json, []);
+    const result = await calculateProfit(order);
+    const orderProfit = result.ok ? result.profit : 0;
+    const orderAmount = Number(order.total_amount || 0);
+    for (const line of Array.isArray(lines) ? lines : []) {
+      const quantity = Math.max(Number(line.qty || 0), 0);
+      const amount = Number(line.unitPrice || 0) * quantity;
+      const share = orderAmount > 0 ? amount / orderAmount : 0;
+      const key = line.productId || 'unknown';
+      if (!productNameCache.has(key)) {
+        const product = key === 'unknown' ? null : await env.DB.prepare('SELECT name FROM products WHERE id = ?').bind(key).first();
+        productNameCache.set(key, product?.name || key);
+      }
+      if (!byProduct.has(key)) byProduct.set(key, { productName: productNameCache.get(key), orderCount: 0, revenue: 0, profit: 0 });
+      const bucket = byProduct.get(key);
+      bucket.orderCount += 1;
+      bucket.revenue += amount;
+      bucket.profit += orderProfit * share;
+    }
+  }
+  const items = Array.from(byProduct.values()).map((item) => ({
+    ...item,
+    revenue: Math.round(item.revenue * 100) / 100,
+    profit: Math.round(item.profit * 100) / 100,
+    marginPercent: item.revenue > 0 ? Math.round((item.profit / item.revenue) * 10000) / 100 : null
+  })).sort((a, b) => b.revenue - a.revenue);
+  return json({ ok: true, items });
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
   if (!env.DB) return json({ ok: false, error: 'D1 binding DB is not configured.' }, { status: 500 });
@@ -223,6 +262,7 @@ export async function onRequest(context) {
   if (path === '/api/dashboard/profit') return handleProfitTrend(request, env);
   if (path === '/api/dashboard/customers') return handleCustomerAnalysis(request, env);
   if (path === '/api/dashboard/countries') return handleCountryAnalysis(request, env);
+  if (path === '/api/dashboard/products') return handleProductAnalysis(request, env);
 
   return json({ ok: false, error: 'Not found.' }, { status: 404 });
 }

@@ -6,13 +6,14 @@
 const tabButtons = document.querySelectorAll('.tab-btn');
 const tabSectionMap = {
     inquiries: 'dashboardCard',
+    customers: 'customersCard',
     products: 'productsCard',
     suppliers: 'suppliersCard',
     rates: 'ratesCard',
     orders: 'ordersCard',
     erpDashboard: 'erpDashboardCard'
 };
-let erpBooted = { products: false, suppliers: false, rates: false, orders: false, erpDashboard: false };
+let erpBooted = { customers: false, products: false, suppliers: false, rates: false, orders: false, erpDashboard: false };
 
 tabButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -27,6 +28,7 @@ tabButtons.forEach((btn) => {
 async function bootTab(tab) {
     if (erpBooted[tab]) return;
     erpBooted[tab] = true;
+    if (tab === 'customers') loadCustomers();
     if (tab === 'products') { loadSuppliersForSelect(); loadProducts(); }
     if (tab === 'suppliers') { loadSuppliers(); }
     if (tab === 'rates') { loadFxRates(); loadFreightRates(); }
@@ -60,17 +62,18 @@ async function loadSuppliersForSelect() {
 
 async function loadProducts(q) {
     const rows = document.getElementById('productRows');
-    rows.innerHTML = '<tr><td colspan="7" class="muted">加载中...</td></tr>';
+    rows.innerHTML = '<tr><td colspan="8" class="muted">加载中...</td></tr>';
     try {
         const query = q ? `?q=${encodeURIComponent(q)}&pageSize=100` : '?pageSize=100';
         const res = await apiFetch(`/api/products${query}`);
         allProducts = res.items || [];
         if (!allProducts.length) {
-            rows.innerHTML = '<tr><td colspan="7" class="muted">暂无产品</td></tr>';
+            rows.innerHTML = '<tr><td colspan="8" class="muted">暂无产品</td></tr>';
             return;
         }
         rows.innerHTML = allProducts.map((p) => {
             const supplierName = allSuppliers.find((s) => s.id === p.defaultSupplierId)?.name || '-';
+            const publicInfo = p.spec?.public || {};
             const packaging = p.packaging?.unitsPerCarton
                 ? `${p.packaging.unitsPerCarton}/箱${p.packaging.cartonDimensionsCm ? ` (${p.packaging.cartonDimensionsCm.length}×${p.packaging.cartonDimensionsCm.width}×${p.packaging.cartonDimensionsCm.height}cm)` : ''}`
                 : '未设置';
@@ -78,6 +81,7 @@ async function loadProducts(q) {
                 <td>${escapeHtml(p.sku)}</td>
                 <td>${escapeHtml(p.name)}</td>
                 <td>${escapeHtml(p.category || '-')}</td>
+                <td><span class="status-pill">${publicInfo.published ? '已发布' : '未发布'}</span></td>
                 <td>${escapeHtml(supplierName)}</td>
                 <td>${escapeHtml(packaging)}</td>
                 <td><span class="status-pill">${escapeHtml(p.status)}</span></td>
@@ -88,7 +92,7 @@ async function loadProducts(q) {
             </tr>`;
         }).join('');
     } catch (error) {
-        rows.innerHTML = `<tr><td colspan="7" class="muted">${escapeHtml(error.message)}</td></tr>`;
+        rows.innerHTML = `<tr><td colspan="8" class="muted">${escapeHtml(error.message)}</td></tr>`;
     }
 }
 
@@ -103,10 +107,30 @@ document.getElementById('productForm').addEventListener('submit', async (event) 
     if (unitsPerCarton) packaging.unitsPerCarton = Number(unitsPerCarton);
     if (l && w && h) packaging.cartonDimensionsCm = { length: Number(l), width: Number(w), height: Number(h) };
 
+    const currentProduct = allProducts.find((product) => product.id === id);
+    const splitHomepageLines = (id, limit) => document.getElementById(id).value
+        .split(/\r?\n/)
+        .map((value) => value.trim())
+        .filter(Boolean)
+        .slice(0, limit);
+    const publicInfo = {
+        published: document.getElementById('productPublishInput').checked,
+        title: document.getElementById('productPublicTitleInput').value.trim(),
+        imageUrl: document.getElementById('productPublicImageInput').value.trim(),
+        secondaryImageUrl: document.getElementById('productPublicSecondaryImageInput').value.trim(),
+        detailUrl: document.getElementById('productPublicDetailUrlInput').value.trim(),
+        description: document.getElementById('productPublicDescriptionInput').value.trim(),
+        badge: document.getElementById('productPublicBadgeInput').value.trim(),
+        chip: document.getElementById('productPublicChipInput').value.trim(),
+        highlights: splitHomepageLines('productPublicHighlightsInput', 3),
+        meta: splitHomepageLines('productPublicMetaInput', 2),
+        sortOrder: Number(document.getElementById('productPublicOrderInput').value || 0)
+    };
     const body = {
         sku: document.getElementById('productSkuInput').value.trim(),
         name: document.getElementById('productNameInput').value.trim(),
         category: document.getElementById('productCategoryInput').value.trim(),
+        spec: { ...(currentProduct?.spec || {}), note: document.getElementById('productSpecInput').value.trim(), public: publicInfo },
         defaultSupplierId: document.getElementById('productSupplierSelect').value || null,
         packaging
     };
@@ -126,6 +150,17 @@ document.getElementById('productForm').addEventListener('submit', async (event) 
 function resetProductForm() {
     document.getElementById('productForm').reset();
     document.getElementById('productIdInput').value = '';
+    document.getElementById('productPublishInput').checked = false;
+    document.getElementById('productPublicTitleInput').value = '';
+    document.getElementById('productPublicImageInput').value = '';
+    document.getElementById('productPublicSecondaryImageInput').value = '';
+    document.getElementById('productPublicDetailUrlInput').value = '';
+    document.getElementById('productPublicOrderInput').value = '0';
+    document.getElementById('productPublicDescriptionInput').value = '';
+    document.getElementById('productPublicBadgeInput').value = '';
+    document.getElementById('productPublicChipInput').value = '';
+    document.getElementById('productPublicHighlightsInput').value = '';
+    document.getElementById('productPublicMetaInput').value = '';
     document.getElementById('productSubmitBtn').textContent = '新建产品';
     document.getElementById('productCancelEditBtn').classList.add('hidden');
 }
@@ -144,6 +179,18 @@ document.getElementById('productRows').addEventListener('click', async (event) =
         document.getElementById('productSkuInput').value = p.sku;
         document.getElementById('productNameInput').value = p.name;
         document.getElementById('productCategoryInput').value = p.category || '';
+        document.getElementById('productSpecInput').value = p.spec?.note || '';
+        document.getElementById('productPublishInput').checked = Boolean(p.spec?.public?.published);
+        document.getElementById('productPublicTitleInput').value = p.spec?.public?.title || '';
+        document.getElementById('productPublicImageInput').value = p.spec?.public?.imageUrl || '';
+        document.getElementById('productPublicSecondaryImageInput').value = p.spec?.public?.secondaryImageUrl || '';
+        document.getElementById('productPublicDetailUrlInput').value = p.spec?.public?.detailUrl || '';
+        document.getElementById('productPublicOrderInput').value = p.spec?.public?.sortOrder ?? 0;
+        document.getElementById('productPublicDescriptionInput').value = p.spec?.public?.description || '';
+        document.getElementById('productPublicBadgeInput').value = p.spec?.public?.badge || '';
+        document.getElementById('productPublicChipInput').value = p.spec?.public?.chip || '';
+        document.getElementById('productPublicHighlightsInput').value = (p.spec?.public?.highlights || []).join('\n');
+        document.getElementById('productPublicMetaInput').value = (p.spec?.public?.meta || []).join('\n');
         document.getElementById('productSupplierSelect').value = p.defaultSupplierId || '';
         document.getElementById('productUnitsPerCartonInput').value = p.packaging?.unitsPerCarton || '';
         document.getElementById('productCartonLInput').value = p.packaging?.cartonDimensionsCm?.length || '';
@@ -160,6 +207,101 @@ document.getElementById('productRows').addEventListener('click', async (event) =
         } catch (error) {
             alert(error.message);
         }
+    }
+});
+
+// --- Customers ---------------------------------------------------------
+let allCustomers = [];
+
+async function loadCustomers(q) {
+    const rows = document.getElementById('customerRows');
+    rows.innerHTML = '<tr><td colspan="7" class="muted">加载中...</td></tr>';
+    try {
+        const query = q ? `?q=${encodeURIComponent(q)}&pageSize=100` : '?pageSize=100';
+        const res = await apiFetch(`/api/customers${query}`);
+        allCustomers = res.items || [];
+        if (!allCustomers.length) {
+            rows.innerHTML = '<tr><td colspan="7" class="muted">暂无客户</td></tr>';
+            return;
+        }
+        rows.innerHTML = allCustomers.map((customer) => `<tr>
+            <td><strong>${escapeHtml(customer.name)}</strong><br><span class="muted">${escapeHtml(customer.email)}</span></td>
+            <td>${escapeHtml(customer.company || '-')}</td>
+            <td>${escapeHtml(customer.country || '-')}</td>
+            <td>${Number(customer.inquiryCount || 0)}</td>
+            <td>${Number(customer.orderCount || 0)}</td>
+            <td>${customer.lastInquiryAt ? new Date(customer.lastInquiryAt).toLocaleDateString() : '-'}</td>
+            <td class="row-actions"><button type="button" class="btn-compact btn-outline" data-view-customer="${customer.id}">档案</button><button type="button" class="btn-compact btn-outline" data-edit-customer="${customer.id}">编辑</button></td>
+        </tr>`).join('');
+    } catch (error) {
+        rows.innerHTML = `<tr><td colspan="7" class="muted">${escapeHtml(error.message)}</td></tr>`;
+    }
+}
+
+function resetCustomerForm() {
+    document.getElementById('customerForm').reset();
+    document.getElementById('customerIdInput').value = '';
+    document.getElementById('customerEmailInput').disabled = false;
+    document.getElementById('customerSubmitBtn').textContent = '新建客户';
+    document.getElementById('customerCancelEditBtn').classList.add('hidden');
+}
+
+function fillCustomerForm(customer) {
+    document.getElementById('customerIdInput').value = customer.id;
+    document.getElementById('customerNameInput').value = customer.name || '';
+    document.getElementById('customerEmailInput').value = customer.email || '';
+    document.getElementById('customerEmailInput').disabled = true;
+    document.getElementById('customerCompanyInput').value = customer.company || '';
+    document.getElementById('customerCountryInput').value = customer.country || '';
+    document.getElementById('customerPhoneInput').value = customer.phone || '';
+    document.getElementById('customerSubmitBtn').textContent = '保存客户';
+    document.getElementById('customerCancelEditBtn').classList.remove('hidden');
+}
+
+async function viewCustomer(id) {
+    const result = await apiFetch(`/api/customers/${encodeURIComponent(id)}`);
+    const customer = result.item;
+    document.getElementById('customerDetailPanel').classList.remove('hidden');
+    document.getElementById('customerDetailTitle').textContent = customer.name || '客户详情';
+    document.getElementById('customerDetailMeta').textContent = [customer.company, customer.country, customer.phone, customer.email].filter(Boolean).join(' · ');
+    const inquiries = customer.inquiries || [];
+    document.getElementById('customerInquiryList').innerHTML = inquiries.length ? inquiries.map((item) => `<li><strong>${escapeHtml(item.product || '未填写产品')}</strong> · ${escapeHtml(item.status)} · 报价 ${item.quoteCount || 0} 份<br><span class="muted">${new Date(item.createdAt).toLocaleDateString()}</span></li>`).join('') : '<li>暂无询盘记录</li>';
+    const orders = customer.orders || [];
+    document.getElementById('customerOrderList').innerHTML = orders.length ? orders.map((item) => `<li><strong>${escapeHtml(item.orderNo)}</strong> · ${escapeHtml(item.status)} · ${escapeHtml(item.currency)} ${fmtMoney(item.totalAmount)}<br><span class="muted">${new Date(item.createdAt).toLocaleDateString()}</span></li>`).join('') : '<li>暂无订单记录</li>';
+}
+
+document.getElementById('customerForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const id = document.getElementById('customerIdInput').value;
+    const body = {
+        name: document.getElementById('customerNameInput').value.trim(),
+        email: document.getElementById('customerEmailInput').value.trim(),
+        company: document.getElementById('customerCompanyInput').value.trim(),
+        country: document.getElementById('customerCountryInput').value.trim(),
+        phone: document.getElementById('customerPhoneInput').value.trim()
+    };
+    try {
+        if (id) await apiFetch(`/api/customers/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(body) });
+        else await apiFetch('/api/customers', { method: 'POST', body: JSON.stringify(body) });
+        resetCustomerForm();
+        loadCustomers();
+    } catch (error) {
+        alert(error.message);
+    }
+});
+
+document.getElementById('customerCancelEditBtn').addEventListener('click', resetCustomerForm);
+document.getElementById('customerSearchBtn').addEventListener('click', () => loadCustomers(document.getElementById('customerSearchInput').value.trim()));
+document.getElementById('customerRefreshBtn').addEventListener('click', () => loadCustomers());
+document.getElementById('customerRows').addEventListener('click', async (event) => {
+    const editId = event.target.dataset.editCustomer;
+    const viewId = event.target.dataset.viewCustomer;
+    if (editId) {
+        const customer = allCustomers.find((item) => item.id === editId);
+        if (customer) fillCustomerForm(customer);
+    }
+    if (viewId) {
+        try { await viewCustomer(viewId); } catch (error) { alert(error.message); }
     }
 });
 
@@ -685,6 +827,8 @@ async function loadErpDashboard() {
         document.getElementById('erpKpiProfit').textContent = fmtMoney(summary.profit);
         document.getElementById('erpKpiMargin').textContent = fmtPercent(summary.marginPercent);
         document.getElementById('erpKpiWinRate').textContent = fmtPercent(summary.winRate);
+        document.getElementById('erpKpiQuoted').textContent = summary.quotedCount || 0;
+        document.getElementById('erpKpiPiIssued').textContent = summary.piIssuedCount || 0;
     } catch (error) {
         console.error(error);
     }
@@ -732,6 +876,21 @@ async function loadErpDashboard() {
             <td>${fmtMoney(row.profit)}</td>
             <td>${fmtPercent(row.marginPercent)}</td>
         </tr>`).join('') : '<tr><td colspan="6" class="muted">暂无数据</td></tr>';
+    } catch (error) {
+        console.error(error);
+    }
+
+    try {
+        const products = await apiFetch(withRange('/api/dashboard/products'));
+        const rows = document.getElementById('productAnalysisRows');
+        const items = products.items || [];
+        rows.innerHTML = items.length ? items.map((row) => `<tr>
+            <td>${escapeHtml(row.productName)}</td>
+            <td>${row.orderCount}</td>
+            <td>${fmtMoney(row.revenue)}</td>
+            <td>${fmtMoney(row.profit)}</td>
+            <td>${fmtPercent(row.marginPercent)}</td>
+        </tr>`).join('') : '<tr><td colspan="5" class="muted">暂无数据</td></tr>';
     } catch (error) {
         console.error(error);
     }

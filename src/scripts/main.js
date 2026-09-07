@@ -383,6 +383,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             updateDetailPageLinks(targetLang);
             await applyTranslations(targetLang);
             loadAndApplyTrends(targetLang);
+            loadPublishedProducts();
         });
     });
 
@@ -417,6 +418,80 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     initProductMultiSelect();
     initTurnstile();
+
+    function escapePublishedProductText(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    async function loadPublishedProducts() {
+        const grid = document.getElementById('publishedProductsGrid');
+        if (!grid) return;
+
+        const lang = document.documentElement.lang || staticHomeLanguage || localStorage.getItem('greensmart-lang') || 'en';
+        const labels = {
+            en: { imagePending: 'Product image coming soon', fallback: 'Contact us for specifications, MOQ, and wholesale pricing.', details: 'View Details', quote: 'Get Wholesale Quote' },
+            vi: { imagePending: 'Hinh anh san pham dang cap nhat', fallback: 'Lien he de nhan thong so, MOQ va bao gia si.', details: 'Xem chi tiet', quote: 'Yeu cau bao gia si' },
+            th: { imagePending: 'กําลังอัปเดตรูปภาพสินค้า', fallback: 'ติดต่อเราเพื่อรับสเปก MOQ และราคาโรงงาน', details: 'ดูรายละเอียด', quote: 'ขอใบเสนอราคาขายส่ง' },
+            id: { imagePending: 'Gambar produk segera diperbarui', fallback: 'Hubungi kami untuk spesifikasi, MOQ, dan harga grosir.', details: 'Lihat detail', quote: 'Minta penawaran grosir' }
+        };
+        const copy = labels[lang] || labels.en;
+
+        try {
+            const response = await fetch('/api/public-products');
+            const result = await response.json();
+            const items = response.ok && Array.isArray(result.items) ? result.items : [];
+            if (!items.length) return;
+
+            grid.innerHTML = items.map((item) => {
+                const image = item.imageUrl
+                    ? `<img src="${escapePublishedProductText(item.imageUrl)}" alt="${escapePublishedProductText(item.title)}" width="960" height="720" loading="lazy" decoding="async">`
+                    : `<div class="product-placeholder"><i class="fas fa-seedling"></i><span>${copy.imagePending}</span></div>`;
+                const secondaryImage = item.secondaryImageUrl
+                    ? `<img class="product-img-secondary" src="${escapePublishedProductText(item.secondaryImageUrl)}" alt="" width="960" height="720" loading="lazy" decoding="async">`
+                    : '';
+                const badge = item.badge ? `<div class="product-badge">${escapePublishedProductText(item.badge)}</div>` : '';
+                const chip = item.chip ? `<div class="product-stock-chip${item.chipIcon === 'fa-star' ? ' chip-new' : ''}"><i class="fas ${escapePublishedProductText(item.chipIcon || 'fa-check-circle')}"></i><span>${escapePublishedProductText(item.chip)}</span></div>` : '';
+                const highlights = item.highlights?.length ? `<ul class="product-specs">${item.highlights.map((highlight) => `<li><i class="fas fa-check"></i>${escapePublishedProductText(highlight)}</li>`).join('')}</ul>` : '';
+                const meta = item.meta?.length ? `<div class="product-meta">${item.meta.map((value) => `<span>${escapePublishedProductText(value)}</span>`).join('')}</div>` : '';
+                const details = item.detailUrl ? `<a class="btn btn-secondary btn-card" href="${escapePublishedProductText(item.detailUrl)}">${copy.details}<i class="fas fa-arrow-right" aria-hidden="true"></i></a>` : '';
+                return `<article class="product-card published-product-card">
+                    <div class="product-image-wrapper">${image}${secondaryImage}${badge}${chip}</div>
+                    <div class="product-info">
+                        <h3>${escapePublishedProductText(item.title)}</h3>
+                        <p>${escapePublishedProductText(item.description || copy.fallback)}</p>
+                        ${highlights}
+                        ${meta}
+                        <div class="product-actions-row${details ? '' : ' single-action'}">${details}<a class="btn btn-primary btn-card" href="#contact" data-published-product="${escapePublishedProductText(item.title)}"><i class="fas fa-file-signature" aria-hidden="true"></i>${copy.quote}</a></div>
+                    </div>
+                </article>`;
+            }).join('');
+            grid.querySelectorAll('a[href="#contact"]').forEach((link) => link.addEventListener('click', () => {
+                if (contactForm) {
+                    let productInput = contactForm.querySelector('[data-published-product-input]');
+                    if (!productInput) {
+                        productInput = document.createElement('input');
+                        productInput.type = 'hidden';
+                        productInput.name = 'product';
+                        productInput.dataset.publishedProductInput = 'true';
+                        contactForm.appendChild(productInput);
+                    }
+                    productInput.value = link.dataset.publishedProduct || '';
+                }
+                trackEvent('request_published_product_quote', withTrackingMeta({
+                    label: link.dataset.publishedProduct || 'published_product'
+                }));
+            }));
+        } catch (error) {
+            console.warn('Published products could not be loaded.', error);
+        }
+    }
+
+    loadPublishedProducts();
 
     contactForm?.addEventListener('submit', async function (e) {
         e.preventDefault();

@@ -45,6 +45,7 @@ const quoteCurrencyInput = document.getElementById('quoteCurrencyInput');
 const quoteMoqInput = document.getElementById('quoteMoqInput');
 const quoteIncotermInput = document.getElementById('quoteIncotermInput');
 const quoteValidityInput = document.getElementById('quoteValidityInput');
+const quoteFollowUpInput = document.getElementById('quoteFollowUpInput');
 const quoteNoteInput = document.getElementById('quoteNoteInput');
 const createQuoteBtn = document.getElementById('createQuoteBtn');
 const quoteList = document.getElementById('quoteList');
@@ -236,11 +237,9 @@ function buildReminderMessage(item) {
 }
 
 async function apiFetch(url, options = {}) {
-    const headers = {
-        'Content-Type': 'application/json',
-        ...(options.headers || {})
-    };
-    const response = await fetch(url, { ...options, credentials: 'same-origin', headers });
+    const headers = Object.assign({ 'Content-Type': 'application/json' }, options.headers || {});
+    const requestOptions = Object.assign({}, options, { credentials: 'same-origin', headers });
+    const response = await fetch(url, requestOptions);
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
         const detail = payload.error ?? payload.message ?? payload.item?.error;
@@ -360,6 +359,7 @@ function setSelectedInquiry(item) {
     quoteMoqInput.value = '';
     quoteIncotermInput.value = '';
     quoteValidityInput.value = '30';
+    quoteFollowUpInput.value = '';
     quoteNoteInput.value = '';
     reminderPreview.value = '';
 }
@@ -391,12 +391,21 @@ function renderQuotes(quotes) {
         return;
     }
     const sorted = [...quotes].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const labels = { draft: '草稿', sent: '已发送', follow_up: '跟进中', accepted: '已接受', rejected: '已拒绝', expired: '已过期' };
     quoteList.innerHTML = sorted.map((quote) => `
         <li>
             <strong>${escapeHtml(quote.quoteNo)}</strong>
             <div>${escapeHtml(quote.currency)} ${escapeHtml(quote.unitPrice)} · MOQ ${escapeHtml(quote.moq || '-')} · ${escapeHtml(quote.incoterm || '-')}</div>
-            <div>有效期：${escapeHtml(quote.validityDays)} 天 · ${new Date(quote.createdAt).toLocaleString()}</div>
+            <div>有效期：${escapeHtml(quote.validityDays)} 天 · ${new Date(quote.createdAt).toLocaleString()} · 状态：${escapeHtml(labels[quote.trackingStatus] || labels.draft)}</div>
             <div>${escapeHtml(quote.note || '')}</div>
+            <div class="toolbar" style="margin-top:8px;">
+                <select data-quote-status="${escapeHtml(quote.id)}">
+                    ${Object.entries(labels).map(([value, label]) => `<option value="${value}" ${value === (quote.trackingStatus || 'draft') ? 'selected' : ''}>${label}</option>`).join('')}
+                </select>
+                <input type="date" data-quote-follow-up="${escapeHtml(quote.id)}" value="${escapeHtml(quote.followUpAt || '')}" title="下次跟进">
+                <button type="button" class="btn-compact btn-outline" data-save-quote-tracking="${escapeHtml(quote.id)}">保存追踪</button>
+            </div>
+            <input type="text" data-quote-reply="${escapeHtml(quote.id)}" value="${escapeHtml(quote.customerReply || '')}" placeholder="客户反馈（可选）">
         </li>
     `).join('');
 }
@@ -482,6 +491,7 @@ async function loadMailStatus() {
         const item = result.item || {};
         const parts = [];
         parts.push(item.resendConfigured ? 'Resend 已配置' : 'Resend 未配置');
+        parts.push(item.webhookConfigured ? '送达追踪已配置' : '送达追踪待配置');
         parts.push(item.mailFrom ? `发件：${item.mailFrom}` : '发件地址未设置');
         parts.push(item.notifyEmail ? `通知：${item.notifyEmail}` : '通知邮箱未设置');
         mailStatusText.textContent = parts.join(' · ');
@@ -506,6 +516,11 @@ function getMailLogResult(payload) {
     return '已记录';
 }
 
+function getDeliveryLabel(status) {
+    const labels = { accepted: '已提交发送', sent: '已发送', delivered: '已送达', opened: '已打开', delayed: '投递延迟', failed: '投递失败' };
+    return labels[status] || '等待送达状态';
+}
+
 async function loadMailLogs() {
     if (!mailLogList) return;
     if (!currentUser || currentUser.role !== 'admin') {
@@ -524,7 +539,7 @@ async function loadMailLogs() {
             const recipient = payload.notifyEmail || '-';
             const error = payload.error || payload.notify?.error || payload.assignee?.error || '';
             return `<li data-mail-log-id="${escapeHtml(item.id)}">
-                <strong>${escapeHtml(getMailLogLabel(item.type))}</strong> · ${escapeHtml(getMailLogResult(payload))}<br>
+                <strong>${escapeHtml(getMailLogLabel(item.type))}</strong> · ${escapeHtml(getMailLogResult(payload))} · ${escapeHtml(getDeliveryLabel(item.deliveryStatus))}<br>
                 <span class="muted">${escapeHtml(new Date(item.createdAt).toLocaleString())} · 收件：${escapeHtml(recipient)}${error ? ` · 原因：${escapeHtml(error)}` : ''}</span>
                 <button type="button" class="btn-compact btn-outline mail-log-delete" data-mail-log-id="${escapeHtml(item.id)}" style="margin-left:8px;">删除</button>
             </li>`;
@@ -598,7 +613,8 @@ async function createQuote() {
         moq: quoteMoqInput.value.trim(),
         incoterm: quoteIncotermInput.value.trim().toUpperCase(),
         validityDays: Number(quoteValidityInput.value || 30),
-        note: quoteNoteInput.value.trim()
+        note: quoteNoteInput.value.trim(),
+        followUpAt: quoteFollowUpInput.value
     };
     await apiFetch(`${adminApiBase}/inquiries/${encodeURIComponent(selectedInquiryId)}/quotes`, {
         method: 'POST',
@@ -613,8 +629,12 @@ loginForm?.addEventListener('submit', async (event) => {
     submitBtn.disabled = true;
     loginFeedback.textContent = '登录中...';
     try {
-        const formData = new FormData(loginForm);
-        const payload = Object.fromEntries(formData.entries());
+        // Read the two fields directly so the login flow also works in local
+        // preview runtimes that do not provide the browser FormData API.
+        const payload = {
+            email: document.getElementById('email').value.trim(),
+            password: document.getElementById('password').value
+        };
         const result = await apiFetch(`${adminApiBase}/auth/login`, {
             method: 'POST',
             body: JSON.stringify(payload)
@@ -834,6 +854,31 @@ testMailBtn?.addEventListener('click', async () => {
         }
     } finally {
         testMailBtn.disabled = false;
+    }
+});
+
+quoteList?.addEventListener('click', async (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const quoteId = target.dataset.saveQuoteTracking;
+    if (!quoteId || !selectedInquiryId) return;
+    const status = quoteList.querySelector(`[data-quote-status="${quoteId}"]`);
+    const followUp = quoteList.querySelector(`[data-quote-follow-up="${quoteId}"]`);
+    const reply = quoteList.querySelector(`[data-quote-reply="${quoteId}"]`);
+    target.setAttribute('disabled', 'disabled');
+    try {
+        await apiFetch(`${adminApiBase}/inquiries/${encodeURIComponent(selectedInquiryId)}/quotes/${encodeURIComponent(quoteId)}`, {
+            method: 'PATCH',
+            body: JSON.stringify({
+                trackingStatus: status?.value || 'draft',
+                followUpAt: followUp?.value || '',
+                customerReply: reply?.value || ''
+            })
+        });
+        await loadInquiries();
+    } catch (error) {
+        alert(error.message);
+        target.removeAttribute('disabled');
     }
 });
 

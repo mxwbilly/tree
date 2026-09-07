@@ -2,7 +2,7 @@
 // form (see functions/api/[[path]].js) — this domain adds the missing CRUD
 // surface so the SalesOrder UI can list/search/create customers directly,
 // without requiring a public inquiry first.
-import { json, newId, hasText, nowIso, readBody } from '../../_lib/http.js';
+import { json, newId, hasText, nowIso, parseJson, readBody } from '../../_lib/http.js';
 import { requireAuth } from '../../_lib/auth.js';
 
 function normalizeCustomer(row) {
@@ -16,6 +16,8 @@ function normalizeCustomer(row) {
     country: row.country || '',
     source: row.source || '',
     inquiryCount: row.inquiry_count,
+    orderCount: Number(row.order_count || 0),
+    orderAmount: Number(row.order_amount || 0),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     lastInquiryAt: row.last_inquiry_at
@@ -42,7 +44,10 @@ async function handleList(request, env) {
   const where = conditions.length ? ` WHERE ${conditions.join(' AND ')}` : '';
   const totalRow = await env.DB.prepare(`SELECT COUNT(*) AS total FROM customers${where}`).bind(...bindings).first();
   const { results } = await env.DB.prepare(`
-    SELECT * FROM customers${where}
+    SELECT c.*,
+      (SELECT COUNT(*) FROM sales_orders so WHERE so.customer_id = c.id) AS order_count,
+      (SELECT COALESCE(SUM(total_amount), 0) FROM sales_orders so WHERE so.customer_id = c.id AND so.status != 'lost') AS order_amount
+    FROM customers c${where}
     ORDER BY created_at DESC
     LIMIT ? OFFSET ?
   `).bind(...bindings, pageSize, (page - 1) * pageSize).all();
@@ -59,7 +64,31 @@ async function handleList(request, env) {
 async function handleDetail(env, id) {
   const row = await env.DB.prepare('SELECT * FROM customers WHERE id = ?').bind(id).first();
   if (!row) return json({ ok: false, error: 'Customer not found.' }, { status: 404 });
-  return json({ ok: true, item: normalizeCustomer(row) });
+  const { results: inquiries } = await env.DB.prepare(`
+    SELECT id, status, product, quotes_json, created_at, updated_at
+    FROM inquiries WHERE customer_id = ? ORDER BY created_at DESC LIMIT 20
+  `).bind(id).all();
+  const { results: orders } = await env.DB.prepare(`
+    SELECT order_no, status, currency, total_amount, created_at
+    FROM sales_orders WHERE customer_id = ? ORDER BY created_at DESC LIMIT 20
+  `).bind(id).all();
+  const item = normalizeCustomer(row);
+  item.inquiries = (inquiries || []).map((inquiry) => ({
+    id: inquiry.id,
+    status: inquiry.status,
+    product: inquiry.product || '',
+    quoteCount: Array.isArray(parseJson(inquiry.quotes_json, [])) ? parseJson(inquiry.quotes_json, []).length : 0,
+    createdAt: inquiry.created_at,
+    updatedAt: inquiry.updated_at
+  }));
+  item.orders = (orders || []).map((order) => ({
+    orderNo: order.order_no,
+    status: order.status,
+    currency: order.currency,
+    totalAmount: Number(order.total_amount || 0),
+    createdAt: order.created_at
+  }));
+  return json({ ok: true, item });
 }
 
 async function handleCreate(request, env) {

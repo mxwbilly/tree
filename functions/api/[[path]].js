@@ -568,7 +568,7 @@ async function appendActivityLog(env, entry) {
     INSERT INTO activity_logs (id, type, actor_id, target_id, payload_json, created_at)
     VALUES (?, ?, ?, ?, ?, ?)
   `).bind(
-    newId('log'),
+    entry.id || newId('log'),
     entry.type,
     entry.actorId || null,
     entry.targetId || null,
@@ -916,6 +916,10 @@ async function handleCreateQuote(request, env, auth, inquiryId) {
     incoterm: String(body.incoterm || '').trim().toUpperCase(),
     validityDays: Math.max(1, Math.min(180, Number.parseInt(String(body.validityDays || '30'), 10) || 30)),
     note: String(body.note || '').trim(),
+    trackingStatus: 'draft',
+    followUpAt: typeof body.followUpAt === 'string' ? body.followUpAt.trim().slice(0, 30) : '',
+    lastSentAt: null,
+    customerReply: '',
     createdBy: auth.sub,
     createdAt: nowIso()
   };
@@ -927,6 +931,52 @@ async function handleCreateQuote(request, env, auth, inquiryId) {
   await saveInquiryJson(env, inquiry);
   await appendActivityLog(env, { type: 'quote.created', actorId: auth.sub, targetId: inquiry.id, payload: { quoteNo: quote.quoteNo, currency, unitPrice } });
   return json({ ok: true, item: quote }, { status: 201 });
+}
+
+const QUOTE_TRACKING_STATUSES = new Set(['draft', 'sent', 'follow_up', 'accepted', 'rejected', 'expired']);
+
+async function handlePatchQuote(request, env, auth, inquiryId, quoteId) {
+  const inquiry = await getInquiry(env, inquiryId);
+  if (!inquiry) return json({ ok: false, error: 'Inquiry not found.' }, { status: 404 });
+  const quote = (inquiry.quotes || []).find((item) => item.id === quoteId);
+  if (!quote) return json({ ok: false, error: 'Quote not found.' }, { status: 404 });
+
+  const body = await readBody(request);
+  let changed = false;
+  if (typeof body.trackingStatus === 'string') {
+    if (!QUOTE_TRACKING_STATUSES.has(body.trackingStatus)) {
+      return json({ ok: false, error: 'Invalid quote tracking status.' }, { status: 400 });
+    }
+    quote.trackingStatus = body.trackingStatus;
+    if (body.trackingStatus === 'sent' && !quote.lastSentAt) quote.lastSentAt = nowIso();
+    changed = true;
+  }
+  if (typeof body.followUpAt === 'string') {
+    quote.followUpAt = body.followUpAt.trim().slice(0, 30);
+    changed = true;
+  }
+  if (typeof body.customerReply === 'string') {
+    quote.customerReply = body.customerReply.trim().slice(0, 1000);
+    changed = true;
+  }
+  if (!changed) return json({ ok: false, error: 'No quote tracking fields provided.' }, { status: 400 });
+
+  quote.updatedAt = nowIso();
+  inquiry.updatedAt = quote.updatedAt;
+  inquiry.timeline.push({
+    at: quote.updatedAt,
+    type: 'quote_tracking',
+    actorId: auth.sub,
+    note: `Quote ${quote.quoteNo} tracking updated: ${quote.trackingStatus || 'draft'}.`
+  });
+  await saveInquiryJson(env, inquiry);
+  await appendActivityLog(env, {
+    type: 'quote.tracking_updated',
+    actorId: auth.sub,
+    targetId: inquiry.id,
+    payload: { quoteNo: quote.quoteNo, trackingStatus: quote.trackingStatus, followUpAt: quote.followUpAt || '' }
+  });
+  return json({ ok: true, item: quote });
 }
 
 async function handlePatchInquiry(request, env, auth, inquiryId, waitUntil) {
@@ -988,6 +1038,7 @@ async function handleMailStatus(env) {
     ok: true,
     item: {
       resendConfigured: Boolean(env.RESEND_API_KEY),
+      webhookConfigured: Boolean(env.RESEND_WEBHOOK_SECRET),
       mailFrom: String(env.MAIL_FROM || '').trim() || null,
       notifyEmail: notifyEmail || null,
       envNotifyEmail: String(env.NOTIFY_EMAIL || '').trim() || null,
@@ -1004,14 +1055,42 @@ async function handleMailLogs(env) {
     ORDER BY created_at DESC
     LIMIT 50
   `).all();
+  const eventByEmailId = new Map();
+  for (const item of results || []) {
+    if (item.type !== 'mail.event') continue;
+    const event = parseJson(item.payload_json, {});
+    if (!event.emailId) continue;
+    const previous = eventByEmailId.get(event.emailId);
+    if (!previous || String(event.createdAt || item.created_at) > String(previous.createdAt || '')) {
+      eventByEmailId.set(event.emailId, event);
+    }
+  }
+  const eventStatus = (event) => {
+    const type = String(event?.eventType || '');
+    if (type === 'email.delivered') return 'delivered';
+    if (type === 'email.opened') return 'opened';
+    if (['email.bounced', 'email.failed', 'email.suppressed', 'email.complained'].includes(type)) return 'failed';
+    if (type === 'email.delivery_delayed') return 'delayed';
+    if (type === 'email.sent') return 'sent';
+    return '';
+  };
   return json({
     ok: true,
-    items: (results || []).map((item) => ({
-      id: item.id,
-      type: item.type,
-      payload: parseJson(item.payload_json, {}),
-      createdAt: item.created_at
-    }))
+    items: (results || [])
+      .filter((item) => item.type !== 'mail.event')
+      .map((item) => {
+        const payload = parseJson(item.payload_json, {});
+        const emailIds = [payload.id, payload.notify?.id, payload.assignee?.id].filter(Boolean);
+        const deliveryEvent = emailIds.map((id) => eventByEmailId.get(id)).find(Boolean);
+        return {
+          id: item.id,
+          type: item.type,
+          payload,
+          createdAt: item.created_at,
+          deliveryStatus: eventStatus(deliveryEvent) || (payload.ok || payload.notify?.ok || payload.assignee?.ok ? 'accepted' : 'failed'),
+          deliveryEvent: deliveryEvent || null
+        };
+      })
   });
 }
 
@@ -1117,6 +1196,11 @@ async function routeAdmin(request, env, path, waitUntil) {
       return json({ ok: true, items: inquiry.quotes || [] });
     }
     if (request.method === 'POST') return handleCreateQuote(request, env, auth, decodeURIComponent(quoteMatch[1]));
+  }
+
+  const quoteItemMatch = path.match(/^\/api\/admin\/inquiries\/([^/]+)\/quotes\/([^/]+)$/);
+  if (quoteItemMatch && request.method === 'PATCH') {
+    return handlePatchQuote(request, env, auth, decodeURIComponent(quoteItemMatch[1]), decodeURIComponent(quoteItemMatch[2]));
   }
 
   const inquiryMatch = path.match(/^\/api\/admin\/inquiries\/([^/]+)$/);

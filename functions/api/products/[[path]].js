@@ -98,6 +98,7 @@ async function handleUpdate(request, env, id) {
 
   const body = await readBody(request);
   const next = {
+    sku: hasText(body.sku) ? String(body.sku).trim() : existing.sku,
     name: hasText(body.name) ? String(body.name).trim() : existing.name,
     category: typeof body.category === 'string' ? body.category.trim() : existing.category,
     spec_json: body.spec ? JSON.stringify(body.spec) : existing.spec_json,
@@ -111,11 +112,16 @@ async function handleUpdate(request, env, id) {
     if (!supplier) return json({ ok: false, error: 'defaultSupplierId does not exist.' }, { status: 400 });
   }
 
+  if (next.sku !== existing.sku) {
+    const duplicate = await env.DB.prepare('SELECT id FROM products WHERE sku = ? AND id != ?').bind(next.sku, id).first();
+    if (duplicate) return json({ ok: false, error: `sku "${next.sku}" already exists.` }, { status: 409 });
+  }
+
   await env.DB.prepare(`
     UPDATE products
-    SET name = ?, category = ?, spec_json = ?, packaging_json = ?, default_supplier_id = ?, status = ?, updated_at = ?
+    SET sku = ?, name = ?, category = ?, spec_json = ?, packaging_json = ?, default_supplier_id = ?, status = ?, updated_at = ?
     WHERE id = ?
-  `).bind(next.name, next.category, next.spec_json, next.packaging_json, next.default_supplier_id, next.status, nowIso(), id).run();
+  `).bind(next.sku, next.name, next.category, next.spec_json, next.packaging_json, next.default_supplier_id, next.status, nowIso(), id).run();
 
   return handleDetail(env, id);
 }
