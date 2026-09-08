@@ -158,6 +158,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                 sitekey: config.turnstileSiteKey,
                 theme: 'light',
                 size: 'flexible',
+                appearance: 'interaction-only',
                 action: 'inquiry'
             });
         } catch (error) {
@@ -498,15 +499,35 @@ document.addEventListener('DOMContentLoaded', async function () {
         const lang = localStorage.getItem('greensmart-lang') || 'en';
         const formData = new FormData(this);
         const selectedProducts = formData.getAll('product').filter((item) => String(item || '').trim());
+        const formStatus = this.querySelector('[data-form-status]');
         const messages = {
-            en: { sending: 'Sending...', sent: 'Inquiry sent', failed: 'Send failed, please try again.', verify: 'Complete security verification first.' },
-            vi: { sending: 'Dang gui...', sent: 'Da gui inquiry', failed: 'Gui that bai, vui long thu lai.', verify: 'Vui long hoan thanh xac minh bao mat.' },
-            th: { sending: 'กําลังส่ง...', sent: 'ส่งคำถามแล้ว', failed: 'ส่งไม่สำเร็จ โปรดลองอีกครั้ง', verify: 'โปรดทำการยืนยันความปลอดภัยก่อน' },
-            id: { sending: 'Mengirim...', sent: 'Inquiry terkirim', failed: 'Gagal kirim, silakan coba lagi.', verify: 'Selesaikan verifikasi keamanan terlebih dahulu.' }
+            en: { sending: 'Sending...', sent: 'Inquiry sent. We will reply within 24 business hours.', failed: 'Unable to send your inquiry. Please try again.', invalid: 'Please complete the required fields and use a valid business email.', verify: 'Complete security verification first.', unavailable: 'The inquiry service is temporarily unavailable. Please try again later.' },
+            vi: { sending: 'Dang gui...', sent: 'Da gui inquiry. Chung toi se phan hoi trong 24 gio lam viec.', failed: 'Khong the gui inquiry. Vui long thu lai.', invalid: 'Vui long dien cac truong bat buoc va dung email doanh nghiep hop le.', verify: 'Vui long hoan thanh xac minh bao mat.', unavailable: 'Dich vu inquiry tam thoi khong kha dung. Vui long thu lai sau.' },
+            th: { sending: 'กําลังส่ง...', sent: 'ส่งคำถามแล้ว เราจะตอบกลับภายใน 24 ชั่วโมงทำการ', failed: 'ไม่สามารถส่งคำถามได้ โปรดลองอีกครั้ง', invalid: 'โปรดกรอกข้อมูลที่จำเป็นและใช้อีเมลธุรกิจที่ถูกต้อง', verify: 'โปรดทำการยืนยันความปลอดภัยก่อน', unavailable: 'บริการรับคำถามไม่พร้อมใช้งานชั่วคราว โปรดลองใหม่ภายหลัง' },
+            id: { sending: 'Mengirim...', sent: 'Inquiry terkirim. Kami akan membalas dalam 24 jam kerja.', failed: 'Inquiry tidak dapat dikirim. Silakan coba lagi.', invalid: 'Lengkapi kolom wajib dan gunakan email bisnis yang valid.', verify: 'Selesaikan verifikasi keamanan terlebih dahulu.', unavailable: 'Layanan inquiry sementara tidak tersedia. Silakan coba lagi nanti.' }
         };
         const submitButton = this.querySelector('button[type="submit"]');
         const originalText = submitButton.textContent;
         const current = messages[lang] || messages.en;
+        const showFormStatus = (message, tone) => {
+            if (!formStatus) return;
+            formStatus.textContent = message;
+            formStatus.className = `form-status is-${tone}`;
+            formStatus.hidden = false;
+        };
+        const clearFormStatus = () => {
+            if (!formStatus) return;
+            formStatus.textContent = '';
+            formStatus.className = 'form-status';
+            formStatus.hidden = true;
+        };
+        clearFormStatus();
+        const invalidField = Array.from(this.elements).find((field) => field.willValidate && !field.checkValidity());
+        if (invalidField) {
+            showFormStatus(current.invalid, 'error');
+            invalidField.focus();
+            return;
+        }
         if (!selectedProducts.length) {
             productMultiSelect?.classList.add('is-invalid');
             productMultiSelect?.classList.add('is-open');
@@ -518,6 +539,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         if (!formData.get('cf-turnstile-response')) {
             submitButton.textContent = current.verify;
             submitButton.style.backgroundColor = '#dc2626';
+            showFormStatus(current.verify, 'error');
             setTimeout(() => {
                 submitButton.textContent = originalText;
                 submitButton.style.backgroundColor = '#22c55e';
@@ -545,7 +567,12 @@ document.addEventListener('DOMContentLoaded', async function () {
                     body: JSON.stringify(payload)
                 });
                 if (!response.ok) {
-                    throw new Error(`Request failed with status ${response.status}`);
+                    const result = await response.json().catch(() => ({}));
+                    const detail = String(result.error || result.message || '').trim();
+                    const message = response.status >= 500
+                        ? current.unavailable
+                        : (detail || current.failed);
+                    throw new Error(message);
                 }
             } else {
                 await new Promise((resolve) => setTimeout(resolve, 800));
@@ -553,6 +580,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
             submitButton.textContent = current.sent;
             submitButton.style.backgroundColor = '#28a745';
+            showFormStatus(current.sent, 'success');
             trackEvent('submit_inquiry_success', withTrackingMeta({
                 lang,
                 product: selectedProducts.join('|') || 'unknown',
@@ -565,6 +593,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         } catch (error) {
             submitButton.textContent = current.failed;
             submitButton.style.backgroundColor = '#dc2626';
+            showFormStatus(error.message || current.failed, 'error');
             trackEvent('submit_inquiry_failed', withTrackingMeta({
                 lang,
                 reason: error.message || 'unknown'

@@ -2141,6 +2141,27 @@ body {
     min-height: 120px;
 }
 
+.form-status {
+    margin: 0;
+    padding: 11px 13px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    line-height: 1.45;
+}
+
+.form-status.is-error {
+    color: #991b1b;
+    background: #fef2f2;
+    border-color: #fecaca;
+}
+
+.form-status.is-success {
+    color: #166534;
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+}
+
 .footer {
     background-color: var(--text-dark);
     color: #fff;

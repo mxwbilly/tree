@@ -758,7 +758,7 @@
                             </div>
                         </div>
                     </div>
-                    <form class="contact-form enhanced-form" id="contactForm">
+                    <form class="contact-form enhanced-form" id="contactForm" novalidate>
                         <div class="form-grid">
                             <label>
                                 <span data-i18n="form_name_label">Full name</span>
@@ -846,6 +846,7 @@
                             <label>Website<input type="text" name="website" tabindex="-1" autocomplete="off"></label>
                         </div>
                         <div class="turnstile-container" data-turnstile-container aria-live="polite"></div>
+                        <p class="form-status" data-form-status aria-live="polite" hidden></p>
                         <p class="form-response-promise" data-i18n="form_response_promise">We reply within 24 hours (business time).</p>
                         <button type="submit" class="btn btn-primary btn-block" data-i18n="form_submit">Get Wholesale Quote</button>
                     </form>
