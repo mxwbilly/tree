@@ -3,6 +3,9 @@
 // rather than redefining them, since both scripts share the same login/token.
 
 // --- Tab switching -------------------------------------------------------
+const settingsCard = document.getElementById('settingsCard');
+if (settingsCard) document.getElementById('adminApp').appendChild(settingsCard);
+
 const tabButtons = document.querySelectorAll('.tab-btn');
 const tabSectionMap = {
     inquiries: 'dashboardCard',
@@ -11,9 +14,10 @@ const tabSectionMap = {
     suppliers: 'suppliersCard',
     rates: 'ratesCard',
     orders: 'ordersCard',
-    erpDashboard: 'erpDashboardCard'
+    erpDashboard: 'erpDashboardCard',
+    settings: 'settingsCard'
 };
-let erpBooted = { customers: false, products: false, suppliers: false, rates: false, orders: false, erpDashboard: false };
+let erpBooted = { customers: false, products: false, suppliers: false, rates: false, orders: false, erpDashboard: false, settings: true };
 
 tabButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -232,18 +236,30 @@ async function loadCustomers(q) {
             <td>${Number(customer.orderCount || 0)}</td>
             <td>${customer.lastInquiryAt ? new Date(customer.lastInquiryAt).toLocaleDateString() : '-'}</td>
             <td class="row-actions"><button type="button" class="btn-compact btn-outline" data-view-customer="${customer.id}">档案</button><button type="button" class="btn-compact btn-outline" data-edit-customer="${customer.id}">编辑</button></td>
-        </tr>`).join('');
+        </tr><tr class="inline-editor-row hidden" data-customer-editor-row="${customer.id}"><td colspan="7"><div class="inline-editor-slot" data-customer-editor-slot="${customer.id}"></div></td></tr>`).join('');
     } catch (error) {
         rows.innerHTML = `<tr><td colspan="7" class="muted">${escapeHtml(error.message)}</td></tr>`;
     }
 }
 
 function resetCustomerForm() {
-    document.getElementById('customerForm').reset();
+    const form = document.getElementById('customerForm');
+    const parking = document.getElementById('customerEditorParking');
+    form.reset();
     document.getElementById('customerIdInput').value = '';
     document.getElementById('customerEmailInput').disabled = false;
     document.getElementById('customerSubmitBtn').textContent = '新建客户';
     document.getElementById('customerCancelEditBtn').classList.add('hidden');
+    parking.appendChild(form);
+    form.classList.add('hidden');
+}
+
+function showCustomerForm(slot, customer) {
+    const form = document.getElementById('customerForm');
+    if (customer) fillCustomerForm(customer);
+    else resetCustomerForm();
+    slot.appendChild(form);
+    form.classList.remove('hidden');
 }
 
 function fillCustomerForm(customer) {
@@ -291,6 +307,10 @@ document.getElementById('customerForm').addEventListener('submit', async (event)
 });
 
 document.getElementById('customerCancelEditBtn').addEventListener('click', resetCustomerForm);
+document.getElementById('newCustomerBtn').addEventListener('click', () => {
+    resetCustomerForm();
+    showCustomerForm(document.getElementById('customerCreateSlot'));
+});
 document.getElementById('customerSearchBtn').addEventListener('click', () => loadCustomers(document.getElementById('customerSearchInput').value.trim()));
 document.getElementById('customerRefreshBtn').addEventListener('click', () => loadCustomers());
 document.getElementById('customerRows').addEventListener('click', async (event) => {
@@ -298,7 +318,13 @@ document.getElementById('customerRows').addEventListener('click', async (event) 
     const viewId = event.target.dataset.viewCustomer;
     if (editId) {
         const customer = allCustomers.find((item) => item.id === editId);
-        if (customer) fillCustomerForm(customer);
+        const row = document.querySelector(`[data-customer-editor-row="${editId}"]`);
+        const slot = document.querySelector(`[data-customer-editor-slot="${editId}"]`);
+        if (customer && row && slot) {
+            document.querySelectorAll('[data-customer-editor-row]').forEach((item) => item.classList.add('hidden'));
+            row.classList.remove('hidden');
+            showCustomerForm(slot, customer);
+        }
     }
     if (viewId) {
         try { await viewCustomer(viewId); } catch (error) { alert(error.message); }

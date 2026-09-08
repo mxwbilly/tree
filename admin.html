@@ -17,6 +17,24 @@
             background: #f1f5f3;
             color: #0f172a;
         }
+        body.auth-pending .wrap {
+            visibility: hidden;
+        }
+        body.auth-pending::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            margin: auto;
+            width: 26px;
+            height: 26px;
+            border: 3px solid #dce6df;
+            border-top-color: #16a34a;
+            border-radius: 50%;
+            animation: auth-loading 0.8s linear infinite;
+        }
+        @keyframes auth-loading {
+            to { transform: rotate(360deg); }
+        }
         .wrap {
             max-width: 1240px;
             margin: 24px auto 48px;
@@ -135,8 +153,9 @@
             align-items: center;
         }
         .toolbar input, .toolbar select {
-            min-width: 140px;
-            flex: 1;
+            min-width: 0;
+            flex: 1 1 180px;
+            max-width: 360px;
         }
         .btn-muted {
             background: #334155;
@@ -261,6 +280,7 @@
             .insight-grid {
                 grid-template-columns: 1fr;
             }
+            #detailsPanel { grid-template-columns: 1fr; }
         }
         .tab-nav {
             display: flex;
@@ -276,6 +296,50 @@
             z-index: 5;
             box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05);
         }
+        .admin-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 14px;
+            padding: 16px 18px;
+            background: #fff;
+            border: 1px solid #dce6df;
+            border-radius: 8px;
+        }
+        .admin-brand { display: flex; align-items: center; gap: 12px; }
+        .admin-brand-mark { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 6px; background: #e9f7ed; color: #166534; font-weight: 800; }
+        .admin-brand strong, .admin-brand span { display: block; }
+        .admin-brand span { margin-top: 2px; color: #64748b; font-size: 12px; }
+        .account-actions { display: flex; align-items: center; gap: 10px; }
+        .account-actions .account-note { color: #64748b; font-size: 13px; }
+        .account-actions .logout-btn { background: #fff; color: #334155; border: 1px solid #cbd5e1; }
+        .workspace-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 18px; }
+        .workspace-header h2 { margin-bottom: 4px; }
+        .workspace-header .muted { margin-bottom: 0; }
+        .workspace-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+        .inquiry-filter-panel { padding: 14px; margin-bottom: 14px; border: 1px solid #dce6df; border-radius: 8px; background: #f8fbf9; }
+        .filter-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+        .filter-grid input, .filter-grid select { min-width: 0; width: auto; flex: 1 1 190px; max-width: 310px; }
+        .filter-grid #keywordFilter { flex-basis: 320px; max-width: 440px; }
+        .filter-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+        .inquiry-insights { margin: 0 0 14px; }
+        .inquiry-insights summary { cursor: pointer; color: #475569; font-size: 13px; font-weight: 700; }
+        .inquiry-insights .insight-grid { margin-top: 10px; }
+        .inquiry-table-wrap { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 8px; }
+        .inquiry-table-wrap table { min-width: 980px; }
+        .inline-editor-row td { padding: 0; background: #f8fbf9; }
+        .inline-editor-slot { padding: 14px; border-top: 1px solid #dce6df; }
+        #customerCreateSlot .erp-form, .inline-editor-slot .erp-form { padding: 14px; margin: 0 0 14px; border: 1px solid #dce6df; border-radius: 8px; background: #f8fbf9; }
+        .inquiry-pagination { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 12px; }
+        .inquiry-pagination .toolbar { margin: 0; }
+        #detailsPanel { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        #detailsPanel .detail-box { min-width: 0; }
+        .detail-box .toolbar { display: grid; grid-template-columns: repeat(auto-fit, minmax(138px, 1fr)); gap: 10px; }
+        .detail-box .toolbar input, .detail-box .toolbar select, .detail-box .toolbar button { width: 100%; min-width: 0; max-width: none; }
+        .detail-box .toolbar button { align-self: stretch; }
+        .detail-box > label + select { width: 100%; min-width: 0; }
+        .settings-card { max-width: 900px; }
         .tab-btn {
             background: #fff;
             border: 1px solid #cbd5e1;
@@ -337,10 +401,18 @@
             th, td { font-size: 12px; padding: 8px 6px; }
             .toolbar input, .toolbar select { min-width: 100%; }
             .tab-nav { top: 4px; margin-left: -2px; margin-right: -2px; }
+            .admin-header, .workspace-header { align-items: stretch; flex-direction: column; }
+            .account-actions, .workspace-actions { justify-content: space-between; }
+            .filter-grid { display: grid; grid-template-columns: 1fr; }
+            .filter-grid input, .filter-grid select, .filter-grid #keywordFilter { width: 100%; max-width: none; }
+            #detailsPanel { grid-template-columns: 1fr; }
+            .filter-actions { justify-content: stretch; }
+            .filter-actions button { flex: 1; }
+            .inquiry-pagination { align-items: flex-start; flex-direction: column; }
         }
     </style>
 </head>
-<body>
+<body class="auth-pending">
     <div class="wrap">
         <section class="card" id="loginCard">
             <h1>GreenSmart 后台登录</h1>
@@ -354,6 +426,16 @@
         </section>
 
         <main id="adminApp" class="hidden" aria-live="polite">
+        <header class="admin-header">
+            <div class="admin-brand">
+                <div class="admin-brand-mark">G</div>
+                <div><strong>GreenSmart 业务后台</strong><span>询盘、产品、报价与订单</span></div>
+            </div>
+            <div class="account-actions">
+                <span class="account-note">管理员会话</span>
+                <button id="logoutBtn" type="button" class="logout-btn">退出登录</button>
+            </div>
+        </header>
         <nav class="tab-nav" id="tabNav">
             <button type="button" class="tab-btn active" data-tab="inquiries">询盘管理</button>
             <button type="button" class="tab-btn" data-tab="customers">客户</button>
@@ -362,11 +444,16 @@
             <button type="button" class="tab-btn" data-tab="rates">汇率与运费</button>
             <button type="button" class="tab-btn" data-tab="orders">订单</button>
             <button type="button" class="tab-btn" data-tab="erpDashboard">统计看板</button>
+            <button type="button" class="tab-btn" data-tab="settings">设置</button>
         </nav>
 
         <section class="card hidden" id="dashboardCard">
-            <h2>询盘管理看板</h2>
-            <p class="muted">统一查看询盘筛选、跟进状态、负责人、报价与备注。</p>
+            <div class="workspace-header">
+                <div>
+                    <h2>询盘管理</h2>
+                    <p class="muted">筛选询盘、查看详情、记录报价和下一步跟进。</p>
+                </div>
+            </div>
             <div class="kpi-grid">
                 <div class="kpi-card">
                     <div class="kpi-label">询盘总数</div>
@@ -393,7 +480,8 @@
                     <div class="kpi-value" id="kpiSlaBreached">0</div>
                 </div>
             </div>
-            <div class="toolbar">
+            <div class="inquiry-filter-panel">
+            <div class="filter-grid">
                 <select id="statusFilter">
                     <option value="">全部状态</option>
                     <option value="new">新建</option>
@@ -429,35 +517,14 @@
                     <option value="sla_desc">排序：SLA超时优先</option>
                     <option value="created_asc">排序：最早创建</option>
                 </select>
-                <button id="applyFilterBtn" type="button" class="btn-outline">应用筛选</button>
+            </div>
+            <div class="filter-actions">
                 <button id="clearFilterBtn" type="button" class="btn-outline">清空筛选</button>
-            </div>
-            <div class="toolbar">
-                <button id="refreshBtn" type="button">刷新数据</button>
+                <button id="applyFilterBtn" type="button">查询</button>
                 <button id="exportCsvBtn" type="button" class="btn-outline">导出 CSV</button>
-                <button id="logoutBtn" type="button" class="btn-muted">退出登录</button>
-                <span class="muted" id="summaryText">0 条记录</span>
             </div>
-            <div class="toolbar">
-                <button id="prevPageBtn" type="button" class="btn-outline">上一页</button>
-                <span class="muted" id="pageInfo">第 1 页 / 共 1 页</span>
-                <button id="nextPageBtn" type="button" class="btn-outline">下一页</button>
             </div>
-            <div class="insight-grid">
-                <div class="insight-box">
-                    <h4>国家分布（Top）</h4>
-                    <ul id="topCountriesList" class="insight-list"></ul>
-                </div>
-                <div class="insight-box">
-                    <h4>高意向页面</h4>
-                    <ul id="highIntentPagesList" class="insight-list"></ul>
-                </div>
-                <div class="insight-box">
-                    <h4>下周 Buyer Guide 计划</h4>
-                    <ul id="nextWeekPlanList" class="insight-list"></ul>
-                </div>
-            </div>
-            <div style="overflow-x: auto;">
+            <div class="inquiry-table-wrap">
                 <table>
                     <thead>
                         <tr>
@@ -475,6 +542,14 @@
                     </thead>
                     <tbody id="inquiryRows"></tbody>
                 </table>
+            </div>
+            <div class="inquiry-pagination">
+                <span class="muted" id="summaryText">0 条记录</span>
+                <div class="toolbar">
+                    <button id="prevPageBtn" type="button" class="btn-outline">上一页</button>
+                    <span class="muted" id="pageInfo">第 1 页 / 共 1 页</span>
+                    <button id="nextPageBtn" type="button" class="btn-outline">下一页</button>
+                </div>
             </div>
             <div id="detailsPanel" class="details-grid hidden" style="margin-top:16px;">
                 <div class="detail-box">
@@ -528,7 +603,7 @@
                     <ul id="timelineList" class="timeline-list"></ul>
                 </div>
             </div>
-            <div class="detail-box" style="margin-top:16px;">
+            <section class="card hidden settings-card" id="settingsCard">
                 <h3 style="margin-top:0;">系统设置（仅管理员）</h3>
                 <div class="toolbar">
                     <input id="notifyEmailInput" type="email" placeholder="通知邮箱">
@@ -547,32 +622,37 @@
                     <p class="muted" style="margin:8px 0;">仅保留最近 50 条发送结果；删除不会撤回已发送的邮件。</p>
                     <ul id="mailLogList" class="timeline-list" style="max-height:260px;"></ul>
                 </div>
-            </div>
+            </section>
         </section>
 
         <section class="card hidden" id="customersCard">
-            <h2>客户档案</h2>
-            <p class="muted">集中维护客户资料，并查看其询盘、报价和订单历史。</p>
-            <form id="customerForm" class="erp-form">
-                <input type="hidden" id="customerIdInput">
-                <input id="customerNameInput" type="text" placeholder="客户姓名（必填）" required>
-                <input id="customerEmailInput" type="email" placeholder="邮箱（必填）" required>
-                <input id="customerCompanyInput" type="text" placeholder="公司名称">
-                <input id="customerCountryInput" type="text" placeholder="国家/地区">
-                <input id="customerPhoneInput" type="text" placeholder="电话/WhatsApp">
-                <button id="customerSubmitBtn" type="submit">新建客户</button>
-                <button id="customerCancelEditBtn" type="button" class="btn-outline hidden">取消编辑</button>
-            </form>
+            <div class="workspace-header">
+                <div><h2>客户档案</h2><p class="muted">默认浏览客户主信息；仅在需要修改时展开对应记录。</p></div>
+                <div class="workspace-actions"><button id="newCustomerBtn" type="button">新建客户</button></div>
+            </div>
+            <div id="customerCreateSlot"></div>
             <div class="toolbar">
                 <input id="customerSearchInput" type="text" placeholder="搜索姓名/邮箱/公司">
                 <button id="customerSearchBtn" type="button" class="btn-outline">搜索</button>
                 <button id="customerRefreshBtn" type="button" class="btn-outline">刷新</button>
             </div>
-            <div style="overflow-x:auto;">
+            <div class="inquiry-table-wrap">
                 <table>
                     <thead><tr><th>客户</th><th>公司</th><th>国家</th><th>询盘</th><th>订单</th><th>最近询盘</th><th>操作</th></tr></thead>
                     <tbody id="customerRows"></tbody>
                 </table>
+            </div>
+            <div id="customerEditorParking" class="hidden">
+                <form id="customerForm" class="erp-form">
+                    <input type="hidden" id="customerIdInput">
+                    <input id="customerNameInput" type="text" placeholder="客户姓名（必填）" required>
+                    <input id="customerEmailInput" type="email" placeholder="邮箱（必填）" required>
+                    <input id="customerCompanyInput" type="text" placeholder="公司名称">
+                    <input id="customerCountryInput" type="text" placeholder="国家/地区">
+                    <input id="customerPhoneInput" type="text" placeholder="电话/WhatsApp">
+                    <button id="customerSubmitBtn" type="submit">新建客户</button>
+                    <button id="customerCancelEditBtn" type="button" class="btn-outline hidden">取消编辑</button>
+                </form>
             </div>
             <div class="detail-box hidden" id="customerDetailPanel" style="margin-top:16px;">
                 <h3 id="customerDetailTitle" style="margin-top:0;">客户详情</h3>
@@ -795,6 +875,11 @@
                     <thead><tr><th>国家</th><th>客户数</th><th>订单数</th><th>收入</th><th>利润</th><th>利润率</th></tr></thead>
                     <tbody id="countryAnalysisRows"></tbody>
                 </table>
+            </div>
+            <div class="detail-box" style="margin-top:16px;">
+                <h4 style="margin-top:0;">询盘来源国家分布</h4>
+                <p class="muted">按前台提交的询盘国家统计，与订单国家分析分开计算。</p>
+                <ul id="topCountriesList" class="insight-list"></ul>
             </div>
             <div class="detail-box" style="margin-top:16px;">
                 <h4 style="margin-top:0;">产品表现</h4>

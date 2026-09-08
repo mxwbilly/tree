@@ -7,7 +7,6 @@ const dashboardCard = document.getElementById('dashboardCard');
 const loginForm = document.getElementById('loginForm');
 const loginFeedback = document.getElementById('loginFeedback');
 const inquiryRows = document.getElementById('inquiryRows');
-const refreshBtn = document.getElementById('refreshBtn');
 const logoutBtn = document.getElementById('logoutBtn');
 const exportCsvBtn = document.getElementById('exportCsvBtn');
 const prevPageBtn = document.getElementById('prevPageBtn');
@@ -56,8 +55,6 @@ const kpiWon = document.getElementById('kpiWon');
 const kpiPriorityHigh = document.getElementById('kpiPriorityHigh');
 const kpiSlaBreached = document.getElementById('kpiSlaBreached');
 const topCountriesList = document.getElementById('topCountriesList');
-const highIntentPagesList = document.getElementById('highIntentPagesList');
-const nextWeekPlanList = document.getElementById('nextWeekPlanList');
 const notifyEmailInput = document.getElementById('notifyEmailInput');
 const defaultAssigneeInput = document.getElementById('defaultAssigneeInput');
 const saveSettingsBtn = document.getElementById('saveSettingsBtn');
@@ -432,27 +429,6 @@ function renderInsights(summary) {
             .join('');
     }
 
-    const highIntentPages = Array.isArray(summary?.highIntentPages) ? summary.highIntentPages : [];
-    if (highIntentPages.length === 0) {
-        highIntentPagesList.innerHTML = '<li>暂无高意向页面</li>';
-    } else {
-        highIntentPagesList.innerHTML = highIntentPages
-            .slice(0, 5)
-            .map((item) => `<li>${escapeHtml(item.page)}（询盘 ${escapeHtml(String(item.total || 0))} / 已报价 ${escapeHtml(String(item.quoted || 0))} / 已成交 ${escapeHtml(String(item.won || 0))}）</li>`)
-            .join('');
-    }
-
-    const topProducts = Array.isArray(summary?.topProducts) ? summary.topProducts : [];
-    const firstCountry = countries[0]?.country || '核心市场';
-    const firstProduct = topProducts[0]?.product || '主力品类';
-    const secondProduct = topProducts[1]?.product || firstProduct;
-    const thirdProduct = topProducts[2]?.product || firstProduct;
-    const plan = [
-        `Buyer Guide 1：${firstCountry} 采购商如何评估 ${firstProduct} 的 MOQ 与交期`,
-        `Buyer Guide 2：${secondProduct} OEM 打样到首柜出货流程与风险点`,
-        `Buyer Guide 3：${thirdProduct} 报价模板（Incoterm、有效期、付款条款）`
-    ];
-    nextWeekPlanList.innerHTML = plan.map((item) => `<li>${escapeHtml(item)}</li>`).join('');
 }
 
 async function loadDashboardSummary() {
@@ -652,10 +628,6 @@ loginForm?.addEventListener('submit', async (event) => {
     }
 });
 
-refreshBtn?.addEventListener('click', async () => {
-    await loadInquiries();
-});
-
 exportCsvBtn?.addEventListener('click', async () => {
     exportCsvBtn.disabled = true;
     try {
@@ -713,8 +685,6 @@ logoutBtn?.addEventListener('click', async () => {
     priorityText.textContent = '';
     slaText.textContent = '';
     topCountriesList.innerHTML = '';
-    highIntentPagesList.innerHTML = '';
-    nextWeekPlanList.innerHTML = '';
     users = [];
     currentUser = null;
 });
@@ -910,6 +880,8 @@ async function boot() {
         await loadInquiries();
     } catch (error) {
         setAuthState(false);
+    } finally {
+        document.body.classList.remove('auth-pending');
     }
 }
 
