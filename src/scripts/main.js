@@ -117,6 +117,8 @@ document.addEventListener('DOMContentLoaded', async function () {
     const homeLanguagePaths = { en: '/', vi: '/vi/', th: '/th/', id: '/id/' };
     const staticHomeLanguage = document.documentElement.dataset.siteLanguage || '';
     let turnstileWidgetId = null;
+    let turnstileToken = '';
+    let turnstileTokenWaiter = null;
 
     function loadTurnstileScript() {
         if (window.turnstile) return Promise.resolve();
@@ -159,7 +161,23 @@ document.addEventListener('DOMContentLoaded', async function () {
                 theme: 'light',
                 size: 'flexible',
                 appearance: 'interaction-only',
-                action: 'inquiry'
+                action: 'inquiry',
+                callback: (token) => {
+                    turnstileToken = token;
+                    if (turnstileTokenWaiter) {
+                        turnstileTokenWaiter.resolve(token);
+                        turnstileTokenWaiter = null;
+                    }
+                },
+                'expired-callback': () => {
+                    turnstileToken = '';
+                },
+                'error-callback': () => {
+                    if (turnstileTokenWaiter) {
+                        turnstileTokenWaiter.reject(new Error('Security verification is unavailable.'));
+                        turnstileTokenWaiter = null;
+                    }
+                }
             });
         } catch (error) {
             container.classList.add('is-unavailable');
@@ -169,6 +187,33 @@ document.addEventListener('DOMContentLoaded', async function () {
                 reason: error.message || 'unknown'
             }));
         }
+    }
+
+    function getTurnstileToken() {
+        if (turnstileToken) return Promise.resolve(turnstileToken);
+        if (turnstileWidgetId === null || !window.turnstile?.execute) {
+            return Promise.reject(new Error('Security verification is unavailable.'));
+        }
+
+        return new Promise((resolve, reject) => {
+            const timeout = window.setTimeout(() => {
+                if (turnstileTokenWaiter) {
+                    turnstileTokenWaiter = null;
+                    reject(new Error('Security verification timed out.'));
+                }
+            }, 12000);
+            turnstileTokenWaiter = {
+                resolve: (token) => {
+                    window.clearTimeout(timeout);
+                    resolve(token);
+                },
+                reject: (error) => {
+                    window.clearTimeout(timeout);
+                    reject(error);
+                }
+            };
+            window.turnstile.execute(turnstileWidgetId);
+        });
     }
 
     function updateProductMultiSelectDisplay() {
@@ -501,10 +546,10 @@ document.addEventListener('DOMContentLoaded', async function () {
         const selectedProducts = formData.getAll('product').filter((item) => String(item || '').trim());
         const formStatus = this.querySelector('[data-form-status]');
         const messages = {
-            en: { sending: 'Sending...', sent: 'Inquiry sent. We will reply within 24 business hours.', failed: 'Unable to send your inquiry. Please try again.', invalid: 'Please complete the required fields and use a valid business email.', verify: 'Complete security verification first.', unavailable: 'The inquiry service is temporarily unavailable. Please try again later.' },
-            vi: { sending: 'Dang gui...', sent: 'Da gui inquiry. Chung toi se phan hoi trong 24 gio lam viec.', failed: 'Khong the gui inquiry. Vui long thu lai.', invalid: 'Vui long dien cac truong bat buoc va dung email doanh nghiep hop le.', verify: 'Vui long hoan thanh xac minh bao mat.', unavailable: 'Dich vu inquiry tam thoi khong kha dung. Vui long thu lai sau.' },
-            th: { sending: 'กําลังส่ง...', sent: 'ส่งคำถามแล้ว เราจะตอบกลับภายใน 24 ชั่วโมงทำการ', failed: 'ไม่สามารถส่งคำถามได้ โปรดลองอีกครั้ง', invalid: 'โปรดกรอกข้อมูลที่จำเป็นและใช้อีเมลธุรกิจที่ถูกต้อง', verify: 'โปรดทำการยืนยันความปลอดภัยก่อน', unavailable: 'บริการรับคำถามไม่พร้อมใช้งานชั่วคราว โปรดลองใหม่ภายหลัง' },
-            id: { sending: 'Mengirim...', sent: 'Inquiry terkirim. Kami akan membalas dalam 24 jam kerja.', failed: 'Inquiry tidak dapat dikirim. Silakan coba lagi.', invalid: 'Lengkapi kolom wajib dan gunakan email bisnis yang valid.', verify: 'Selesaikan verifikasi keamanan terlebih dahulu.', unavailable: 'Layanan inquiry sementara tidak tersedia. Silakan coba lagi nanti.' }
+            en: { sending: 'Sending...', sent: 'Inquiry sent. We will reply within 24 business hours.', failed: 'Unable to send your inquiry. Please try again.', invalid: 'Please complete the required fields and use a valid business email.', verifying: 'Verifying security...', unavailable: 'The inquiry service is temporarily unavailable. Please try again later.' },
+            vi: { sending: 'Dang gui...', sent: 'Da gui inquiry. Chung toi se phan hoi trong 24 gio lam viec.', failed: 'Khong the gui inquiry. Vui long thu lai.', invalid: 'Vui long dien cac truong bat buoc va dung email doanh nghiep hop le.', verifying: 'Dang xac minh bao mat...', unavailable: 'Dich vu inquiry tam thoi khong kha dung. Vui long thu lai sau.' },
+            th: { sending: 'กําลังส่ง...', sent: 'ส่งคำถามแล้ว เราจะตอบกลับภายใน 24 ชั่วโมงทำการ', failed: 'ไม่สามารถส่งคำถามได้ โปรดลองอีกครั้ง', invalid: 'โปรดกรอกข้อมูลที่จำเป็นและใช้อีเมลธุรกิจที่ถูกต้อง', verifying: 'กําลังยืนยันความปลอดภัย...', unavailable: 'บริการรับคำถามไม่พร้อมใช้งานชั่วคราว โปรดลองใหม่ภายหลัง' },
+            id: { sending: 'Mengirim...', sent: 'Inquiry terkirim. Kami akan membalas dalam 24 jam kerja.', failed: 'Inquiry tidak dapat dikirim. Silakan coba lagi.', invalid: 'Lengkapi kolom wajib dan gunakan email bisnis yang valid.', verifying: 'Memverifikasi keamanan...', unavailable: 'Layanan inquiry sementara tidak tersedia. Silakan coba lagi nanti.' }
         };
         const submitButton = this.querySelector('button[type="submit"]');
         const originalText = submitButton.textContent;
@@ -536,16 +581,21 @@ document.addEventListener('DOMContentLoaded', async function () {
             trigger?.focus();
             return;
         }
-        if (!formData.get('cf-turnstile-response')) {
-            submitButton.textContent = current.verify;
-            submitButton.style.backgroundColor = '#dc2626';
-            showFormStatus(current.verify, 'error');
-            setTimeout(() => {
+        let securityToken = formData.get('cf-turnstile-response') || turnstileToken;
+        if (!securityToken) {
+            submitButton.disabled = true;
+            submitButton.textContent = current.verifying;
+            showFormStatus(current.verifying, 'success');
+            try {
+                securityToken = await getTurnstileToken();
+            } catch (error) {
+                submitButton.disabled = false;
                 submitButton.textContent = originalText;
-                submitButton.style.backgroundColor = '#22c55e';
-            }, 1800);
-            return;
+                showFormStatus(error.message || current.unavailable, 'error');
+                return;
+            }
         }
+        formData.set('cf-turnstile-response', securityToken);
         submitButton.disabled = true;
         submitButton.textContent = current.sending;
         productMultiSelect?.classList.remove('is-invalid');
@@ -601,6 +651,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         } finally {
             if (turnstileWidgetId !== null && window.turnstile) {
                 window.turnstile.reset(turnstileWidgetId);
+                turnstileToken = '';
             }
             setTimeout(() => {
                 submitButton.textContent = originalText;
