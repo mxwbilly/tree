@@ -230,7 +230,7 @@ function updatePageControls() {
 
 function renderRows(items) {
     if (!Array.isArray(items) || items.length === 0) {
-        inquiryRows.innerHTML = '<tr><td colspan="10">暂无询盘记录</td></tr>';
+        inquiryRows.innerHTML = '<tr><td colspan="9">暂无询盘记录</td></tr>';
         summaryText.textContent = `当前 0 条（总计 ${totalItems} 条）`;
         return;
     }
@@ -245,14 +245,12 @@ function renderRows(items) {
             <td>${new Date(item.createdAt).toLocaleString()}</td>
             <td><span class="status-pill">${getStatusLabel(item.status)}</span></td>
             <td>${escapeHtml(item.contact?.name || '')}</td>
-            <td>${escapeHtml(item.contact?.email || '')}</td>
             <td>${escapeHtml(item.contact?.country || '')}</td>
-            <td>${escapeHtml(getProductLabel(item.product))}</td>
             <td><span class="score-pill score-${escapeHtml(rfq.level || 'low')}">${escapeHtml(String(rfq.percent || 0))}% · ${getRfqLevelLabel(rfq.level)}</span></td>
             <td><span class="priority-pill ${getPriorityClass(priority)}">${getPriorityLabel(priority)}</span></td>
             <td><span class="sla-pill ${sla.breached ? 'sla-breached' : 'sla-ok'}">${sla.breached ? `超时 ${sla.overdueHours}h` : '正常'}</span></td>
             <td>
-                <div class="row-actions">
+                <div class="row-status-control">
                     <select data-role="row-status" data-id="${item.id}">
                         <option value="new" ${item.status === 'new' ? 'selected' : ''}>新建</option>
                         <option value="contacted" ${item.status === 'contacted' ? 'selected' : ''}>已联系</option>
@@ -261,31 +259,28 @@ function renderRows(items) {
                         <option value="lost" ${item.status === 'lost' ? 'selected' : ''}>已流失</option>
                     </select>
                     <button type="button" class="btn-compact" data-role="save-row-status" data-id="${item.id}">保存</button>
+                </div>
+            </td>
+            <td>
+                <div class="row-actions">
                     <button type="button" class="btn-compact btn-outline" data-role="open-detail" data-id="${item.id}">详情</button>
                     <button type="button" class="btn-compact btn-outline" data-role="open-quote-workspace" data-id="${item.id}">报价与单据</button>
                     <button type="button" class="btn-compact btn-danger" data-role="delete-inquiry" data-id="${item.id}">删除</button>
                 </div>
             </td>
         </tr>
-        <tr class="inquiry-timeline-row">
-            <td colspan="10">${renderInlineTimeline(item)}</td>
-        </tr>
         ${selectedInquiryId === item.id ? renderInquiryDetail(expandedItem) : ''}
     `;
     }).join('');
 }
 
-function renderInlineTimeline(item) {
+function renderInquiryTimeline(item) {
     const timeline = Array.isArray(item.timeline) ? [...item.timeline] : [];
     const sorted = timeline.sort((a, b) => new Date(b.at) - new Date(a.at));
-    const latest = sorted[0];
-    const summary = latest
-        ? `${new Date(latest.at).toLocaleString()} · ${escapeHtml(latest.note || '已更新询盘')}`
-        : '暂无跟进记录';
     const items = sorted.length
         ? sorted.map((entry) => `<li><strong>${escapeHtml(entry.type || 'event')}</strong> · ${new Date(entry.at).toLocaleString()}<br>${escapeHtml(entry.note || '')}</li>`).join('')
         : '<li>暂无跟进记录</li>';
-    return `<details class="inquiry-inline-timeline"><summary>最新跟进：${summary}</summary><ul class="timeline-list">${items}</ul></details>`;
+    return `<ul class="timeline-list inquiry-followup-list">${items}</ul>`;
 }
 
 function setSelectedInquiry(item) {
@@ -310,7 +305,7 @@ function renderInquiryDetail(item) {
     const contact = item.contact || {};
     const slaText = sla.breached ? `超时 ${sla.overdueHours} 小时` : '正常';
     return `<tr class="inquiry-detail-row">
-        <td colspan="10">
+        <td colspan="9">
             <section class="inquiry-record-detail">
                 <div class="inquiry-record-detail-header">
                     <div>
@@ -326,6 +321,13 @@ function renderInquiryDetail(item) {
                 <div class="inquiry-record-content">
                     <div class="inquiry-record-section">
                         <h4>采购需求</h4>
+                        <div class="inquiry-request-meta">
+                            <span>产品：<strong>${escapeHtml(getProductLabel(item.product) || '-')}</strong></span>
+                            <span>数量：<strong>${escapeHtml(item.quantity || '-')}</strong></span>
+                            <span>OEM：<strong>${escapeHtml(item.oem || '-')}</strong></span>
+                            <span>目的港：<strong>${escapeHtml(item.port || '-')}</strong></span>
+                            <span>交期：<strong>${escapeHtml(item.deadline || '-')}</strong></span>
+                        </div>
                         <p style="white-space:pre-wrap;">${escapeHtml(item.message || '未填写需求说明。')}</p>
                         <h4>待补充信息</h4>
                         <ul class="timeline-list" style="max-height:120px;">${missingFields}</ul>
@@ -339,11 +341,17 @@ function renderInquiryDetail(item) {
                         <h4>最新报价</h4>
                         <p class="muted">正式报价、PI 与出运单据统一在“报价与单据”中管理。</p>
                         <div class="quote-list">${renderLatestQuoteHtml(item.quotes || [])}</div>
-                        <h4 style="margin-top:16px;">新增跟进备注</h4>
-                        <textarea data-role="detail-note" data-id="${item.id}" placeholder="填写电话沟通结论、报价进展、下一步计划..."></textarea>
-                        <button type="button" class="btn-compact" data-role="add-note" data-id="${item.id}" style="margin-top:10px;">添加备注</button>
                     </div>
                 </div>
+                <section class="inquiry-followup-section">
+                    <h4>跟进记录</h4>
+                    ${renderInquiryTimeline(item)}
+                    <div class="inquiry-followup-composer">
+                        <label for="detailNote-${escapeHtml(item.id)}">新增跟进备注</label>
+                        <textarea id="detailNote-${escapeHtml(item.id)}" data-role="detail-note" data-id="${item.id}" placeholder="填写电话沟通结论、报价进展、下一步计划..."></textarea>
+                        <button type="button" class="btn-compact" data-role="add-note" data-id="${item.id}">添加备注</button>
+                    </div>
+                </section>
             </section>
         </td>
     </tr>`;
@@ -512,7 +520,7 @@ async function loadInquiries() {
         updatePageControls();
         await loadDashboardSummary();
     } catch (error) {
-        inquiryRows.innerHTML = `<tr><td colspan="10">${error.message}</td></tr>`;
+        inquiryRows.innerHTML = `<tr><td colspan="9">${error.message}</td></tr>`;
         summaryText.textContent = '加载失败';
     }
 }

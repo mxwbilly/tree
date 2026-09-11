@@ -70,6 +70,8 @@
             border-radius: 6px;
             padding: 10px 12px;
             font-size: 14px;
+            min-width: 0;
+            max-width: 100%;
         }
         button {
             border: none;
@@ -77,6 +79,8 @@
             color: #fff;
             cursor: pointer;
             font-weight: 600;
+            min-height: 36px;
+            white-space: nowrap;
         }
         button:hover:not(:disabled) { filter: brightness(0.96); }
         input:focus, select:focus, textarea:focus { outline: 2px solid #bbf7d0; outline-offset: 1px; border-color: #16a34a; }
@@ -107,6 +111,8 @@
             background: #e2e8f0;
             font-size: 12px;
             text-transform: uppercase;
+            white-space: nowrap;
+            line-height: 1.35;
         }
         .score-pill {
             display: inline-block;
@@ -157,6 +163,7 @@
             flex: 1 1 180px;
             max-width: 360px;
         }
+        .toolbar button { flex: 0 0 auto; }
         .btn-muted {
             background: #334155;
         }
@@ -174,26 +181,27 @@
             border-radius: 8px;
             padding: 6px 10px;
             font-size: 12px;
+            min-height: 32px;
         }
         .row-actions {
             display: flex;
             align-items: center;
             gap: 6px;
             flex-wrap: wrap;
+            white-space: nowrap;
         }
-        .inquiry-timeline-row td {
-            padding: 0 12px 10px;
-            border-top: 0;
-            background: #f8fafc;
+        #dashboardCard .row-actions { flex-wrap: nowrap; }
+        .row-status-control {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
         }
-        .inquiry-inline-timeline summary {
-            cursor: pointer;
-            color: #475569;
-            font-size: 12px;
-            line-height: 1.5;
+        .row-status-control select {
+            width: 104px;
+            padding: 6px 8px;
+            font-size: 13px;
         }
-        .inquiry-inline-timeline[open] summary { margin-bottom: 8px; }
-        .inquiry-inline-timeline .timeline-list { max-height: 180px; }
         .details-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -298,6 +306,7 @@
             .insight-grid {
                 grid-template-columns: 1fr;
             }
+            .filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .inquiry-record-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .inquiry-record-content { grid-template-columns: 1fr; gap: 16px; }
             .inquiry-record-section + .inquiry-record-section { border-left: 0; border-top: 1px solid #e2e8f0; padding-left: 0; padding-top: 16px; }
@@ -339,15 +348,24 @@
         .workspace-header .muted { margin-bottom: 0; }
         .workspace-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
         .inquiry-filter-panel { padding: 14px; margin-bottom: 14px; border: 1px solid #dce6df; border-radius: 8px; background: #f8fbf9; }
-        .filter-grid { display: flex; flex-wrap: wrap; gap: 10px; }
-        .filter-grid input, .filter-grid select { min-width: 0; width: auto; flex: 1 1 190px; max-width: 310px; }
-        .filter-grid #keywordFilter { flex-basis: 320px; max-width: 440px; }
+        .filter-grid { display: grid; grid-template-columns: minmax(170px, 0.85fr) minmax(190px, 1fr) minmax(220px, 1.15fr) minmax(250px, 1.4fr); gap: 10px; }
+        .filter-grid input, .filter-grid select { width: 100%; min-width: 0; }
+        .filter-grid #keywordFilter { max-width: none; }
         .filter-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
         .inquiry-insights { margin: 0 0 14px; }
         .inquiry-insights summary { cursor: pointer; color: #475569; font-size: 13px; font-weight: 700; }
         .inquiry-insights .insight-grid { margin-top: 10px; }
         .inquiry-table-wrap { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 8px; }
-        .inquiry-table-wrap table { min-width: 980px; }
+        #dashboardCard .inquiry-table-wrap table { min-width: 980px; table-layout: fixed; }
+        #dashboardCard .inquiry-table-wrap th:nth-child(1), #dashboardCard .inquiry-table-wrap td:nth-child(1) { width: 112px; }
+        #dashboardCard .inquiry-table-wrap th:nth-child(2), #dashboardCard .inquiry-table-wrap td:nth-child(2) { width: 74px; }
+        #dashboardCard .inquiry-table-wrap th:nth-child(3), #dashboardCard .inquiry-table-wrap td:nth-child(3) { width: 136px; }
+        #dashboardCard .inquiry-table-wrap th:nth-child(4), #dashboardCard .inquiry-table-wrap td:nth-child(4) { width: 100px; }
+        #dashboardCard .inquiry-table-wrap th:nth-child(5), #dashboardCard .inquiry-table-wrap td:nth-child(5) { width: 106px; }
+        #dashboardCard .inquiry-table-wrap th:nth-child(6), #dashboardCard .inquiry-table-wrap td:nth-child(6) { width: 72px; }
+        #dashboardCard .inquiry-table-wrap th:nth-child(7), #dashboardCard .inquiry-table-wrap td:nth-child(7) { width: 88px; }
+        #dashboardCard .inquiry-table-wrap th:nth-child(8), #dashboardCard .inquiry-table-wrap td:nth-child(8) { width: 166px; }
+        #dashboardCard .inquiry-table-wrap th:nth-child(9), #dashboardCard .inquiry-table-wrap td:nth-child(9) { width: 206px; }
         .inline-editor-row td { padding: 0; background: #f8fbf9; }
         .inline-editor-slot { padding: 14px; border-top: 1px solid #dce6df; }
         #customerCreateSlot .erp-form, .inline-editor-slot .erp-form { padding: 14px; margin: 0 0 14px; border: 1px solid #dce6df; border-radius: 8px; background: #f8fbf9; }
@@ -384,7 +402,7 @@
         .inquiry-record-detail-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding-bottom: 12px; border-bottom: 1px solid #e2e8f0; }
         .inquiry-record-detail-header h3 { margin: 0 0 4px; font-size: 16px; }
         .inquiry-record-detail-header .muted { margin: 0; font-size: 13px; }
-        .inquiry-record-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 12px 0; }
+        .inquiry-record-summary { display: grid; grid-template-columns: repeat(3, max-content); justify-content: start; gap: 36px; padding: 12px 0; }
         .inquiry-record-summary div { font-size: 13px; color: #475569; }
         .inquiry-record-summary strong { display: block; color: #0f172a; margin-top: 3px; font-size: 14px; }
         .inquiry-record-content { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(260px, 0.75fr); gap: 22px; }
@@ -393,9 +411,18 @@
         .inquiry-record-section h4 { margin: 0 0 8px; font-size: 14px; }
         .inquiry-record-section p { margin: 0 0 10px; }
         .inquiry-record-section textarea { min-height: 92px; }
-        .detail-box .toolbar { display: grid; grid-template-columns: repeat(auto-fit, minmax(138px, 1fr)); gap: 10px; }
-        .detail-box .toolbar input, .detail-box .toolbar select, .detail-box .toolbar button { width: 100%; min-width: 0; max-width: none; }
-        .detail-box .toolbar button { align-self: stretch; }
+        .inquiry-request-meta { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0 0 12px; color: #475569; font-size: 13px; }
+        .inquiry-request-meta strong { color: #0f172a; }
+        .inquiry-followup-section { margin-top: 18px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
+        .inquiry-followup-section h4 { margin: 0 0 10px; font-size: 14px; }
+        .inquiry-followup-list { max-height: 180px; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; }
+        .inquiry-followup-composer { display: grid; gap: 8px; margin-top: 14px; max-width: 760px; }
+        .inquiry-followup-composer label { font-size: 14px; font-weight: 600; color: #0f172a; }
+        .inquiry-followup-composer textarea { min-height: 88px; }
+        .inquiry-followup-composer button { justify-self: start; }
+        .detail-box .toolbar { display: flex; flex-wrap: wrap; gap: 10px; }
+        .detail-box .toolbar input, .detail-box .toolbar select { flex: 1 1 180px; min-width: 0; max-width: 320px; }
+        .detail-box .toolbar button { width: auto; min-width: 0; max-width: none; align-self: center; }
         .detail-box > label + select { width: 100%; min-width: 0; }
         .settings-card { max-width: 900px; }
         .tab-btn {
@@ -421,6 +448,7 @@
             max-width: none;
             margin-bottom: 12px;
         }
+        .erp-form > button { width: auto; min-width: 118px; justify-self: start; }
         .erp-form textarea {
             grid-column: 1 / -1;
         }
@@ -610,13 +638,12 @@
                             <th>创建时间</th>
                             <th>状态</th>
                             <th>姓名</th>
-                            <th>邮箱</th>
                             <th>国家</th>
-                            <th>产品</th>
                             <th>RFQ完整度</th>
                             <th>优先级</th>
                             <th>SLA</th>
                             <th>更新状态</th>
+                            <th>操作</th>
                         </tr>
                     </thead>
                     <tbody id="inquiryRows"></tbody>
@@ -840,6 +867,7 @@
             <form id="orderForm" class="erp-form" style="grid-template-columns: repeat(auto-fit, minmax(180px,1fr));">
                 <input id="orderCustomerSearchInput" type="text" placeholder="搜索客户（姓名/邮箱/公司）">
                 <select id="orderCustomerSelect" required><option value="">选择客户</option></select>
+                <input id="orderCustomerEmail" type="email" placeholder="收件邮箱将随客户自动带出" readonly aria-label="报价收件邮箱">
                 <input id="orderCurrencyInput" type="text" value="USD" maxlength="3" placeholder="币种">
                 <select id="orderIncotermInput" aria-label="贸易条款">
                     <option value="">选择贸易条款</option>

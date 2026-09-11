@@ -743,6 +743,13 @@ function renderOrderCustomerOptions(selectedId) {
     select.innerHTML = '<option value="">选择客户</option>' +
         orderCustomers.map((customer) => `<option value="${customer.id}">${escapeHtml(customer.name)} (${escapeHtml(customer.email)})${customer.company ? ' — ' + escapeHtml(customer.company) : ''}</option>`).join('');
     if (currentId && orderCustomers.some((customer) => customer.id === currentId)) select.value = currentId;
+    updateOrderCustomerEmail();
+}
+
+function updateOrderCustomerEmail() {
+    const customerId = document.getElementById('orderCustomerSelect').value;
+    const customer = orderCustomers.find((item) => item.id === customerId);
+    document.getElementById('orderCustomerEmail').value = customer?.email || '';
 }
 
 function renderOrderCustomerFilter(selectedId) {
@@ -774,6 +781,8 @@ async function loadOrderCustomers(query = '') {
 document.getElementById('orderCustomerSearchInput').addEventListener('input', debounce((event) => {
     loadOrderCustomers(event.target.value.trim());
 }, 300));
+
+document.getElementById('orderCustomerSelect').addEventListener('change', updateOrderCustomerEmail);
 
 function debounce(fn, wait) {
     let timer;
@@ -809,6 +818,7 @@ document.getElementById('createOrderBtn').addEventListener('click', async () => 
         orderLineCount = 0;
         document.getElementById('orderCustomerSearchInput').value = '';
         renderOrderCustomerOptions('');
+        updateOrderCustomerEmail();
         document.getElementById('orderIncotermInput').value = '';
         document.getElementById('orderNotesInput').value = '';
         addOrderLine();
