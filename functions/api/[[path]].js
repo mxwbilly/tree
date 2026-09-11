@@ -317,11 +317,11 @@ function resolveNotifyEmail(env, settings) {
   return String(env.NOTIFY_EMAIL || env.ADMIN_EMAIL || '').trim().toLowerCase();
 }
 
-async function notifyNewInquiry(env, { inquiryId, product, source, message, contact, notifyEmail, assigneeEmail }) {
+async function notifyNewInquiry(env, { inquiryId, product, source, message, contact, notifyEmail }) {
   const safeName = contact.name || '';
   const safeEmail = contact.email || '';
   const safeCountry = contact.country || '';
-  const results = { notify: null, assignee: null };
+  const results = { notify: null };
 
   if (notifyEmail) {
     results.notify = await sendEmailViaResend(env, {
@@ -341,36 +341,7 @@ async function notifyNewInquiry(env, { inquiryId, product, source, message, cont
     results.notify = { ok: false, error: 'No notify email configured.' };
   }
 
-  if (assigneeEmail) {
-    results.assignee = await sendEmailViaResend(env, {
-      to: assigneeEmail,
-      subject: buildInquiryMailSubject('Assigned inquiry', product, safeCountry, inquiryId),
-      text: [
-        'A new inquiry was assigned to you.',
-        '',
-        `Inquiry ID: ${inquiryId}`,
-        `Buyer: ${safeName}`,
-        `Email: ${safeEmail}`,
-        `Country: ${safeCountry}`
-      ].join('\n')
-    });
-  }
-
   return results;
-}
-
-async function notifyInquiryAssigned(env, { inquiryId, product, contact, status, assigneeEmail }) {
-  if (!assigneeEmail) return { ok: false, error: 'No assignee email configured.' };
-  return sendEmailViaResend(env, {
-    to: assigneeEmail,
-    subject: buildInquiryMailSubject('Inquiry assigned', product, contact?.country, inquiryId),
-    text: [
-      `You were assigned inquiry ${inquiryId}.`,
-      `Buyer: ${contact?.name || ''}`,
-      `Email: ${contact?.email || ''}`,
-      `Status: ${status || ''}`
-    ].join('\n')
-  });
 }
 
 function scheduleMailTask(waitUntil, task) {
@@ -405,7 +376,6 @@ function normalizeInquiry(row) {
     id: row.id,
     customerId: row.customer_id,
     status: row.status,
-    assigneeId: row.assignee_id || null,
     lang: row.lang || 'en',
     source: row.source || 'website',
     pageUrl: row.page_url || '',
@@ -452,9 +422,6 @@ async function ensureBootstrap(env) {
   await env.DB.prepare(`
     INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('notifyEmail', ?, ?)
   `).bind(env.NOTIFY_EMAIL || env.ADMIN_EMAIL || '', nowIso()).run();
-  await env.DB.prepare(`
-    INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('defaultAssigneeId', '', ?)
-  `).bind(nowIso()).run();
 }
 
 async function checkRateLimit(env, request, bucket, limit, windowSeconds) {
@@ -552,13 +519,12 @@ async function verifyTurnstile(env, request, token) {
 
 async function getSettings(env) {
   const { results } = await env.DB.prepare('SELECT key, value FROM settings').all();
-  const settings = { notifyEmail: env.NOTIFY_EMAIL || env.ADMIN_EMAIL || '', defaultAssigneeId: null };
+  const settings = { notifyEmail: env.NOTIFY_EMAIL || env.ADMIN_EMAIL || '' };
   for (const item of results || []) {
     if (item.key === 'notifyEmail') {
       const stored = String(item.value || '').trim();
       if (stored) settings.notifyEmail = stored;
     }
-    if (item.key === 'defaultAssigneeId') settings.defaultAssigneeId = item.value || null;
   }
   return settings;
 }
@@ -682,7 +648,6 @@ async function handleCreateInquiry(request, env, waitUntil) {
   }
 
   const settings = await getSettings(env);
-  const users = await env.DB.prepare('SELECT id, email, name, role FROM users').all();
   const preview = {
     product: String(payload.product || ''),
     quantity: String(payload.quantity || ''),
@@ -693,26 +658,19 @@ async function handleCreateInquiry(request, env, waitUntil) {
     contact: { name: safeName, email: safeEmail, phone: safePhone, company: safeCompany, country: safeCountry }
   };
   const rfq = computeRfqCompleteness(preview);
-  let assigneeId = settings.defaultAssigneeId || null;
-  if (!assigneeId && rfq.level === 'high') {
-    const candidate = (users.results || []).find((user) => user.role === 'sales') || (users.results || []).find((user) => user.role === 'admin');
-    assigneeId = candidate?.id || null;
-  }
 
   const inquiryId = newId('inq');
   const timeline = [{ at: now, type: 'created', note: 'Inquiry submitted from website form.' }];
-  if (assigneeId) timeline.push({ at: now, type: 'assigned', note: `Auto assigned to ${assigneeId}.` });
   if (rfq.level === 'high') timeline.push({ at: now, type: 'priority', note: 'High-priority RFQ detected.' });
 
   await env.DB.prepare(`
     INSERT INTO inquiries (
-      id, customer_id, status, assignee_id, lang, source, page_url, product, quantity, oem,
+      id, customer_id, status, lang, source, page_url, product, quantity, oem,
       port, deadline, message, contact_json, timeline_json, quotes_json, created_at, updated_at
-    ) VALUES (?, ?, 'new', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '[]', ?, ?)
+    ) VALUES (?, ?, 'new', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '[]', ?, ?)
   `).bind(
     inquiryId,
     customerId,
-    assigneeId,
     payload.lang || 'en',
     payload.source || 'website',
     payload.pageUrl || '',
@@ -734,9 +692,6 @@ async function handleCreateInquiry(request, env, waitUntil) {
     payload: { email: safeEmail, product: payload.product || '', country: safeCountry }
   });
 
-  const assignee = assigneeId
-    ? (users.results || []).find((user) => user.id === assigneeId)
-    : null;
   const notifyEmail = resolveNotifyEmail(env, settings);
   const mailTask = notifyNewInquiry(env, {
     inquiryId,
@@ -744,8 +699,7 @@ async function handleCreateInquiry(request, env, waitUntil) {
     source: payload.source || 'website',
     message: safeMessage,
     contact: preview.contact,
-    notifyEmail,
-    assigneeEmail: assignee?.email || ''
+    notifyEmail
   }).then(async (mailResult) => {
     await appendActivityLog(env, {
       type: 'mail.inquiry_notify',
@@ -801,19 +755,9 @@ async function handleSettings(request, env) {
     }
     settings.notifyEmail = normalized;
   }
-  if (typeof body.defaultAssigneeId === 'string') {
-    const normalized = body.defaultAssigneeId.trim();
-    if (normalized) {
-      const user = await env.DB.prepare('SELECT id FROM users WHERE id = ?').bind(normalized).first();
-      if (!user) return json({ ok: false, error: 'defaultAssigneeId does not exist.' }, { status: 400 });
-    }
-    settings.defaultAssigneeId = normalized || null;
-  }
   const now = nowIso();
   await env.DB.prepare('INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)')
     .bind('notifyEmail', settings.notifyEmail || '', now).run();
-  await env.DB.prepare('INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)')
-    .bind('defaultAssigneeId', settings.defaultAssigneeId || '', now).run();
   return json({ ok: true, item: settings });
 }
 
@@ -862,8 +806,8 @@ async function handleInquiriesList(request, env) {
 async function handleInquiriesExport(request, env) {
   const url = new URL(request.url);
   const sorted = applyInquirySort(applyInquiryFilters(await loadAllInquiries(env), url.searchParams), url.searchParams.get('sort'));
-  const header = ['id', 'createdAt', 'updatedAt', 'status', 'assigneeId', 'lang', 'source', 'pageUrl', 'name', 'email', 'phone', 'company', 'country', 'product', 'quantity', 'oem', 'port', 'deadline', 'message', 'rfqScore', 'rfqPercent', 'rfqLevel', 'rfqMissingFields', 'priority', 'slaBreached', 'slaOverdueHours'];
-  const rows = sorted.map((item) => [item.id, item.createdAt, item.updatedAt, item.status, item.assigneeId || '', item.lang, item.source, item.pageUrl, item.contact?.name || '', item.contact?.email || '', item.contact?.phone || '', item.contact?.company || '', item.contact?.country || '', item.product, item.quantity, item.oem, item.port, item.deadline, item.message, item.rfqCompleteness.score, item.rfqCompleteness.percent, item.rfqCompleteness.level, item.rfqCompleteness.missingFields.join('|'), item.priority, item.sla.breached ? 'yes' : 'no', item.sla.overdueHours]);
+  const header = ['id', 'createdAt', 'updatedAt', 'status', 'lang', 'source', 'pageUrl', 'name', 'email', 'phone', 'company', 'country', 'product', 'quantity', 'oem', 'port', 'deadline', 'message', 'rfqScore', 'rfqPercent', 'rfqLevel', 'rfqMissingFields', 'priority', 'slaBreached', 'slaOverdueHours'];
+  const rows = sorted.map((item) => [item.id, item.createdAt, item.updatedAt, item.status, item.lang, item.source, item.pageUrl, item.contact?.name || '', item.contact?.email || '', item.contact?.phone || '', item.contact?.company || '', item.contact?.country || '', item.product, item.quantity, item.oem, item.port, item.deadline, item.message, item.rfqCompleteness.score, item.rfqCompleteness.percent, item.rfqCompleteness.level, item.rfqCompleteness.missingFields.join('|'), item.priority, item.sla.breached ? 'yes' : 'no', item.sla.overdueHours]);
   const body = [header, ...rows].map((row) => row.map(toCsvCell).join(',')).join('\n');
   const timestamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
   return csv(body, `inquiries-${timestamp}.csv`);
@@ -877,11 +821,10 @@ async function getInquiry(env, inquiryId) {
 async function saveInquiryJson(env, inquiry) {
   await env.DB.prepare(`
     UPDATE inquiries
-    SET status = ?, assignee_id = ?, timeline_json = ?, quotes_json = ?, updated_at = ?
+    SET status = ?, timeline_json = ?, quotes_json = ?, updated_at = ?
     WHERE id = ?
   `).bind(
     inquiry.status,
-    inquiry.assigneeId || null,
     JSON.stringify(inquiry.timeline || []),
     JSON.stringify(inquiry.quotes || []),
     inquiry.updatedAt,
@@ -893,6 +836,26 @@ async function handleInquiryDetail(env, inquiryId) {
   const inquiry = await getInquiry(env, inquiryId);
   if (!inquiry) return json({ ok: false, error: 'Inquiry not found.' }, { status: 404 });
   return json({ ok: true, item: inquiry });
+}
+
+async function handleDeleteInquiry(env, inquiryId) {
+  const inquiry = await getInquiry(env, inquiryId);
+  if (!inquiry) return json({ ok: false, error: 'Inquiry not found.' }, { status: 404 });
+
+  await env.DB.prepare('DELETE FROM inquiries WHERE id = ?').bind(inquiryId).run();
+  await env.DB.prepare('DELETE FROM activity_logs WHERE target_id = ?').bind(inquiryId).run();
+
+  if (inquiry.customerId) {
+    const countRow = await env.DB.prepare('SELECT COUNT(*) AS total FROM inquiries WHERE customer_id = ?').bind(inquiry.customerId).first();
+    const latestRow = await env.DB.prepare('SELECT MAX(created_at) AS latest FROM inquiries WHERE customer_id = ?').bind(inquiry.customerId).first();
+    await env.DB.prepare(`
+      UPDATE customers
+      SET inquiry_count = ?, last_inquiry_at = ?, updated_at = ?
+      WHERE id = ?
+    `).bind(Number(countRow?.total || 0), latestRow?.latest || null, nowIso(), inquiry.customerId).run();
+  }
+
+  return json({ ok: true });
 }
 
 async function handleCreateQuote(request, env, auth, inquiryId) {
@@ -979,24 +942,14 @@ async function handlePatchQuote(request, env, auth, inquiryId, quoteId) {
   return json({ ok: true, item: quote });
 }
 
-async function handlePatchInquiry(request, env, auth, inquiryId, waitUntil) {
+async function handlePatchInquiry(request, env, auth, inquiryId) {
   const inquiry = await getInquiry(env, inquiryId);
   if (!inquiry) return json({ ok: false, error: 'Inquiry not found.' }, { status: 404 });
   const body = await readBody(request);
-  const oldAssigneeId = inquiry.assigneeId;
   let changed = false;
   if (body.status) {
     if (!STATUS_VALUES.has(body.status)) return json({ ok: false, error: 'Invalid status value.' }, { status: 400 });
     inquiry.status = body.status;
-    changed = true;
-  }
-  if (typeof body.assigneeId === 'string') {
-    const assigneeId = body.assigneeId.trim();
-    if (assigneeId) {
-      const user = await env.DB.prepare('SELECT id FROM users WHERE id = ?').bind(assigneeId).first();
-      if (!user) return json({ ok: false, error: 'Assignee does not exist.' }, { status: 400 });
-    }
-    inquiry.assigneeId = assigneeId || null;
     changed = true;
   }
   if (typeof body.note === 'string' && body.note.trim()) {
@@ -1006,27 +959,7 @@ async function handlePatchInquiry(request, env, auth, inquiryId, waitUntil) {
   if (!changed) return json({ ok: false, error: 'No updatable fields provided.' }, { status: 400 });
   inquiry.updatedAt = nowIso();
   await saveInquiryJson(env, inquiry);
-  await appendActivityLog(env, { type: 'inquiry.updated', actorId: auth.sub, targetId: inquiry.id, payload: { status: inquiry.status, assigneeId: inquiry.assigneeId || '' } });
-
-  if (inquiry.assigneeId && inquiry.assigneeId !== oldAssigneeId) {
-    const assignee = await env.DB.prepare('SELECT email FROM users WHERE id = ?').bind(inquiry.assigneeId).first();
-    const mailTask = notifyInquiryAssigned(env, {
-      inquiryId: inquiry.id,
-      product: inquiry.product,
-      contact: inquiry.contact,
-      status: inquiry.status,
-      assigneeEmail: assignee?.email || ''
-    }).then(async (mailResult) => {
-      await appendActivityLog(env, {
-        type: 'mail.inquiry_assigned',
-        actorId: auth.sub,
-        targetId: inquiry.id,
-        payload: mailResult
-      });
-      return mailResult;
-    });
-    scheduleMailTask(waitUntil, mailTask);
-  }
+  await appendActivityLog(env, { type: 'inquiry.updated', actorId: auth.sub, targetId: inquiry.id, payload: { status: inquiry.status } });
 
   return json({ ok: true, item: inquiry });
 }
@@ -1206,7 +1139,11 @@ async function routeAdmin(request, env, path, waitUntil) {
   const inquiryMatch = path.match(/^\/api\/admin\/inquiries\/([^/]+)$/);
   if (inquiryMatch) {
     if (request.method === 'GET') return handleInquiryDetail(env, decodeURIComponent(inquiryMatch[1]));
-    if (request.method === 'PATCH') return handlePatchInquiry(request, env, auth, decodeURIComponent(inquiryMatch[1]), waitUntil);
+    if (request.method === 'PATCH') return handlePatchInquiry(request, env, auth, decodeURIComponent(inquiryMatch[1]));
+    if (request.method === 'DELETE') {
+      if (auth.role !== 'admin') return json({ ok: false, error: 'Forbidden.' }, { status: 403 });
+      return handleDeleteInquiry(env, decodeURIComponent(inquiryMatch[1]));
+    }
   }
 
   return json({ ok: false, error: 'Not found.' }, { status: 404 });

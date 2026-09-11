@@ -33,12 +33,8 @@ const buildReminderBtn = document.getElementById('buildReminderBtn');
 const copyReminderBtn = document.getElementById('copyReminderBtn');
 const reminderPreview = document.getElementById('reminderPreview');
 const detailMessage = document.getElementById('detailMessage');
-const detailStatusSelect = document.getElementById('detailStatusSelect');
-const detailAssigneeSelect = document.getElementById('detailAssigneeSelect');
 const detailNoteInput = document.getElementById('detailNoteInput');
-const saveStatusBtn = document.getElementById('saveStatusBtn');
 const addNoteBtn = document.getElementById('addNoteBtn');
-const timelineList = document.getElementById('timelineList');
 const quotePriceInput = document.getElementById('quotePriceInput');
 const quoteCurrencyInput = document.getElementById('quoteCurrencyInput');
 const quoteMoqInput = document.getElementById('quoteMoqInput');
@@ -56,7 +52,6 @@ const kpiPriorityHigh = document.getElementById('kpiPriorityHigh');
 const kpiSlaBreached = document.getElementById('kpiSlaBreached');
 const topCountriesList = document.getElementById('topCountriesList');
 const notifyEmailInput = document.getElementById('notifyEmailInput');
-const defaultAssigneeInput = document.getElementById('defaultAssigneeInput');
 const saveSettingsBtn = document.getElementById('saveSettingsBtn');
 const testMailBtn = document.getElementById('testMailBtn');
 const mailStatusText = document.getElementById('mailStatusText');
@@ -67,7 +62,6 @@ let inquiryItems = [];
 let selectedInquiryId = '';
 let currentPage = 1;
 let totalItems = 0;
-let users = [];
 let currentUser = null;
 let selectedInquiry = null;
 
@@ -288,36 +282,28 @@ function renderRows(items) {
                     </select>
                     <button type="button" class="btn-compact" data-role="save-row-status" data-id="${item.id}">保存</button>
                     <button type="button" class="btn-compact btn-outline" data-role="open-detail" data-id="${item.id}">详情</button>
+                    <button type="button" class="btn-compact btn-danger" data-role="delete-inquiry" data-id="${item.id}">删除</button>
                 </div>
             </td>
+        </tr>
+        <tr class="inquiry-timeline-row">
+            <td colspan="10">${renderInlineTimeline(item)}</td>
         </tr>
     `;
     }).join('');
 }
 
-function renderTimeline(item) {
-    const timeline = Array.isArray(item.timeline) ? item.timeline : [];
-    if (timeline.length === 0) {
-        timelineList.innerHTML = '<li>暂无跟进记录</li>';
-        return;
-    }
-    const sorted = [...timeline].sort((a, b) => new Date(b.at) - new Date(a.at));
-    timelineList.innerHTML = sorted.map((entry) => `
-        <li>
-            <strong>${escapeHtml(entry.type || 'event')}</strong>
-            <div>${new Date(entry.at).toLocaleString()}</div>
-            <div>${escapeHtml(entry.note || '')}</div>
-        </li>
-    `).join('');
-}
-
-function fillAssigneeOptions() {
-    const options = ['<option value="">未分配</option>'];
-    users.forEach((user) => {
-        options.push(`<option value="${escapeHtml(user.id)}">${escapeHtml(user.name || user.email)}</option>`);
-    });
-    detailAssigneeSelect.innerHTML = options.join('');
-    defaultAssigneeInput.innerHTML = ['<option value="">默认负责人（不设置）</option>', ...options.slice(1)].join('');
+function renderInlineTimeline(item) {
+    const timeline = Array.isArray(item.timeline) ? [...item.timeline] : [];
+    const sorted = timeline.sort((a, b) => new Date(b.at) - new Date(a.at));
+    const latest = sorted[0];
+    const summary = latest
+        ? `${new Date(latest.at).toLocaleString()} · ${escapeHtml(latest.note || '已更新询盘')}`
+        : '暂无跟进记录';
+    const items = sorted.length
+        ? sorted.map((entry) => `<li><strong>${escapeHtml(entry.type || 'event')}</strong> · ${new Date(entry.at).toLocaleString()}<br>${escapeHtml(entry.note || '')}</li>`).join('')
+        : '<li>暂无跟进记录</li>';
+    return `<details class="inquiry-inline-timeline"><summary>最新跟进：${summary}</summary><ul class="timeline-list">${items}</ul></details>`;
 }
 
 function setSelectedInquiry(item) {
@@ -333,9 +319,9 @@ function setSelectedInquiry(item) {
     const rfq = getRfqCompleteness(item);
     const priority = getInquiryPriority(item);
     const sla = getInquirySla(item);
-    detailMeta.textContent = `#${item.id} · ${item.contact?.name || '-'} · ${item.contact?.email || '-'} · ${item.contact?.country || '-'} · 负责人：${getUserName(item.assigneeId)}`;
+    detailMeta.textContent = `#${item.id} · ${item.contact?.name || '-'} · ${item.contact?.email || '-'} · ${item.contact?.country || '-'}`;
     rfqScoreText.textContent = `RFQ完整度：${rfq.percent || 0}%（${rfq.score || 0}/${rfq.maxScore || 100}，等级：${getRfqLevelLabel(rfq.level)}）`;
-    priorityText.textContent = `优先级：${getPriorityLabel(priority)}（规则：高分询盘优先分配）`;
+    priorityText.textContent = `优先级：${getPriorityLabel(priority)}（按询盘完整度和采购意向计算）`;
     slaText.textContent = sla.breached
         ? `SLA状态：已超时 ${sla.overdueHours} 小时（阈值 24h）`
         : 'SLA状态：正常（24h内有更新）';
@@ -347,10 +333,7 @@ function setSelectedInquiry(item) {
         rfqMissingList.innerHTML = '<li>关键字段完整，可优先跟进报价。</li>';
     }
     detailMessage.textContent = item.message || '';
-    detailStatusSelect.value = item.status || 'new';
-    detailAssigneeSelect.value = item.assigneeId || '';
     detailNoteInput.value = '';
-    renderTimeline(item);
     renderQuotes(item.quotes || []);
     quotePriceInput.value = '';
     quoteMoqInput.value = '';
@@ -374,12 +357,6 @@ function buildQueryFromFilters() {
     params.set('pageSize', String(pageSize));
     params.set('page', String(currentPage));
     return params;
-}
-
-async function loadUsers() {
-    const result = await apiFetch(`${adminApiBase}/users`);
-    users = result.items || [];
-    fillAssigneeOptions();
 }
 
 function renderQuotes(quotes) {
@@ -441,21 +418,17 @@ async function loadDashboardSummary() {
 async function loadSettings() {
     if (!currentUser || currentUser.role !== 'admin') {
         notifyEmailInput.value = '';
-        defaultAssigneeInput.value = '';
         notifyEmailInput.disabled = true;
-        defaultAssigneeInput.disabled = true;
         saveSettingsBtn.disabled = true;
         if (testMailBtn) testMailBtn.disabled = true;
         if (mailStatusText) mailStatusText.textContent = '';
         return;
     }
     notifyEmailInput.disabled = false;
-    defaultAssigneeInput.disabled = false;
     saveSettingsBtn.disabled = false;
     if (testMailBtn) testMailBtn.disabled = false;
     const result = await apiFetch(`${adminApiBase}/settings`);
     notifyEmailInput.value = result.item?.notifyEmail || '';
-    defaultAssigneeInput.value = result.item?.defaultAssigneeId || '';
     await loadMailStatus();
     await loadMailLogs();
 }
@@ -618,7 +591,6 @@ loginForm?.addEventListener('submit', async (event) => {
         currentUser = result.user || null;
         setAuthState(true);
         loginFeedback.textContent = '';
-        await loadUsers();
         await loadSettings();
         await loadInquiries();
     } catch (error) {
@@ -685,7 +657,6 @@ logoutBtn?.addEventListener('click', async () => {
     priorityText.textContent = '';
     slaText.textContent = '';
     topCountriesList.innerHTML = '';
-    users = [];
     currentUser = null;
 });
 
@@ -714,20 +685,18 @@ inquiryRows?.addEventListener('click', async (event) => {
             target.removeAttribute('disabled');
         }
     }
-});
 
-saveStatusBtn?.addEventListener('click', async () => {
-    if (!selectedInquiryId) return;
-    saveStatusBtn.disabled = true;
-    try {
-        await patchInquiry(selectedInquiryId, {
-            status: detailStatusSelect.value,
-            assigneeId: detailAssigneeSelect.value
-        });
-    } catch (error) {
-        alert(error.message);
-    } finally {
-        saveStatusBtn.disabled = false;
+    if (role === 'delete-inquiry') {
+        if (!confirm('删除这条询盘及其报价、跟进和关联通知记录？此操作无法恢复。')) return;
+        target.setAttribute('disabled', 'disabled');
+        try {
+            await apiFetch(`${adminApiBase}/inquiries/${encodeURIComponent(inquiryId)}`, { method: 'DELETE' });
+            if (selectedInquiryId === inquiryId) setSelectedInquiry(null);
+            await loadInquiries();
+        } catch (error) {
+            alert(`删除失败：${error.message}`);
+            target.removeAttribute('disabled');
+        }
     }
 });
 
@@ -793,8 +762,7 @@ saveSettingsBtn?.addEventListener('click', async () => {
         await apiFetch(`${adminApiBase}/settings`, {
             method: 'PATCH',
             body: JSON.stringify({
-                notifyEmail: notifyEmailInput.value.trim(),
-                defaultAssigneeId: defaultAssigneeInput.value
+                notifyEmail: notifyEmailInput.value.trim()
             })
         });
         await loadSettings();
@@ -875,7 +843,6 @@ async function boot() {
         const me = await apiFetch(`${adminApiBase}/auth/me`);
         currentUser = me.user || null;
         setAuthState(true);
-        await loadUsers();
         await loadSettings();
         await loadInquiries();
     } catch (error) {

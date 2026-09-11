@@ -165,6 +165,11 @@
             border: 1px solid #16a34a;
             color: #166534;
         }
+        .btn-danger {
+            background: #fff;
+            border: 1px solid #dc2626;
+            color: #b91c1c;
+        }
         .btn-compact {
             border-radius: 8px;
             padding: 6px 10px;
@@ -176,6 +181,19 @@
             gap: 6px;
             flex-wrap: wrap;
         }
+        .inquiry-timeline-row td {
+            padding: 0 12px 10px;
+            border-top: 0;
+            background: #f8fafc;
+        }
+        .inquiry-inline-timeline summary {
+            cursor: pointer;
+            color: #475569;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+        .inquiry-inline-timeline[open] summary { margin-bottom: 8px; }
+        .inquiry-inline-timeline .timeline-list { max-height: 180px; }
         .details-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -331,8 +349,34 @@
         .inline-editor-row td { padding: 0; background: #f8fbf9; }
         .inline-editor-slot { padding: 14px; border-top: 1px solid #dce6df; }
         #customerCreateSlot .erp-form, .inline-editor-slot .erp-form { padding: 14px; margin: 0 0 14px; border: 1px solid #dce6df; border-radius: 8px; background: #f8fbf9; }
-        .inquiry-pagination { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 12px; }
-        .inquiry-pagination .toolbar { margin: 0; }
+        .inquiry-pagination {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding-top: 10px;
+            margin-top: 8px;
+            border-top: 1px solid #e2e8f0;
+        }
+        .inquiry-pagination > .muted { margin: 0; font-size: 13px; white-space: nowrap; }
+        .detail-box .inquiry-pagination .toolbar {
+            margin: 0;
+            display: inline-flex;
+            grid-template-columns: none;
+            width: auto;
+            flex: 0 0 auto;
+            flex-wrap: nowrap;
+            gap: 6px;
+        }
+        .inquiry-pagination .toolbar .muted { margin: 0; font-size: 13px; white-space: nowrap; }
+        .detail-box .inquiry-pagination .toolbar button {
+            width: auto;
+            min-width: 0;
+            padding: 5px 9px;
+            font-size: 12px;
+            line-height: 1.2;
+            white-space: nowrap;
+        }
         #detailsPanel { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         #detailsPanel .detail-box { min-width: 0; }
         .detail-box .toolbar { display: grid; grid-template-columns: repeat(auto-fit, minmax(138px, 1fr)); gap: 10px; }
@@ -537,7 +581,7 @@
                             <th>RFQ完整度</th>
                             <th>优先级</th>
                             <th>SLA</th>
-                            <th>操作</th>
+                            <th>更新状态</th>
                         </tr>
                     </thead>
                     <tbody id="inquiryRows"></tbody>
@@ -565,19 +609,6 @@
                     </div>
                     <textarea id="reminderPreview" placeholder="这里会自动生成针对缺失字段的客户补全提醒文案..." style="min-height:80px;"></textarea>
                     <p id="detailMessage" style="white-space:pre-wrap;"></p>
-                    <label for="detailStatusSelect">更新状态</label>
-                    <select id="detailStatusSelect">
-                        <option value="new">新建</option>
-                        <option value="contacted">已联系</option>
-                        <option value="quoted">已报价</option>
-                        <option value="won">已成交</option>
-                        <option value="lost">已流失</option>
-                    </select>
-                    <label for="detailAssigneeSelect" style="display:block;margin-top:12px;">分配负责人</label>
-                    <select id="detailAssigneeSelect">
-                        <option value="">未分配</option>
-                    </select>
-                    <button id="saveStatusBtn" type="button" class="btn-compact" style="margin-top:10px;">保存状态/负责人</button>
                     <label for="detailNoteInput" style="display:block;margin-top:12px;">新增跟进备注</label>
                     <textarea id="detailNoteInput" placeholder="填写电话沟通结论、报价进展、下一步计划..."></textarea>
                     <button id="addNoteBtn" type="button" class="btn-compact" style="margin-top:10px;">添加备注</button>
@@ -598,18 +629,11 @@
                     <textarea id="quoteNoteInput" placeholder="报价说明（包装、交期、报价范围等）..."></textarea>
                     <ul id="quoteList" class="quote-list" style="margin-top:10px;"></ul>
                 </div>
-                <div class="detail-box">
-                    <h3 style="margin-top:0;">跟进时间线</h3>
-                    <ul id="timelineList" class="timeline-list"></ul>
-                </div>
             </div>
             <section class="card hidden settings-card" id="settingsCard">
                 <h3 style="margin-top:0;">系统设置（仅管理员）</h3>
                 <div class="toolbar">
                     <input id="notifyEmailInput" type="email" placeholder="通知邮箱">
-                    <select id="defaultAssigneeInput">
-                        <option value="">默认负责人（不设置）</option>
-                    </select>
                     <button id="saveSettingsBtn" type="button" class="btn-compact">保存设置</button>
                     <button id="testMailBtn" type="button" class="btn-compact">发送测试邮件</button>
                 </div>
@@ -752,7 +776,11 @@
             <h2>汇率与运费</h2>
             <div class="details-grid">
                 <div class="detail-box">
-                    <h3 style="margin-top:0;">汇率</h3>
+                    <div class="toolbar" style="justify-content:space-between;align-items:center;">
+                        <h3 style="margin:0;">汇率</h3>
+                        <button id="syncPublicFxBtn" type="button" class="btn-compact btn-outline">同步公开汇率</button>
+                    </div>
+                    <p id="fxSyncStatus" class="muted" style="margin:8px 0;">基准货币：CNY。公开参考汇率不会覆盖手动录入的数据。</p>
                     <form id="fxForm" class="erp-form">
                         <input id="fxBaseInput" type="text" maxlength="3" placeholder="base（如CNY）" required>
                         <input id="fxQuoteInput" type="text" maxlength="3" placeholder="quote（如USD）" required>
@@ -760,10 +788,23 @@
                         <input id="fxDateInput" type="date" required>
                         <button type="submit">新增汇率</button>
                     </form>
+                    <div class="toolbar" style="margin:0 0 10px;">
+                        <input id="fxSearchInput" type="search" maxlength="20" placeholder="查询货币代码，如 USD / THB">
+                        <button id="fxSearchBtn" type="button" class="btn-compact">查询</button>
+                        <button id="fxClearSearchBtn" type="button" class="btn-compact btn-outline">清除</button>
+                    </div>
                     <table>
                         <thead><tr><th>货币对</th><th>汇率</th><th>生效日期</th><th>操作</th></tr></thead>
                         <tbody id="fxRows"></tbody>
                     </table>
+                    <div class="inquiry-pagination">
+                        <span class="muted" id="fxSummaryText">0 条汇率</span>
+                        <div class="toolbar">
+                            <button id="fxPrevPageBtn" type="button" class="btn-outline">上一页</button>
+                            <span class="muted" id="fxPageInfo">第 1 页 / 共 1 页</span>
+                            <button id="fxNextPageBtn" type="button" class="btn-outline">下一页</button>
+                        </div>
+                    </div>
                 </div>
                 <div class="detail-box">
                     <h3 style="margin-top:0;">运费</h3>

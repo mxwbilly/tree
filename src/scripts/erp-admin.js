@@ -492,12 +492,30 @@ document.getElementById('tierRows').addEventListener('click', async (event) => {
 });
 
 // --- Rates ---------------------------------------------------------------
+const fxPageSize = 3;
+let fxCurrentPage = 1;
+let fxTotal = 0;
+
+function updateFxPageControls(page, pageSize, total) {
+    fxCurrentPage = page;
+    fxTotal = total;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    document.getElementById('fxSummaryText').textContent = `当前 ${total} 条汇率`;
+    document.getElementById('fxPageInfo').textContent = `第 ${page} 页 / 共 ${totalPages} 页`;
+    document.getElementById('fxPrevPageBtn').disabled = page <= 1;
+    document.getElementById('fxNextPageBtn').disabled = page >= totalPages;
+}
+
 async function loadFxRates() {
     const rows = document.getElementById('fxRows');
     rows.innerHTML = '<tr><td colspan="4" class="muted">加载中...</td></tr>';
     try {
-        const res = await apiFetch('/api/exchange-rates');
+        const query = new URLSearchParams({ page: String(fxCurrentPage), pageSize: String(fxPageSize) });
+        const keyword = document.getElementById('fxSearchInput').value.trim();
+        if (keyword) query.set('q', keyword);
+        const res = await apiFetch(`/api/exchange-rates?${query.toString()}`);
         const items = res.items || [];
+        updateFxPageControls(res.page || 1, res.pageSize || fxPageSize, res.total || 0);
         if (!items.length) {
             rows.innerHTML = '<tr><td colspan="4" class="muted">暂无汇率记录</td></tr>';
             return;
@@ -510,8 +528,58 @@ async function loadFxRates() {
         </tr>`).join('');
     } catch (error) {
         rows.innerHTML = `<tr><td colspan="4" class="muted">${escapeHtml(error.message)}</td></tr>`;
+        updateFxPageControls(1, fxPageSize, 0);
     }
 }
+
+document.getElementById('fxSearchBtn').addEventListener('click', () => {
+    fxCurrentPage = 1;
+    loadFxRates();
+});
+
+document.getElementById('fxClearSearchBtn').addEventListener('click', () => {
+    document.getElementById('fxSearchInput').value = '';
+    fxCurrentPage = 1;
+    loadFxRates();
+});
+
+document.getElementById('fxSearchInput').addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    fxCurrentPage = 1;
+    loadFxRates();
+});
+
+document.getElementById('fxPrevPageBtn').addEventListener('click', () => {
+    if (fxCurrentPage <= 1) return;
+    fxCurrentPage -= 1;
+    loadFxRates();
+});
+
+document.getElementById('fxNextPageBtn').addEventListener('click', () => {
+    if (fxCurrentPage * fxPageSize >= fxTotal) return;
+    fxCurrentPage += 1;
+    loadFxRates();
+});
+
+document.getElementById('syncPublicFxBtn').addEventListener('click', async () => {
+    const button = document.getElementById('syncPublicFxBtn');
+    const status = document.getElementById('fxSyncStatus');
+    button.disabled = true;
+    status.textContent = '正在同步公开参考汇率...';
+    try {
+        const result = await apiFetch('/api/exchange-rates/public-sync', {
+            method: 'POST',
+            body: JSON.stringify({ baseCurrency: 'CNY' })
+        });
+        status.textContent = `已同步 ${result.created || 0} 条，跳过已有 ${result.skipped || 0} 条；汇率日期：${result.effectiveDate || '-'}。`;
+        await loadFxRates();
+    } catch (error) {
+        status.textContent = `同步失败：${error.message}`;
+    } finally {
+        button.disabled = false;
+    }
+});
 
 document.getElementById('fxForm').addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -524,6 +592,7 @@ document.getElementById('fxForm').addEventListener('submit', async (event) => {
     try {
         await apiFetch('/api/exchange-rates', { method: 'POST', body: JSON.stringify(body) });
         document.getElementById('fxForm').reset();
+        fxCurrentPage = 1;
         loadFxRates();
     } catch (error) {
         alert(error.message);
