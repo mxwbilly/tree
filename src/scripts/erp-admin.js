@@ -36,7 +36,7 @@ async function bootTab(tab) {
     if (tab === 'products') { loadSuppliersForSelect(); loadProducts(); }
     if (tab === 'suppliers') { loadSuppliers(); }
     if (tab === 'rates') { loadFxRates(); loadFreightRates(); }
-    if (tab === 'orders') { await loadProductsForOrderLines(); loadOrders(); addOrderLine(); }
+    if (tab === 'orders') { await loadProductsForOrderLines(); await loadOrderCustomers(); loadOrders(); addOrderLine(); }
     if (tab === 'erpDashboard') { loadErpDashboard(); }
 }
 
@@ -301,6 +301,7 @@ document.getElementById('customerForm').addEventListener('submit', async (event)
         else await apiFetch('/api/customers', { method: 'POST', body: JSON.stringify(body) });
         resetCustomerForm();
         loadCustomers();
+        loadOrderCustomers();
     } catch (error) {
         alert(error.message);
     }
@@ -713,18 +714,65 @@ function updateOrderTotalPreview() {
 
 document.getElementById('addOrderLineBtn').addEventListener('click', addOrderLine);
 
+const INCOTERM_NOTE_TEMPLATES = {
+    EXW: 'Trade term: EXW [Factory City], China. The quoted price excludes pickup, export customs clearance, and international freight. The buyer arranges collection and main carriage.',
+    FCA: 'Trade term: FCA [Named Place], China. The quoted price includes export customs clearance and delivery to the named carrier. Main carriage, insurance, and destination charges are for the buyer.',
+    FOB: 'Trade term: FOB [Port], China. The quoted price includes export customs clearance and loading on board. Ocean freight, insurance, and destination charges are for the buyer.',
+    CFR: 'Trade term: CFR [Destination Port]. The quoted price includes ocean freight to the named destination port. Insurance, import customs clearance, duties, and local charges are for the buyer.',
+    CIF: 'Trade term: CIF [Destination Port]. The quoted price includes ocean freight and marine insurance to the named destination port. Import customs clearance, duties, and local charges are for the buyer.',
+    DAP: 'Trade term: DAP [Named Place]. The quoted price includes delivery to the named destination. Import customs clearance, duties, taxes, and unloading are for the buyer unless otherwise agreed.',
+    DDP: 'Trade term: DDP [Named Place]. The quoted price includes delivery, import customs clearance, duties, and taxes to the named destination, subject to a confirmed delivery address and local import requirements.'
+};
+
+document.getElementById('orderIncotermInput').addEventListener('change', (event) => {
+    const template = INCOTERM_NOTE_TEMPLATES[event.target.value];
+    if (!template) return;
+    const notes = document.getElementById('orderNotesInput');
+    const current = notes.value.trim();
+    const previousTemplate = Object.values(INCOTERM_NOTE_TEMPLATES).find((item) => current.includes(item));
+    const remainder = previousTemplate ? current.replace(previousTemplate, '').trim() : current;
+    notes.value = remainder ? `${template}\n\n${remainder}` : template;
+});
+
 let orderCustomers = [];
-document.getElementById('orderCustomerSearchInput').addEventListener('input', debounce(async (event) => {
-    const q = event.target.value.trim();
+let allOrderCustomers = [];
+
+function renderOrderCustomerOptions(selectedId) {
+    const select = document.getElementById('orderCustomerSelect');
+    const currentId = selectedId === undefined ? select.value : selectedId;
+    select.innerHTML = '<option value="">选择客户</option>' +
+        orderCustomers.map((customer) => `<option value="${customer.id}">${escapeHtml(customer.name)} (${escapeHtml(customer.email)})${customer.company ? ' — ' + escapeHtml(customer.company) : ''}</option>`).join('');
+    if (currentId && orderCustomers.some((customer) => customer.id === currentId)) select.value = currentId;
+}
+
+function renderOrderCustomerFilter(selectedId) {
+    const select = document.getElementById('orderCustomerFilter');
+    const currentId = selectedId === undefined ? select.value : selectedId;
+    select.innerHTML = '<option value="">全部客户</option>' +
+        allOrderCustomers.map((customer) => `<option value="${customer.id}">${escapeHtml(customer.name)}${customer.company ? ' — ' + escapeHtml(customer.company) : ''}</option>`).join('');
+    if (currentId && allOrderCustomers.some((customer) => customer.id === currentId)) select.value = currentId;
+}
+
+async function loadOrderCustomers(query = '') {
     try {
-        const res = await apiFetch(`/api/customers?q=${encodeURIComponent(q)}&limit=30`);
-        orderCustomers = res.items || [];
-        const select = document.getElementById('orderCustomerSelect');
-        select.innerHTML = '<option value="">选择客户</option>' +
-            orderCustomers.map((c) => `<option value="${c.id}">${escapeHtml(c.name)} (${escapeHtml(c.email)})${c.company ? ' — ' + escapeHtml(c.company) : ''}</option>`).join('');
+        const pageSize = 200;
+        const first = await apiFetch(`/api/customers?q=${encodeURIComponent(query)}&pageSize=${pageSize}&page=1`);
+        orderCustomers = first.items || [];
+        const totalPages = Math.ceil(Number(first.total || 0) / pageSize);
+        for (let page = 2; page <= totalPages; page += 1) {
+            const next = await apiFetch(`/api/customers?q=${encodeURIComponent(query)}&pageSize=${pageSize}&page=${page}`);
+            orderCustomers.push(...(next.items || []));
+        }
+        if (!query) allOrderCustomers = [...orderCustomers];
+        renderOrderCustomerOptions();
+        if (!query) renderOrderCustomerFilter();
     } catch (error) {
         console.error(error);
     }
+}
+
+document.getElementById('orderCustomerSearchInput').addEventListener('input', debounce((event) => {
+    loadOrderCustomers(event.target.value.trim());
 }, 300));
 
 function debounce(fn, wait) {
@@ -752,15 +800,21 @@ document.getElementById('createOrderBtn').addEventListener('click', async () => 
         customerId,
         currency: document.getElementById('orderCurrencyInput').value.trim() || 'USD',
         incoterm: document.getElementById('orderIncotermInput').value.trim(),
+        notes: document.getElementById('orderNotesInput').value.trim(),
         lines
     };
     try {
-        await apiFetch('/api/orders', { method: 'POST', body: JSON.stringify(body) });
+        const result = await apiFetch('/api/orders', { method: 'POST', body: JSON.stringify(body) });
         document.getElementById('orderLinesContainer').innerHTML = '';
         orderLineCount = 0;
+        document.getElementById('orderCustomerSearchInput').value = '';
+        renderOrderCustomerOptions('');
+        document.getElementById('orderIncotermInput').value = '';
+        document.getElementById('orderNotesInput').value = '';
         addOrderLine();
         updateOrderTotalPreview();
-        loadOrders();
+        await loadOrders();
+        await viewOrder(result.item.id);
     } catch (error) {
         alert(error.message);
     }
@@ -776,8 +830,11 @@ async function loadOrders() {
     rows.innerHTML = '<tr><td colspan="6" class="muted">加载中...</td></tr>';
     try {
         const status = document.getElementById('orderStatusFilter').value;
-        const query = status ? `?status=${status}&pageSize=100` : '?pageSize=100';
-        const res = await apiFetch(`/api/orders${query}`);
+        const customerId = document.getElementById('orderCustomerFilter').value;
+        const query = new URLSearchParams({ pageSize: '100' });
+        if (status) query.set('status', status);
+        if (customerId) query.set('customerId', customerId);
+        const res = await apiFetch(`/api/orders?${query.toString()}`);
         allOrders = res.items || [];
         if (!allOrders.length) {
             rows.innerHTML = '<tr><td colspan="6" class="muted">暂无订单</td></tr>';
@@ -797,9 +854,19 @@ async function loadOrders() {
 }
 
 document.getElementById('orderStatusFilter').addEventListener('change', loadOrders);
+document.getElementById('orderCustomerFilter').addEventListener('change', loadOrders);
 document.getElementById('orderRefreshBtn').addEventListener('click', loadOrders);
 
-const DOCUMENT_TYPE_LABEL = { quote: '报价单', pi: 'PI', packing_list: '装箱单', invoice: '发票' };
+window.addEventListener('greensmart:open-orders-for-customer', async (event) => {
+    const customerId = event.detail?.customerId;
+    if (!customerId) return;
+    await loadOrderCustomers();
+    document.getElementById('orderCustomerFilter').value = customerId;
+    document.querySelector('.tab-btn[data-tab="orders"]')?.click();
+    await loadOrders();
+});
+
+const DOCUMENT_TYPE_LABEL = { quote: '报价单', pi: '形式发票 (PI)', packing_list: '装箱单', invoice: '商业发票 (CI)' };
 const ACTION_LABEL = { confirm: '确认订单（收定金）', mark_paid: '标记全款已付', close: '结案', mark_lost: '标记流失' };
 // Mirrors the backend's DOCUMENT_RULES/ACTION_RULES in functions/api/orders —
 // kept here only to decide which buttons to show; the server re-validates.
@@ -821,7 +888,7 @@ async function viewOrder(orderId) {
     try {
         const res = await apiFetch(`/api/orders/${orderId}`);
         const order = res.item;
-        document.getElementById('orderDetailTitle').textContent = `订单 ${order.orderNo}`;
+        document.getElementById('orderDetailTitle').textContent = `报价 / 订单 ${order.orderNo}`;
         document.getElementById('orderDetailMeta').textContent =
             `状态：${orderStatusLabel[order.status] || order.status} | 币种：${order.currency} | 总额：${fmtMoney(order.totalAmount)} | 行数：${order.lines.length}`;
 
@@ -841,7 +908,7 @@ async function viewOrder(orderId) {
         docList.innerHTML = (order.documents || []).map((doc) => `<li>
             <span class="doc-badge">${escapeHtml(DOCUMENT_TYPE_LABEL[doc.type] || doc.type)}</span>
             ${escapeHtml(doc.docNo)} · v${doc.version} · ${escapeHtml(String(doc.issuedAt).slice(0, 16).replace('T', ' '))}
-            <button type="button" class="btn-compact btn-outline" data-print-doc="${doc.id}">打印/导出PDF</button>
+            <button type="button" class="btn-compact btn-outline" data-preview-doc="${doc.id}" data-doc-type="${escapeHtml(doc.type)}">预览</button>
         </li>`).join('') || '<li class="muted">暂无文档</li>';
     } catch (error) {
         document.getElementById('orderDetailTitle').textContent = '加载失败';
@@ -878,24 +945,42 @@ document.getElementById('orderDocButtons').addEventListener('click', async (even
     }
 });
 
-// Fetched (not navigated to) so the same-origin session cookie is included.
-// A plain link/new-tab navigation can't keep this display flow. The HTML is
-// opened from a Blob URL instead; the page's own "Print to PDF" button (or
-// Ctrl+P) is the actual PDF path, since Workers can't run a PDF renderer.
-document.getElementById('orderDocList').addEventListener('click', async (event) => {
-    const docId = event.target.dataset.printDoc;
+async function openDocumentPreview(docId, docType) {
     if (!docId || !activeOrderId) return;
+    const dialog = document.getElementById('documentPreviewDialog');
+    const frame = document.getElementById('documentPreviewFrame');
+    const title = DOCUMENT_TYPE_LABEL[docType] || '单据';
+    document.getElementById('documentPreviewTitle').textContent = `${title}预览`;
+    frame.srcdoc = '<!doctype html><html><body style="font-family:Arial,sans-serif;padding:32px;color:#64748b;">正在生成预览...</body></html>';
+    if (!dialog.open) dialog.showModal();
     try {
         const response = await fetch(`/api/orders/${activeOrderId}/documents/${docId}/render`, {
             credentials: 'same-origin'
         });
         if (!response.ok) throw new Error(`渲染失败 (${response.status})`);
-        const html = await response.text();
-        const blobUrl = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
-        window.open(blobUrl, '_blank');
+        frame.srcdoc = await response.text();
     } catch (error) {
-        alert(error.message);
+        frame.srcdoc = `<!doctype html><html><body style="font-family:Arial,sans-serif;padding:32px;color:#b91c1c;">${escapeHtml(error.message)}</body></html>`;
     }
+}
+
+document.getElementById('orderDocList').addEventListener('click', async (event) => {
+    const docId = event.target.dataset.previewDoc;
+    if (docId) openDocumentPreview(docId, event.target.dataset.docType);
+});
+
+document.getElementById('documentPreviewPrintBtn').addEventListener('click', () => {
+    const frame = document.getElementById('documentPreviewFrame');
+    frame.contentWindow?.focus();
+    frame.contentWindow?.print();
+});
+
+document.getElementById('documentPreviewCloseBtn').addEventListener('click', () => {
+    document.getElementById('documentPreviewDialog').close();
+});
+
+document.getElementById('documentPreviewDialog').addEventListener('close', () => {
+    document.getElementById('documentPreviewFrame').srcdoc = '';
 });
 
 // --- ERP Dashboard -----------------------------------------------------

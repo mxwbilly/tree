@@ -23,27 +23,6 @@ const sortBySelect = document.getElementById('sortBySelect');
 const applyFilterBtn = document.getElementById('applyFilterBtn');
 const clearFilterBtn = document.getElementById('clearFilterBtn');
 const summaryText = document.getElementById('summaryText');
-const detailsPanel = document.getElementById('detailsPanel');
-const detailMeta = document.getElementById('detailMeta');
-const rfqScoreText = document.getElementById('rfqScoreText');
-const priorityText = document.getElementById('priorityText');
-const slaText = document.getElementById('slaText');
-const rfqMissingList = document.getElementById('rfqMissingList');
-const buildReminderBtn = document.getElementById('buildReminderBtn');
-const copyReminderBtn = document.getElementById('copyReminderBtn');
-const reminderPreview = document.getElementById('reminderPreview');
-const detailMessage = document.getElementById('detailMessage');
-const detailNoteInput = document.getElementById('detailNoteInput');
-const addNoteBtn = document.getElementById('addNoteBtn');
-const quotePriceInput = document.getElementById('quotePriceInput');
-const quoteCurrencyInput = document.getElementById('quoteCurrencyInput');
-const quoteMoqInput = document.getElementById('quoteMoqInput');
-const quoteIncotermInput = document.getElementById('quoteIncotermInput');
-const quoteValidityInput = document.getElementById('quoteValidityInput');
-const quoteFollowUpInput = document.getElementById('quoteFollowUpInput');
-const quoteNoteInput = document.getElementById('quoteNoteInput');
-const createQuoteBtn = document.getElementById('createQuoteBtn');
-const quoteList = document.getElementById('quoteList');
 const kpiTotal = document.getElementById('kpiTotal');
 const kpi7d = document.getElementById('kpi7d');
 const kpiQuoted = document.getElementById('kpiQuoted');
@@ -260,6 +239,7 @@ function renderRows(items) {
         const rfq = getRfqCompleteness(item);
         const priority = getInquiryPriority(item);
         const sla = getInquirySla(item);
+        const expandedItem = selectedInquiryId === item.id && selectedInquiry ? selectedInquiry : item;
         return `
         <tr>
             <td>${new Date(item.createdAt).toLocaleString()}</td>
@@ -282,6 +262,7 @@ function renderRows(items) {
                     </select>
                     <button type="button" class="btn-compact" data-role="save-row-status" data-id="${item.id}">保存</button>
                     <button type="button" class="btn-compact btn-outline" data-role="open-detail" data-id="${item.id}">详情</button>
+                    <button type="button" class="btn-compact btn-outline" data-role="open-quote-workspace" data-id="${item.id}">报价与单据</button>
                     <button type="button" class="btn-compact btn-danger" data-role="delete-inquiry" data-id="${item.id}">删除</button>
                 </div>
             </td>
@@ -289,6 +270,7 @@ function renderRows(items) {
         <tr class="inquiry-timeline-row">
             <td colspan="10">${renderInlineTimeline(item)}</td>
         </tr>
+        ${selectedInquiryId === item.id ? renderInquiryDetail(expandedItem) : ''}
     `;
     }).join('');
 }
@@ -310,38 +292,61 @@ function setSelectedInquiry(item) {
     if (!item) {
         selectedInquiryId = '';
         selectedInquiry = null;
-        detailsPanel.classList.add('hidden');
         return;
     }
     selectedInquiryId = item.id;
     selectedInquiry = item;
-    detailsPanel.classList.remove('hidden');
+}
+
+function renderInquiryDetail(item) {
     const rfq = getRfqCompleteness(item);
     const priority = getInquiryPriority(item);
     const sla = getInquirySla(item);
-    detailMeta.textContent = `#${item.id} · ${item.contact?.name || '-'} · ${item.contact?.email || '-'} · ${item.contact?.country || '-'}`;
-    rfqScoreText.textContent = `RFQ完整度：${rfq.percent || 0}%（${rfq.score || 0}/${rfq.maxScore || 100}，等级：${getRfqLevelLabel(rfq.level)}）`;
-    priorityText.textContent = `优先级：${getPriorityLabel(priority)}（按询盘完整度和采购意向计算）`;
-    slaText.textContent = sla.breached
-        ? `SLA状态：已超时 ${sla.overdueHours} 小时（阈值 24h）`
-        : 'SLA状态：正常（24h内有更新）';
-    if (Array.isArray(rfq.missingFields) && rfq.missingFields.length > 0) {
-        rfqMissingList.innerHTML = rfq.missingFields
+    const missingFields = Array.isArray(rfq.missingFields) && rfq.missingFields.length > 0
+        ? rfq.missingFields
             .map((field) => `<li>待补充：${escapeHtml(rfqFieldLabelMap[field] || field)}</li>`)
-            .join('');
-    } else {
-        rfqMissingList.innerHTML = '<li>关键字段完整，可优先跟进报价。</li>';
-    }
-    detailMessage.textContent = item.message || '';
-    detailNoteInput.value = '';
-    renderQuotes(item.quotes || []);
-    quotePriceInput.value = '';
-    quoteMoqInput.value = '';
-    quoteIncotermInput.value = '';
-    quoteValidityInput.value = '30';
-    quoteFollowUpInput.value = '';
-    quoteNoteInput.value = '';
-    reminderPreview.value = '';
+            .join('')
+        : '<li>关键字段完整，可优先跟进报价。</li>';
+    const contact = item.contact || {};
+    const slaText = sla.breached ? `超时 ${sla.overdueHours} 小时` : '正常';
+    return `<tr class="inquiry-detail-row">
+        <td colspan="10">
+            <section class="inquiry-record-detail">
+                <div class="inquiry-record-detail-header">
+                    <div>
+                        <h3>询盘详情</h3>
+                        <p class="muted">${escapeHtml(contact.name || '-')} · ${escapeHtml(contact.email || '-')} · ${escapeHtml(contact.company || '未填写公司')} · ${escapeHtml(contact.country || '-')}</p>
+                    </div>
+                </div>
+                <div class="inquiry-record-summary">
+                    <div>RFQ 完整度<strong>${escapeHtml(String(rfq.percent || 0))}% · ${getRfqLevelLabel(rfq.level)}</strong></div>
+                    <div>优先级<strong>${getPriorityLabel(priority)}</strong></div>
+                    <div>SLA<strong>${escapeHtml(slaText)}</strong></div>
+                </div>
+                <div class="inquiry-record-content">
+                    <div class="inquiry-record-section">
+                        <h4>采购需求</h4>
+                        <p style="white-space:pre-wrap;">${escapeHtml(item.message || '未填写需求说明。')}</p>
+                        <h4>待补充信息</h4>
+                        <ul class="timeline-list" style="max-height:120px;">${missingFields}</ul>
+                        <div class="toolbar" style="margin-top:12px;">
+                            <button type="button" class="btn-compact btn-outline" data-role="build-reminder" data-id="${item.id}">生成补全提醒</button>
+                            <button type="button" class="btn-compact btn-outline" data-role="copy-reminder" data-id="${item.id}">复制提醒文案</button>
+                        </div>
+                        <textarea data-role="reminder-preview" data-id="${item.id}" placeholder="这里会生成针对缺失字段的客户补全提醒文案..." style="min-height:80px;"></textarea>
+                    </div>
+                    <div class="inquiry-record-section">
+                        <h4>最新报价</h4>
+                        <p class="muted">正式报价、PI 与出运单据统一在“报价与单据”中管理。</p>
+                        <div class="quote-list">${renderLatestQuoteHtml(item.quotes || [])}</div>
+                        <h4 style="margin-top:16px;">新增跟进备注</h4>
+                        <textarea data-role="detail-note" data-id="${item.id}" placeholder="填写电话沟通结论、报价进展、下一步计划..."></textarea>
+                        <button type="button" class="btn-compact" data-role="add-note" data-id="${item.id}" style="margin-top:10px;">添加备注</button>
+                    </div>
+                </div>
+            </section>
+        </td>
+    </tr>`;
 }
 
 function buildQueryFromFilters() {
@@ -359,29 +364,20 @@ function buildQueryFromFilters() {
     return params;
 }
 
-function renderQuotes(quotes) {
+function renderLatestQuoteHtml(quotes) {
     if (!Array.isArray(quotes) || quotes.length === 0) {
-        quoteList.innerHTML = '<li>暂无报价记录</li>';
-        return;
+        return '<p class="muted" style="margin:0;">暂无历史报价。可前往“报价与单据”创建正式报价草案。</p>';
     }
     const sorted = [...quotes].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const quote = sorted[0];
     const labels = { draft: '草稿', sent: '已发送', follow_up: '跟进中', accepted: '已接受', rejected: '已拒绝', expired: '已过期' };
-    quoteList.innerHTML = sorted.map((quote) => `
-        <li>
-            <strong>${escapeHtml(quote.quoteNo)}</strong>
-            <div>${escapeHtml(quote.currency)} ${escapeHtml(quote.unitPrice)} · MOQ ${escapeHtml(quote.moq || '-')} · ${escapeHtml(quote.incoterm || '-')}</div>
-            <div>有效期：${escapeHtml(quote.validityDays)} 天 · ${new Date(quote.createdAt).toLocaleString()} · 状态：${escapeHtml(labels[quote.trackingStatus] || labels.draft)}</div>
-            <div>${escapeHtml(quote.note || '')}</div>
-            <div class="toolbar" style="margin-top:8px;">
-                <select data-quote-status="${escapeHtml(quote.id)}">
-                    ${Object.entries(labels).map(([value, label]) => `<option value="${value}" ${value === (quote.trackingStatus || 'draft') ? 'selected' : ''}>${label}</option>`).join('')}
-                </select>
-                <input type="date" data-quote-follow-up="${escapeHtml(quote.id)}" value="${escapeHtml(quote.followUpAt || '')}" title="下次跟进">
-                <button type="button" class="btn-compact btn-outline" data-save-quote-tracking="${escapeHtml(quote.id)}">保存追踪</button>
-            </div>
-            <input type="text" data-quote-reply="${escapeHtml(quote.id)}" value="${escapeHtml(quote.customerReply || '')}" placeholder="客户反馈（可选）">
-        </li>
-    `).join('');
+    return `
+        <strong>${escapeHtml(quote.quoteNo)}</strong>
+        <div>${escapeHtml(quote.currency)} ${escapeHtml(quote.unitPrice)} · MOQ ${escapeHtml(quote.moq || '-')} · ${escapeHtml(quote.incoterm || '-')}</div>
+        <div class="muted" style="margin:6px 0 0;">有效期：${escapeHtml(quote.validityDays)} 天 · ${new Date(quote.createdAt).toLocaleString()} · 状态：${escapeHtml(labels[quote.trackingStatus] || labels.draft)}</div>
+        ${quote.note ? `<div style="margin-top:6px;">${escapeHtml(quote.note)}</div>` : ''}
+        ${sorted.length > 1 ? `<div class="muted" style="margin:6px 0 0;">另有 ${sorted.length - 1} 条历史报价。</div>` : ''}
+    `;
 }
 
 function updateKpis(summary) {
@@ -504,17 +500,16 @@ async function loadInquiries() {
         const result = await apiFetch(`${adminApiBase}/inquiries?${query.toString()}`);
         inquiryItems = result.items || [];
         totalItems = Number(result.total || 0);
-        renderRows(inquiryItems);
-        updatePageControls();
         if (selectedInquiryId) {
-            const selected = inquiryItems.find((item) => item.id === selectedInquiryId);
-            if (selected) {
-                setSelectedInquiry(selected);
-            } else {
+            try {
                 const detailResult = await apiFetch(`${adminApiBase}/inquiries/${encodeURIComponent(selectedInquiryId)}`);
                 setSelectedInquiry(detailResult.item);
+            } catch {
+                setSelectedInquiry(null);
             }
         }
+        renderRows(inquiryItems);
+        updatePageControls();
         await loadDashboardSummary();
     } catch (error) {
         inquiryRows.innerHTML = `<tr><td colspan="10">${error.message}</td></tr>`;
@@ -549,27 +544,6 @@ async function exportCsv() {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-}
-
-async function createQuote() {
-    if (!selectedInquiryId) {
-        alert('请先选择一条询盘。');
-        return;
-    }
-    const payload = {
-        unitPrice: Number(quotePriceInput.value),
-        currency: String(quoteCurrencyInput.value || 'USD').trim().toUpperCase(),
-        moq: quoteMoqInput.value.trim(),
-        incoterm: quoteIncotermInput.value.trim().toUpperCase(),
-        validityDays: Number(quoteValidityInput.value || 30),
-        note: quoteNoteInput.value.trim(),
-        followUpAt: quoteFollowUpInput.value
-    };
-    await apiFetch(`${adminApiBase}/inquiries/${encodeURIComponent(selectedInquiryId)}/quotes`, {
-        method: 'POST',
-        body: JSON.stringify(payload)
-    });
-    await loadInquiries();
 }
 
 loginForm?.addEventListener('submit', async (event) => {
@@ -650,12 +624,8 @@ logoutBtn?.addEventListener('click', async () => {
     }
     setAuthState(false);
     inquiryRows.innerHTML = '';
-    detailsPanel.classList.add('hidden');
     selectedInquiryId = '';
     selectedInquiry = null;
-    reminderPreview.value = '';
-    priorityText.textContent = '';
-    slaText.textContent = '';
     topCountriesList.innerHTML = '';
     currentUser = null;
 });
@@ -668,8 +638,26 @@ inquiryRows?.addEventListener('click', async (event) => {
     if (!role || !inquiryId) return;
 
     if (role === 'open-detail') {
-        const detailResult = await apiFetch(`${adminApiBase}/inquiries/${encodeURIComponent(inquiryId)}`);
-        setSelectedInquiry(detailResult.item);
+        if (selectedInquiryId === inquiryId) {
+            setSelectedInquiry(null);
+        } else {
+            const detailResult = await apiFetch(`${adminApiBase}/inquiries/${encodeURIComponent(inquiryId)}`);
+            setSelectedInquiry(detailResult.item);
+        }
+        renderRows(inquiryItems);
+        return;
+    }
+
+    if (role === 'open-quote-workspace') {
+        const cached = selectedInquiryId === inquiryId ? selectedInquiry : inquiryItems.find((item) => item.id === inquiryId);
+        const item = cached?.customerId ? cached : (await apiFetch(`${adminApiBase}/inquiries/${encodeURIComponent(inquiryId)}`)).item;
+        if (!item?.customerId) {
+            alert('该询盘尚未关联客户，无法筛选报价记录。');
+            return;
+        }
+        window.dispatchEvent(new CustomEvent('greensmart:open-orders-for-customer', {
+            detail: { customerId: item.customerId, customerName: item.contact?.name || '' }
+        }));
         return;
     }
 
@@ -697,58 +685,48 @@ inquiryRows?.addEventListener('click', async (event) => {
             alert(`删除失败：${error.message}`);
             target.removeAttribute('disabled');
         }
-    }
-});
-
-addNoteBtn?.addEventListener('click', async () => {
-    if (!selectedInquiryId) return;
-    const note = detailNoteInput.value.trim();
-    if (!note) {
-        alert('请先输入备注内容。');
         return;
     }
-    addNoteBtn.disabled = true;
-    try {
-        await patchInquiry(selectedInquiryId, { note });
-    } catch (error) {
-        alert(error.message);
-    } finally {
-        addNoteBtn.disabled = false;
-    }
-});
 
-createQuoteBtn?.addEventListener('click', async () => {
-    createQuoteBtn.disabled = true;
-    try {
-        await createQuote();
-    } catch (error) {
-        alert(error.message);
-    } finally {
-        createQuoteBtn.disabled = false;
-    }
-});
-
-buildReminderBtn?.addEventListener('click', () => {
-    if (!selectedInquiry) {
-        alert('请先打开一条询盘详情。');
+    if (role === 'build-reminder') {
+        const input = inquiryRows.querySelector(`textarea[data-role="reminder-preview"][data-id="${inquiryId}"]`);
+        const item = selectedInquiryId === inquiryId ? selectedInquiry : null;
+        if (input && item) input.value = buildReminderMessage(item);
         return;
     }
-    reminderPreview.value = buildReminderMessage(selectedInquiry);
-});
 
-copyReminderBtn?.addEventListener('click', async () => {
-    const text = reminderPreview.value.trim();
-    if (!text) {
-        alert('请先生成提醒文案。');
+    if (role === 'copy-reminder') {
+        const input = inquiryRows.querySelector(`textarea[data-role="reminder-preview"][data-id="${inquiryId}"]`);
+        const text = input?.value.trim();
+        if (!text) {
+            alert('请先生成提醒文案。');
+            return;
+        }
+        try {
+            await navigator.clipboard.writeText(text);
+            alert('提醒文案已复制。');
+        } catch {
+            input.focus();
+            input.select();
+            alert('自动复制失败，已选中文案，请手动复制。');
+        }
         return;
     }
-    try {
-        await navigator.clipboard.writeText(text);
-        alert('提醒文案已复制。');
-    } catch (error) {
-        reminderPreview.focus();
-        reminderPreview.select();
-        alert('自动复制失败，已选中文案，请手动复制。');
+
+    if (role === 'add-note') {
+        const input = inquiryRows.querySelector(`textarea[data-role="detail-note"][data-id="${inquiryId}"]`);
+        const note = input?.value.trim();
+        if (!note) {
+            alert('请先输入备注内容。');
+            return;
+        }
+        target.setAttribute('disabled', 'disabled');
+        try {
+            await patchInquiry(inquiryId, { note });
+        } catch (error) {
+            alert(error.message);
+            target.removeAttribute('disabled');
+        }
     }
 });
 
@@ -792,31 +770,6 @@ testMailBtn?.addEventListener('click', async () => {
         }
     } finally {
         testMailBtn.disabled = false;
-    }
-});
-
-quoteList?.addEventListener('click', async (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLElement)) return;
-    const quoteId = target.dataset.saveQuoteTracking;
-    if (!quoteId || !selectedInquiryId) return;
-    const status = quoteList.querySelector(`[data-quote-status="${quoteId}"]`);
-    const followUp = quoteList.querySelector(`[data-quote-follow-up="${quoteId}"]`);
-    const reply = quoteList.querySelector(`[data-quote-reply="${quoteId}"]`);
-    target.setAttribute('disabled', 'disabled');
-    try {
-        await apiFetch(`${adminApiBase}/inquiries/${encodeURIComponent(selectedInquiryId)}/quotes/${encodeURIComponent(quoteId)}`, {
-            method: 'PATCH',
-            body: JSON.stringify({
-                trackingStatus: status?.value || 'draft',
-                followUpAt: followUp?.value || '',
-                customerReply: reply?.value || ''
-            })
-        });
-        await loadInquiries();
-    } catch (error) {
-        alert(error.message);
-        target.removeAttribute('disabled');
     }
 });
 

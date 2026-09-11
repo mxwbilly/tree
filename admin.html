@@ -298,7 +298,9 @@
             .insight-grid {
                 grid-template-columns: 1fr;
             }
-            #detailsPanel { grid-template-columns: 1fr; }
+            .inquiry-record-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .inquiry-record-content { grid-template-columns: 1fr; gap: 16px; }
+            .inquiry-record-section + .inquiry-record-section { border-left: 0; border-top: 1px solid #e2e8f0; padding-left: 0; padding-top: 16px; }
         }
         .tab-nav {
             display: flex;
@@ -377,8 +379,20 @@
             line-height: 1.2;
             white-space: nowrap;
         }
-        #detailsPanel { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        #detailsPanel .detail-box { min-width: 0; }
+        .inquiry-detail-row td { padding: 0; background: #f8fbf9; }
+        .inquiry-record-detail { padding: 16px; border-top: 1px solid #dce6df; }
+        .inquiry-record-detail-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding-bottom: 12px; border-bottom: 1px solid #e2e8f0; }
+        .inquiry-record-detail-header h3 { margin: 0 0 4px; font-size: 16px; }
+        .inquiry-record-detail-header .muted { margin: 0; font-size: 13px; }
+        .inquiry-record-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 12px 0; }
+        .inquiry-record-summary div { font-size: 13px; color: #475569; }
+        .inquiry-record-summary strong { display: block; color: #0f172a; margin-top: 3px; font-size: 14px; }
+        .inquiry-record-content { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(260px, 0.75fr); gap: 22px; }
+        .inquiry-record-section { min-width: 0; }
+        .inquiry-record-section + .inquiry-record-section { border-left: 1px solid #e2e8f0; padding-left: 22px; }
+        .inquiry-record-section h4 { margin: 0 0 8px; font-size: 14px; }
+        .inquiry-record-section p { margin: 0 0 10px; }
+        .inquiry-record-section textarea { min-height: 92px; }
         .detail-box .toolbar { display: grid; grid-template-columns: repeat(auto-fit, minmax(138px, 1fr)); gap: 10px; }
         .detail-box .toolbar input, .detail-box .toolbar select, .detail-box .toolbar button { width: 100%; min-width: 0; max-width: none; }
         .detail-box .toolbar button { align-self: stretch; }
@@ -439,6 +453,21 @@
             color: #0369a1;
             margin-right: 4px;
         }
+        .document-preview-dialog {
+            width: min(1120px, calc(100vw - 32px));
+            height: min(860px, calc(100vh - 32px));
+            padding: 0;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+            overflow: hidden;
+        }
+        .document-preview-dialog::backdrop { background: rgba(15, 23, 42, 0.48); }
+        .document-preview-shell { display: grid; grid-template-rows: auto 1fr; height: 100%; background: #f8fafc; }
+        .document-preview-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; background: #fff; border-bottom: 1px solid #e2e8f0; }
+        .document-preview-header h3 { margin: 0; font-size: 15px; }
+        .document-preview-actions { display: flex; align-items: center; gap: 8px; }
+        .document-preview-frame { width: 100%; height: 100%; min-height: 0; border: 0; background: #fff; }
         @media (max-width: 600px) {
             .wrap { margin-top: 12px; padding: 0 10px; }
             .card { padding: 16px; }
@@ -449,10 +478,16 @@
             .account-actions, .workspace-actions { justify-content: space-between; }
             .filter-grid { display: grid; grid-template-columns: 1fr; }
             .filter-grid input, .filter-grid select, .filter-grid #keywordFilter { width: 100%; max-width: none; }
-            #detailsPanel { grid-template-columns: 1fr; }
+            .inquiry-record-detail-header { align-items: stretch; flex-direction: column; }
+            .inquiry-record-detail-header > button { width: 100%; }
+            .inquiry-record-summary { grid-template-columns: 1fr; }
             .filter-actions { justify-content: stretch; }
             .filter-actions button { flex: 1; }
             .inquiry-pagination { align-items: flex-start; flex-direction: column; }
+            .document-preview-dialog { width: calc(100vw - 16px); height: calc(100vh - 16px); }
+            .document-preview-header { align-items: flex-start; flex-direction: column; }
+            .document-preview-actions { width: 100%; }
+            .document-preview-actions button { flex: 1; }
         }
     </style>
 </head>
@@ -473,7 +508,7 @@
         <header class="admin-header">
             <div class="admin-brand">
                 <div class="admin-brand-mark">G</div>
-                <div><strong>GreenSmart 业务后台</strong><span>询盘、产品、报价与订单</span></div>
+                <div><strong>GreenSmart 业务后台</strong><span>询盘、报价、单据与订单</span></div>
             </div>
             <div class="account-actions">
                 <span class="account-note">管理员会话</span>
@@ -486,7 +521,7 @@
             <button type="button" class="tab-btn" data-tab="products">产品</button>
             <button type="button" class="tab-btn" data-tab="suppliers">供应商</button>
             <button type="button" class="tab-btn" data-tab="rates">汇率与运费</button>
-            <button type="button" class="tab-btn" data-tab="orders">订单</button>
+            <button type="button" class="tab-btn" data-tab="orders">报价与单据</button>
             <button type="button" class="tab-btn" data-tab="erpDashboard">统计看板</button>
             <button type="button" class="tab-btn" data-tab="settings">设置</button>
         </nav>
@@ -495,7 +530,7 @@
             <div class="workspace-header">
                 <div>
                     <h2>询盘管理</h2>
-                    <p class="muted">筛选询盘、查看详情、记录报价和下一步跟进。</p>
+                    <p class="muted">筛选询盘、查看详情并记录下一步跟进。</p>
                 </div>
             </div>
             <div class="kpi-grid">
@@ -593,41 +628,6 @@
                     <button id="prevPageBtn" type="button" class="btn-outline">上一页</button>
                     <span class="muted" id="pageInfo">第 1 页 / 共 1 页</span>
                     <button id="nextPageBtn" type="button" class="btn-outline">下一页</button>
-                </div>
-            </div>
-            <div id="detailsPanel" class="details-grid hidden" style="margin-top:16px;">
-                <div class="detail-box">
-                    <h3 style="margin-top:0;">询盘详情</h3>
-                    <p class="muted" id="detailMeta">点击列表中的“详情”查看具体内容。</p>
-                    <p id="rfqScoreText" class="muted"></p>
-                    <p id="priorityText" class="muted"></p>
-                    <p id="slaText" class="muted"></p>
-                    <ul id="rfqMissingList" class="timeline-list" style="max-height:120px;"></ul>
-                    <div class="toolbar">
-                        <button id="buildReminderBtn" type="button" class="btn-compact btn-outline">生成补全提醒</button>
-                        <button id="copyReminderBtn" type="button" class="btn-compact btn-outline">复制提醒文案</button>
-                    </div>
-                    <textarea id="reminderPreview" placeholder="这里会自动生成针对缺失字段的客户补全提醒文案..." style="min-height:80px;"></textarea>
-                    <p id="detailMessage" style="white-space:pre-wrap;"></p>
-                    <label for="detailNoteInput" style="display:block;margin-top:12px;">新增跟进备注</label>
-                    <textarea id="detailNoteInput" placeholder="填写电话沟通结论、报价进展、下一步计划..."></textarea>
-                    <button id="addNoteBtn" type="button" class="btn-compact" style="margin-top:10px;">添加备注</button>
-                </div>
-                <div class="detail-box">
-                    <h3 style="margin-top:0;">报价记录</h3>
-                    <div class="toolbar">
-                        <input id="quotePriceInput" type="number" min="0" step="0.01" placeholder="单价">
-                        <input id="quoteCurrencyInput" type="text" value="USD" maxlength="3" placeholder="币种">
-                        <input id="quoteMoqInput" type="text" placeholder="MOQ（可选）">
-                    </div>
-                    <div class="toolbar">
-                        <input id="quoteIncotermInput" type="text" placeholder="贸易条款（EXW/FOB/CIF）">
-                        <input id="quoteValidityInput" type="number" min="1" max="180" value="30" placeholder="有效期（天）">
-                        <input id="quoteFollowUpInput" type="date" title="下次跟进日期">
-                        <button id="createQuoteBtn" type="button" class="btn-compact">创建报价</button>
-                    </div>
-                    <textarea id="quoteNoteInput" placeholder="报价说明（包装、交期、报价范围等）..."></textarea>
-                    <ul id="quoteList" class="quote-list" style="margin-top:10px;"></ul>
                 </div>
             </div>
             <section class="card hidden settings-card" id="settingsCard">
@@ -829,20 +829,38 @@
         </section>
 
         <section class="card hidden" id="ordersCard">
-            <h2>订单</h2>
-            <p class="muted">SalesOrder 聚合根 — 报价/PI/装箱单/发票都是订单的文档快照，不是独立单据。</p>
+            <div class="workspace-header">
+                <div>
+                    <h2>报价与单据</h2>
+                    <p class="muted">先创建报价草案并生成报价单，再依次出具 PI、装箱单与商业发票（CI）；每份单据均保留独立版本快照。</p>
+                </div>
+            </div>
+            <div class="detail-box" style="margin-bottom:16px;">
+                <h3 style="margin-top:0;">新建报价</h3>
             <form id="orderForm" class="erp-form" style="grid-template-columns: repeat(auto-fit, minmax(180px,1fr));">
                 <input id="orderCustomerSearchInput" type="text" placeholder="搜索客户（姓名/邮箱/公司）">
                 <select id="orderCustomerSelect" required><option value="">选择客户</option></select>
                 <input id="orderCurrencyInput" type="text" value="USD" maxlength="3" placeholder="币种">
-                <input id="orderIncotermInput" type="text" placeholder="贸易条款（如FOB）">
+                <select id="orderIncotermInput" aria-label="贸易条款">
+                    <option value="">选择贸易条款</option>
+                    <option value="EXW">EXW - Ex Works</option>
+                    <option value="FCA">FCA - Free Carrier</option>
+                    <option value="FOB">FOB - Free On Board</option>
+                    <option value="CFR">CFR - Cost and Freight</option>
+                    <option value="CIF">CIF - Cost, Insurance and Freight</option>
+                    <option value="DAP">DAP - Delivered at Place</option>
+                    <option value="DDP">DDP - Delivered Duty Paid</option>
+                </select>
+                <textarea id="orderNotesInput" placeholder="报价说明：包装、交期、付款条件等（可选）"></textarea>
             </form>
             <div id="orderLinesContainer"></div>
             <div class="toolbar">
                 <button id="addOrderLineBtn" type="button" class="btn-outline">+ 添加产品行</button>
-                <button id="createOrderBtn" type="button">创建订单</button>
+                <button id="createOrderBtn" type="button">创建报价草案</button>
                 <span class="muted" id="orderTotalPreview"></span>
             </div>
+            </div>
+            <h3 style="margin:0 0 10px;">报价与单据记录</h3>
             <div class="toolbar">
                 <select id="orderStatusFilter">
                     <option value="">全部状态</option>
@@ -855,16 +873,17 @@
                     <option value="closed">已结案</option>
                     <option value="lost">已流失</option>
                 </select>
+                <select id="orderCustomerFilter" aria-label="按客户筛选报价与单据"><option value="">全部客户</option></select>
                 <button id="orderRefreshBtn" type="button" class="btn-outline">刷新</button>
             </div>
             <div style="overflow-x:auto;">
                 <table>
-                    <thead><tr><th>订单号</th><th>状态</th><th>币种</th><th>总额</th><th>创建时间</th><th>操作</th></tr></thead>
+                    <thead><tr><th>报价/订单号</th><th>状态</th><th>币种</th><th>总额</th><th>创建时间</th><th>操作</th></tr></thead>
                     <tbody id="orderRows"></tbody>
                 </table>
             </div>
             <div class="detail-box hidden" id="orderDetailPanel" style="margin-top:16px;">
-                <h3 style="margin-top:0;" id="orderDetailTitle">订单详情</h3>
+                <h3 style="margin-top:0;" id="orderDetailTitle">报价与单据详情</h3>
                 <p class="muted" id="orderDetailMeta"></p>
                 <div class="toolbar" id="orderActionButtons"></div>
                 <div class="toolbar" id="orderDocButtons"></div>
@@ -932,7 +951,19 @@
         </section>
         </main>
     </div>
-    <script src="src/scripts/admin.js?v=20260828-mail-logs"></script>
-    <script src="src/scripts/erp-admin.js?v=20260828-mail-logs"></script>
+    <dialog id="documentPreviewDialog" class="document-preview-dialog" aria-labelledby="documentPreviewTitle">
+        <div class="document-preview-shell">
+            <div class="document-preview-header">
+                <h3 id="documentPreviewTitle">单据预览</h3>
+                <div class="document-preview-actions">
+                    <button id="documentPreviewPrintBtn" type="button" class="btn-compact">导出 / 打印 PDF</button>
+                    <button id="documentPreviewCloseBtn" type="button" class="btn-compact btn-outline">关闭</button>
+                </div>
+            </div>
+            <iframe id="documentPreviewFrame" class="document-preview-frame" title="单据预览"></iframe>
+        </div>
+    </dialog>
+    <script src="src/scripts/admin.js?v=20260911-inline-inquiry-detail"></script>
+    <script src="src/scripts/erp-admin.js?v=20260911-inline-inquiry-detail"></script>
 </body>
 </html>

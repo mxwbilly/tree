@@ -156,7 +156,13 @@ async function handleCreateOrder(request, env, auth) {
     env.DB.prepare(`
       INSERT INTO documents (id, order_id, type, version, doc_no, snapshot_json, issued_by, issued_at)
       VALUES (?, ?, 'quote', 1, ?, ?, ?, ?)
-    `).bind(docId, id, docNo, JSON.stringify({ lines, currency, incoterm: body.incoterm || '', totalAmount }), auth.sub, now)
+    `).bind(docId, id, docNo, JSON.stringify({
+      lines,
+      currency,
+      incoterm: body.incoterm || '',
+      totalAmount,
+      notes: String(body.notes || '').trim()
+    }), auth.sub, now)
   ]);
 
   const { results: docRows } = await env.DB.prepare('SELECT * FROM documents WHERE order_id = ? ORDER BY issued_at ASC').bind(id).all();
