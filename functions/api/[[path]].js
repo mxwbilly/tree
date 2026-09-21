@@ -1,5 +1,14 @@
-const TOKEN_EXPIRES_SECONDS = 12 * 60 * 60;
-const SESSION_COOKIE_NAME = 'greensmart_admin_session';
+import {
+  createToken,
+  verifyToken,
+  getRequestToken,
+  sessionCookie,
+  expiredSessionCookie,
+  requireAuth,
+  sha256Hex,
+  checkRateLimit
+} from '../_lib/auth.js';
+
 const STATUS_VALUES = new Set(['new', 'contacted', 'quoted', 'won', 'lost']);
 const MIN_JWT_SECRET_LENGTH = 32;
 const MIN_ADMIN_PASSWORD_LENGTH = 12;
@@ -76,40 +85,6 @@ function toCsvCell(value) {
   return `"${text.replace(/"/g, '""')}"`;
 }
 
-function base64UrlEncode(bytes) {
-  const text = String.fromCharCode(...new Uint8Array(bytes));
-  return btoa(text).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
-}
-
-function base64UrlEncodeText(text) {
-  return base64UrlEncode(new TextEncoder().encode(text));
-}
-
-function base64UrlDecodeText(text) {
-  const normalized = text.replace(/-/g, '+').replace(/_/g, '/');
-  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
-  const binary = atob(padded);
-  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
-  return new TextDecoder().decode(bytes);
-}
-
-async function sha256Hex(text) {
-  const bytes = new TextEncoder().encode(text);
-  const digest = await crypto.subtle.digest('SHA-256', bytes);
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
-}
-
-async function hmacSign(input, secret) {
-  const key = await crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-  return base64UrlEncode(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(input)));
-}
-
 function getSecurityConfigIssues(env) {
   const jwtSecret = String(env.JWT_SECRET || '').trim();
   const adminEmail = String(env.ADMIN_EMAIL || '').trim().toLowerCase();
@@ -126,79 +101,6 @@ function getSecurityConfigIssues(env) {
     issues.push('ADMIN_PASSWORD');
   }
   return issues;
-}
-
-function getJwtSecret(env) {
-  const issues = getSecurityConfigIssues(env);
-  if (issues.includes('JWT_SECRET')) throw new Error('JWT_SECRET is missing or insecure.');
-  return String(env.JWT_SECRET).trim();
-}
-
-async function createToken(payload, env) {
-  const header = base64UrlEncodeText(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-  const body = base64UrlEncodeText(JSON.stringify({
-    ...payload,
-    exp: Math.floor(Date.now() / 1000) + TOKEN_EXPIRES_SECONDS
-  }));
-  const unsigned = `${header}.${body}`;
-  const signature = await hmacSign(unsigned, getJwtSecret(env));
-  return `${unsigned}.${signature}`;
-}
-
-async function verifyToken(token, env) {
-  const parts = String(token || '').split('.');
-  if (parts.length !== 3) throw new Error('Invalid token.');
-  const [header, body, signature] = parts;
-  const expected = await hmacSign(`${header}.${body}`, getJwtSecret(env));
-  if (signature !== expected) throw new Error('Invalid signature.');
-  const payload = JSON.parse(base64UrlDecodeText(body));
-  if (!payload.exp || payload.exp < Math.floor(Date.now() / 1000)) {
-    throw new Error('Expired token.');
-  }
-  return payload;
-}
-
-function parseBearerToken(request) {
-  const header = request.headers.get('Authorization') || '';
-  const [scheme, token] = header.split(' ');
-  return scheme?.toLowerCase() === 'bearer' ? token : '';
-}
-
-function parseCookieToken(request) {
-  const cookie = request.headers.get('Cookie') || '';
-  const prefix = `${SESSION_COOKIE_NAME}=`;
-  const part = cookie.split(';').map((item) => item.trim()).find((item) => item.startsWith(prefix));
-  return part ? decodeURIComponent(part.slice(prefix.length)) : '';
-}
-
-function getRequestToken(request) {
-  return parseBearerToken(request) || parseCookieToken(request);
-}
-
-function sessionCookie(request, token) {
-  const secure = new URL(request.url).protocol === 'https:' ? '; Secure' : '';
-  return `${SESSION_COOKIE_NAME}=${encodeURIComponent(token)}; HttpOnly; SameSite=Strict; Path=/api; Max-Age=${TOKEN_EXPIRES_SECONDS}${secure}`;
-}
-
-function expiredSessionCookie(request) {
-  const secure = new URL(request.url).protocol === 'https:' ? '; Secure' : '';
-  return `${SESSION_COOKIE_NAME}=; HttpOnly; SameSite=Strict; Path=/api; Max-Age=0${secure}`;
-}
-
-async function requireAuth(request, env, roles = []) {
-  const token = getRequestToken(request);
-  if (!token) {
-    return { response: json({ ok: false, error: 'Missing authorization token.' }, { status: 401 }) };
-  }
-  try {
-    const auth = await verifyToken(token, env);
-    if (roles.length && !roles.includes(auth.role)) {
-      return { response: json({ ok: false, error: 'Forbidden.' }, { status: 403 }) };
-    }
-    return { auth };
-  } catch {
-    return { response: json({ ok: false, error: 'Invalid or expired token.' }, { status: 401 }) };
-  }
 }
 
 function computeRfqCompleteness(inquiry) {
@@ -421,28 +323,7 @@ async function ensureBootstrap(env) {
 
   await env.DB.prepare(`
     INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('notifyEmail', ?, ?)
-  `).bind(env.NOTIFY_EMAIL || env.ADMIN_EMAIL || '', nowIso()).run();
-}
-
-async function checkRateLimit(env, request, bucket, limit, windowSeconds) {
-  if (!env.RATE_LIMIT) {
-    console.error('[config] RATE_LIMIT KV binding is not configured.');
-    return json({ ok: false, error: 'Request protection is temporarily unavailable.' }, { status: 503 });
-  }
-  try {
-    const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-    const slot = Math.floor(Date.now() / (windowSeconds * 1000));
-    const key = `${bucket}:${ip}:${slot}`;
-    const count = Number(await env.RATE_LIMIT.get(key) || '0') + 1;
-    await env.RATE_LIMIT.put(key, String(count), { expirationTtl: windowSeconds + 60 });
-    if (count > limit) {
-      return json({ ok: false, error: `Too many ${bucket} requests. Please retry later.` }, { status: 429 });
-    }
-  } catch (error) {
-    console.error(`[rate-limit] ${bucket} failed:`, error);
-    return json({ ok: false, error: 'Request protection is temporarily unavailable.' }, { status: 503 });
-  }
-  return null;
+  `)    .bind(env.NOTIFY_EMAIL || env.ADMIN_EMAIL || '', nowIso()).run();
 }
 
 async function readBody(request) {
@@ -525,7 +406,18 @@ async function getSettings(env) {
       const stored = String(item.value || '').trim();
       if (stored) settings.notifyEmail = stored;
     }
+    if (item.key === 'companyProfile') {
+      try { settings.companyProfile = JSON.parse(item.value || '{}'); } catch { settings.companyProfile = {}; }
+    }
   }
+  settings.companyProfile = {
+    name: env.COMPANY_NAME || 'GreenSmart', legalName: env.COMPANY_LEGAL_NAME || '',
+    email: env.COMPANY_EMAIL || env.ADMIN_EMAIL || '', phone: env.COMPANY_PHONE || '',
+    website: env.COMPANY_WEBSITE || 'novagardenhome.com', registrationNo: env.COMPANY_REGISTRATION_NO || '',
+    taxId: env.COMPANY_TAX_ID || '', exportId: env.COMPANY_EXPORT_ID || '',
+    address: env.COMPANY_ADDRESS || '', bankInfo: env.COMPANY_BANK_INFO || '',
+    ...(settings.companyProfile || {})
+  };
   return settings;
 }
 
@@ -755,9 +647,16 @@ async function handleSettings(request, env) {
     }
     settings.notifyEmail = normalized;
   }
+  if (body.companyProfile && typeof body.companyProfile === 'object') {
+    const fields = ['name', 'legalName', 'email', 'phone', 'website', 'registrationNo', 'taxId', 'exportId', 'address', 'bankInfo'];
+    settings.companyProfile = Object.fromEntries(fields.map((key) => [key, String(body.companyProfile[key] ?? '').trim()]));
+    if (!settings.companyProfile.name) return json({ ok: false, error: '公司名称不能为空。' }, { status: 400 });
+  }
   const now = nowIso();
   await env.DB.prepare('INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)')
     .bind('notifyEmail', settings.notifyEmail || '', now).run();
+  await env.DB.prepare('INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)')
+    .bind('companyProfile', JSON.stringify(settings.companyProfile || {}), now).run();
   return json({ ok: true, item: settings });
 }
 
@@ -835,12 +734,38 @@ async function saveInquiryJson(env, inquiry) {
 async function handleInquiryDetail(env, inquiryId) {
   const inquiry = await getInquiry(env, inquiryId);
   if (!inquiry) return json({ ok: false, error: 'Inquiry not found.' }, { status: 404 });
+  const formalOrder = await env.DB.prepare(`
+    SELECT sales_orders.id, sales_orders.order_no, sales_orders.status, sales_orders.currency, sales_orders.total_amount, sales_orders.created_at
+    FROM sales_order_inquiries
+    JOIN sales_orders ON sales_orders.id = sales_order_inquiries.order_id
+    WHERE sales_order_inquiries.inquiry_id = ?
+    ORDER BY sales_orders.created_at DESC
+    LIMIT 1
+  `).bind(inquiryId).first();
+  inquiry.formalOrder = formalOrder ? {
+    id: formalOrder.id,
+    orderNo: formalOrder.order_no,
+    status: formalOrder.status,
+    currency: formalOrder.currency,
+    totalAmount: formalOrder.total_amount,
+    createdAt: formalOrder.created_at
+  } : null;
   return json({ ok: true, item: inquiry });
 }
 
 async function handleDeleteInquiry(env, inquiryId) {
   const inquiry = await getInquiry(env, inquiryId);
   if (!inquiry) return json({ ok: false, error: 'Inquiry not found.' }, { status: 404 });
+
+  const linkedOrder = await env.DB.prepare(`
+    SELECT sales_orders.order_no
+    FROM sales_order_inquiries
+    JOIN sales_orders ON sales_orders.id = sales_order_inquiries.order_id
+    WHERE sales_order_inquiries.inquiry_id = ?
+  `).bind(inquiryId).first();
+  if (linkedOrder) {
+    return json({ ok: false, error: `Inquiry is linked to ${linkedOrder.order_no} and cannot be deleted.` }, { status: 409 });
+  }
 
   await env.DB.prepare('DELETE FROM inquiries WHERE id = ?').bind(inquiryId).run();
   await env.DB.prepare('DELETE FROM activity_logs WHERE target_id = ?').bind(inquiryId).run();
@@ -1128,12 +1053,14 @@ async function routeAdmin(request, env, path, waitUntil) {
       if (!inquiry) return json({ ok: false, error: 'Inquiry not found.' }, { status: 404 });
       return json({ ok: true, items: inquiry.quotes || [] });
     }
-    if (request.method === 'POST') return handleCreateQuote(request, env, auth, decodeURIComponent(quoteMatch[1]));
+    if (request.method === 'POST') {
+      return json({ ok: false, error: 'Legacy inquiry quotes are read-only. Create the quote in 报价与单据.' }, { status: 410 });
+    }
   }
 
   const quoteItemMatch = path.match(/^\/api\/admin\/inquiries\/([^/]+)\/quotes\/([^/]+)$/);
   if (quoteItemMatch && request.method === 'PATCH') {
-    return handlePatchQuote(request, env, auth, decodeURIComponent(quoteItemMatch[1]), decodeURIComponent(quoteItemMatch[2]));
+    return json({ ok: false, error: 'Legacy inquiry quotes are read-only. Manage the formal quote in 报价与单据.' }, { status: 410 });
   }
 
   const inquiryMatch = path.match(/^\/api\/admin\/inquiries\/([^/]+)$/);

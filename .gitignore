@@ -22,6 +22,9 @@ yarn-error.log*
 # Local runtime data store
 data/*.json
 
+# Local scratch drafts (admin page iterations, kept out of builds and git)
+.temp-*
+
 # Cloudflare local runtime data and logs
 .wrangler/
 .wrangler-config/
@@ -31,3 +34,17 @@ wrangler.jsonc
 .DS_Store
 Thumbs.db
 dist/
+
+# IDE / tooling / local assistant state
+.claude/
+.tools/
+.workbuddy/
+
+# Audit & environment-check scratch output
+_audit_*.js
+_audit_*.txt
+_env_*.txt
+_candidates/
+_originals/
+candidate-preview.html
+hero-planter-sea-generated-v1.png

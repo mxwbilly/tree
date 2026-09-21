@@ -31,14 +31,14 @@ async function handleList(request, env) {
   if (destination) { conditions.push('destination_port = ?'); bindings.push(destination); }
   if (containerType) { conditions.push('container_type = ?'); bindings.push(containerType); }
   if (conditions.length) query += ' WHERE ' + conditions.join(' AND ');
-  query += ' ORDER BY created_at DESC';
+  query += ' ORDER BY COALESCE(valid_from, created_at) DESC, created_at DESC';
 
   const { results } = await env.DB.prepare(query).bind(...bindings).all();
   return json({ ok: true, items: (results || []).map(normalizeRate) });
 }
 
 // The rate the Calculation Engine should use for a given route + container
-// type: most recently created matching entry that's currently valid.
+// type: latest effective matching entry that is currently valid.
 async function handleLatest(request, env) {
   const url = new URL(request.url);
   const origin = String(url.searchParams.get('origin') || '').trim();
@@ -54,7 +54,7 @@ async function handleLatest(request, env) {
     WHERE origin_port = ? AND destination_port = ? AND container_type = ?
       AND (valid_from IS NULL OR valid_from <= ?)
       AND (valid_until IS NULL OR valid_until >= ?)
-    ORDER BY created_at DESC LIMIT 1
+    ORDER BY COALESCE(valid_from, created_at) DESC, created_at DESC LIMIT 1
   `).bind(origin, destination, containerType, today, today).first();
 
   if (!row) return json({ ok: false, error: `No freight rate found for ${origin}->${destination} (${containerType}).` }, { status: 404 });
@@ -82,7 +82,7 @@ async function handleCreate(request, env) {
     rate,
     String(body.currency || 'USD').trim().toUpperCase(),
     String(body.forwarder || '').trim(),
-    body.validFrom || null,
+    body.validFrom || now.slice(0, 10),
     body.validUntil || null,
     now,
     now

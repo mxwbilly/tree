@@ -31,6 +31,13 @@ const kpiPriorityHigh = document.getElementById('kpiPriorityHigh');
 const kpiSlaBreached = document.getElementById('kpiSlaBreached');
 const topCountriesList = document.getElementById('topCountriesList');
 const notifyEmailInput = document.getElementById('notifyEmailInput');
+const companyProfileInputs = {
+    name: document.getElementById('companyNameInput'), legalName: document.getElementById('companyLegalNameInput'),
+    email: document.getElementById('companyEmailInput'), phone: document.getElementById('companyPhoneInput'),
+    website: document.getElementById('companyWebsiteInput'), registrationNo: document.getElementById('companyRegistrationInput'),
+    taxId: document.getElementById('companyTaxIdInput'), exportId: document.getElementById('companyExportIdInput'),
+    address: document.getElementById('companyAddressInput'), bankInfo: document.getElementById('companyBankInfoInput')
+};
 const saveSettingsBtn = document.getElementById('saveSettingsBtn');
 const testMailBtn = document.getElementById('testMailBtn');
 const mailStatusText = document.getElementById('mailStatusText');
@@ -206,6 +213,82 @@ function buildReminderMessage(item) {
     return `${buyer}，您好！为更快给您准确报价，请补充以下信息：${missingText}。收到后我们将在工作时间内优先处理并回复完整方案。`;
 }
 
+const adminErrorTranslations = {
+    'Payment amount exceeds the order total.': '本次收款金额超过订单总额，请检查到账金额。',
+    'Payment amount must be greater than zero.': '到账金额必须大于 0。',
+    'Confirm the order before recording payment.': '请先确认订单，再登记收款。',
+    'Received date is required.': '请选择到账日期。',
+    'Invalid payment type.': '收款类型无效，请重新选择。',
+    'Order not found.': '未找到该订单。',
+    'Document not found.': '未找到该单据。',
+    'Customer not found.': '未找到该客户。',
+    'Product not found.': '未找到该产品。',
+    'Supplier not found.': '未找到该供应商。',
+    'Inquiry not found.': '未找到该询盘。',
+    'Quote not found.': '未找到该报价记录。',
+    'Freight rate not found.': '未找到该运费记录。',
+    'Exchange rate not found.': '未找到该汇率记录。',
+    'Price tier not found.': '未找到该价格阶梯。',
+    'Invalid credentials.': '账号或密码不正确。',
+    'Email and password are required.': '请输入账号和密码。',
+    'Invalid notifyEmail format.': '通知邮箱格式不正确。',
+    'Forbidden.': '没有权限执行此操作。',
+    'Missing authorization token.': '登录状态已失效，请重新登录。',
+    'Invalid or expired token.': '登录状态已过期，请重新登录。',
+    'Server security configuration is incomplete.': '服务器安全配置不完整，请检查环境变量。',
+    'Public security configuration is incomplete.': '前台安全验证配置不完整，请检查环境变量。',
+    'Request protection is temporarily unavailable.': '请求安全保护暂时不可用，请稍后重试。',
+    'Security verification is temporarily unavailable.': '安全验证服务暂时不可用，请稍后重试。',
+    'Security verification failed. Please try again.': '安全验证失败，请重新完成验证后再试。',
+    'Please complete the security verification.': '请先完成安全验证。',
+    'D1 binding DB is not configured.': '数据库连接未配置，请检查本地或生产环境。',
+    'Not found.': '未找到请求的内容。',
+    'Customer email is missing. Update the customer profile before sending.': '客户邮箱未填写，请先在客户档案中补充邮箱后再发送。',
+    'No notify email configured.': '尚未配置通知邮箱。',
+    'origin, destination and containerType are required.': '请选择起运港、目的港和柜型。',
+    'originPort is required.': '请选择起运港。',
+    'destinationPort is required.': '请选择目的港。',
+    'containerType is required.': '请选择柜型。',
+    'rate must be a positive number.': '运费必须大于 0。',
+    'base and quote currency are required.': '请选择基准货币和报价货币。',
+    'baseCurrency is required.': '请输入基准货币。',
+    'quoteCurrency is required.': '请输入报价货币。',
+    'effectiveDate is required (YYYY-MM-DD).': '请选择汇率生效日期。',
+    'baseCurrency must be a 3-letter code.': '基准货币必须是 3 位货币代码。',
+    'Public exchange-rate source is temporarily unavailable.': '公开汇率服务暂时不可用，请稍后重试。',
+    'Public exchange-rate source returned an error.': '公开汇率服务返回异常，请稍后重试。',
+    'No valid public rates were returned.': '公开汇率服务未返回有效汇率。',
+    'customerId is required.': '请选择客户。',
+    'customerId does not exist.': '所选客户不存在。',
+    'inquiryId is required.': '请选择询盘。',
+    'inquiryId does not exist.': '所选询盘不存在。',
+    'The selected inquiry does not belong to this customer.': '所选询盘不属于当前客户。',
+    'The inquiry belongs to a different customer.': '该询盘属于其他客户，不能合并到当前报价。',
+    'This inquiry is already linked to a quotation.': '该询盘已关联报价单。',
+    'Only a quotation draft can accept another inquiry product.': '只有报价草稿可以合并其他询盘产品。',
+    'lines must be a non-empty array.': '请至少添加一项产品。',
+    'Each line requires a product and positive quantity.': '每一项都需要选择产品并填写大于 0 的数量。',
+    'each line requires productId.': '请为每一项选择产品。',
+    'each line requires a positive qty.': '产品数量必须大于 0。',
+    'Fulfillment dates must use YYYY-MM-DD.': '交期或出运日期格式不正确，请重新选择日期。',
+    'Invalid production status.': '请选择有效的生产状态。'
+};
+
+function localizeAdminMessage(message, status) {
+    const source = String(message || '').trim();
+    if (adminErrorTranslations[source]) return adminErrorTranslations[source];
+    if (/^No exchange rate found for .+\.$/.test(source)) return '未找到所需货币的换算汇率，请先维护汇率。';
+    if (/^Test email sent to .+\.$/.test(source)) return '测试邮件已发送，请检查收件箱和垃圾邮件。';
+    if (/^No supplier price tier found for .+\.$/.test(source)) return '未找到满足当前数量的供应商价格阶梯，请先维护产品成本。';
+    if (/^Cannot edit logistics for an order in .+ status\.$/.test(source)) return '当前订单状态不允许修改物流资料。';
+    if (/^Cannot edit fulfillment for an order in .+ status\.$/.test(source)) return '当前订单已结案或已流失，履约资料只能查看，不能再修改。';
+    if (status >= 200 && status < 300) return '操作已完成。';
+    if (status === 401) return '登录状态已失效，请重新登录。';
+    if (status === 403) return '没有权限执行此操作。';
+    if (status >= 500) return '服务暂时不可用，请稍后重试。';
+    return '操作未完成，请检查填写内容后重试。';
+}
+
 async function apiFetch(url, options = {}) {
     const headers = Object.assign({ 'Content-Type': 'application/json' }, options.headers || {});
     const requestOptions = Object.assign({}, options, { credentials: 'same-origin', headers });
@@ -216,7 +299,8 @@ async function apiFetch(url, options = {}) {
         const text = typeof detail === 'string'
             ? detail
             : (detail?.message || (payload.item ? JSON.stringify(payload.item) : '') || `Request failed (${response.status})`);
-        throw new Error(text);
+        console.warn('后台接口请求失败：', text);
+        throw new Error(localizeAdminMessage(text, response.status));
     }
     return payload;
 }
@@ -340,7 +424,7 @@ function renderInquiryDetail(item) {
                     <div class="inquiry-record-section">
                         <h4>最新报价</h4>
                         <p class="muted">正式报价、PI 与出运单据统一在“报价与单据”中管理。</p>
-                        <div class="quote-list">${renderLatestQuoteHtml(item.quotes || [])}</div>
+                        <div class="quote-list">${renderFormalQuoteHtml(item.formalOrder, item.quotes || [])}</div>
                     </div>
                 </div>
                 <section class="inquiry-followup-section">
@@ -372,20 +456,20 @@ function buildQueryFromFilters() {
     return params;
 }
 
-function renderLatestQuoteHtml(quotes) {
-    if (!Array.isArray(quotes) || quotes.length === 0) {
-        return '<p class="muted" style="margin:0;">暂无历史报价。可前往“报价与单据”创建正式报价草案。</p>';
+function renderFormalQuoteHtml(order, legacyQuotes) {
+    if (order) {
+        const labels = {
+            quoted: '已报价', pi_issued: '已出 PI', confirmed: '已确认', packing_ready: '已出装箱单',
+            invoiced: '已出发票', paid: '已付款', closed: '已结案', lost: '已流失'
+        };
+        return `
+            <strong>${escapeHtml(order.orderNo)}</strong>
+            <div>${escapeHtml(order.currency)} ${Number(order.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <div class="muted" style="margin:6px 0 0;">${new Date(order.createdAt).toLocaleString()} · 状态：${escapeHtml(labels[order.status] || order.status || '-')}</div>
+        `;
     }
-    const sorted = [...quotes].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    const quote = sorted[0];
-    const labels = { draft: '草稿', sent: '已发送', follow_up: '跟进中', accepted: '已接受', rejected: '已拒绝', expired: '已过期' };
-    return `
-        <strong>${escapeHtml(quote.quoteNo)}</strong>
-        <div>${escapeHtml(quote.currency)} ${escapeHtml(quote.unitPrice)} · MOQ ${escapeHtml(quote.moq || '-')} · ${escapeHtml(quote.incoterm || '-')}</div>
-        <div class="muted" style="margin:6px 0 0;">有效期：${escapeHtml(quote.validityDays)} 天 · ${new Date(quote.createdAt).toLocaleString()} · 状态：${escapeHtml(labels[quote.trackingStatus] || labels.draft)}</div>
-        ${quote.note ? `<div style="margin-top:6px;">${escapeHtml(quote.note)}</div>` : ''}
-        ${sorted.length > 1 ? `<div class="muted" style="margin:6px 0 0;">另有 ${sorted.length - 1} 条历史报价。</div>` : ''}
-    `;
+    const legacyCount = Array.isArray(legacyQuotes) ? legacyQuotes.length : 0;
+    return `<p class="muted" style="margin:0;">暂无正式报价。${legacyCount ? `检测到 ${legacyCount} 条旧版报价历史，已设为只读。` : '可前往“报价与单据”创建。'}</p>`;
 }
 
 function updateKpis(summary) {
@@ -433,6 +517,8 @@ async function loadSettings() {
     if (testMailBtn) testMailBtn.disabled = false;
     const result = await apiFetch(`${adminApiBase}/settings`);
     notifyEmailInput.value = result.item?.notifyEmail || '';
+    const profile = result.item?.companyProfile || {};
+    Object.entries(companyProfileInputs).forEach(([key, input]) => { if (input) input.value = profile[key] || ''; });
     await loadMailStatus();
     await loadMailLogs();
 }
@@ -664,7 +750,15 @@ inquiryRows?.addEventListener('click', async (event) => {
             return;
         }
         window.dispatchEvent(new CustomEvent('greensmart:open-orders-for-customer', {
-            detail: { customerId: item.customerId, customerName: item.contact?.name || '' }
+            detail: {
+                inquiryId: item.id,
+                customerId: item.customerId,
+                customerName: item.contact?.name || '',
+                customerEmail: item.contact?.email || '',
+                country: item.contact?.country || '',
+                product: item.product || '',
+                quantity: item.quantity || ''
+            }
         }));
         return;
     }
@@ -748,7 +842,8 @@ saveSettingsBtn?.addEventListener('click', async () => {
         await apiFetch(`${adminApiBase}/settings`, {
             method: 'PATCH',
             body: JSON.stringify({
-                notifyEmail: notifyEmailInput.value.trim()
+                notifyEmail: notifyEmailInput.value.trim(),
+                companyProfile: Object.fromEntries(Object.entries(companyProfileInputs).map(([key, input]) => [key, input?.value.trim() || '']))
             })
         });
         await loadSettings();
@@ -768,7 +863,7 @@ testMailBtn?.addEventListener('click', async () => {
     testMailBtn.disabled = true;
     try {
         const result = await apiFetch(`${adminApiBase}/mail/test`, { method: 'POST' });
-        alert(result.message || '测试邮件已发送，请检查收件箱和垃圾箱。');
+        alert(localizeAdminMessage(result.message, 200));
         await loadMailStatus();
         await loadMailLogs();
     } catch (error) {

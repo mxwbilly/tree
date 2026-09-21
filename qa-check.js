@@ -47,6 +47,17 @@ function localReference(file, rawRef, baseHref) {
     return path.normalize(candidate);
 }
 
+// Resolve a local reference to an on-disk file, accepting clean-URL links
+// (extensionless paths map to the matching `.html` file, trailing-slash routes
+// map to `index.html`) in addition to exact file paths.
+function resolveExists(target) {
+    const full = path.join(siteDir, target);
+    if (fs.existsSync(full)) return true;
+    if (path.extname(target)) return false;
+    if (fs.existsSync(`${full}.html`)) return true;
+    return fs.existsSync(path.join(full, 'index.html'));
+}
+
 function checkLocalizedHomepage(file, html, problems) {
     const normalized = file.split(path.sep).join('/');
     const route = normalized === 'index.html' ? '/' : `/${normalized.replace(/index\.html$/, '')}`;
@@ -81,7 +92,7 @@ for (const file of htmlFiles) {
         const rawRef = match[1].trim();
         if (isSkippableRef(rawRef) || isExternalRef(rawRef)) continue;
         const target = localReference(file, rawRef, baseHref);
-        if (target && !fs.existsSync(path.join(siteDir, target))) problems.push(`${file}: missing "${rawRef}"`);
+        if (target && !resolveExists(target)) problems.push(`${file}: missing "${rawRef}"`);
     }
     if (mode === 'dist') checkLocalizedHomepage(file, html, problems);
 }

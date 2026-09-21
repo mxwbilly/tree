@@ -47,9 +47,14 @@ function baseStyles() {
     .totals tr.grand td { font-weight: 700; font-size: 15px; border-top: 2px solid #16a34a; }
     .section-box { border: 1px solid #ddd; border-radius: 6px; padding: 12px 14px; margin-bottom: 16px; }
     .section-box h4 { margin: 0 0 6px; font-size: 12px; color: #16a34a; }
+    .terms-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 18px; }
+    .terms-grid div { min-width: 0; line-height: 1.45; }
+    .terms-grid strong { color: #555; }
     .footer { margin-top: 40px; display: flex; justify-content: space-between; }
     .sign-box { width: 220px; border-top: 1px solid #999; margin-top: 50px; text-align: center; font-size: 12px; color: #555; padding-top: 6px; }
     .warning { color: #b45309; font-size: 12px; }
+    .void-banner { border: 2px solid #dc2626; color: #b91c1c; background: #fef2f2; padding: 10px 14px; margin: 0 0 18px; font-weight: 700; font-size: 16px; text-align: center; }
+    .void-banner small { display: block; margin-top: 5px; font-size: 12px; font-weight: 400; color: #7f1d1d; }
     @media print {
       body { padding: 0; }
       .no-print { display: none; }
@@ -65,10 +70,14 @@ function renderPartyBlock(company, customer) {
       <div class="party-box">
         <h4>Seller</h4>
         <strong>${escapeHtml(company.name)}</strong><br>
+        ${company.legalName ? `${escapeHtml(company.legalName)}<br>` : ''}
         ${company.addressLines.map((line) => escapeHtml(line)).join('<br>')}
         ${company.addressLines.length ? '<br>' : ''}
         ${company.email ? `Email: ${escapeHtml(company.email)}<br>` : ''}
         ${company.phone ? `Tel: ${escapeHtml(company.phone)}<br>` : ''}
+        ${company.registrationNo ? `Registration No: ${escapeHtml(company.registrationNo)}<br>` : ''}
+        ${company.taxId ? `Tax ID: ${escapeHtml(company.taxId)}<br>` : ''}
+        ${company.exportId ? `Export ID: ${escapeHtml(company.exportId)}<br>` : ''}
         ${company.website ? `${escapeHtml(company.website)}` : ''}
       </div>
       <div class="party-box">
@@ -77,21 +86,35 @@ function renderPartyBlock(company, customer) {
         ${customer?.company ? `${escapeHtml(customer.company)}<br>` : ''}
         ${customer?.country ? `${escapeHtml(customer.country)}<br>` : ''}
         ${customer?.email ? `Email: ${escapeHtml(customer.email)}<br>` : ''}
-        ${customer?.phone ? `Tel: ${escapeHtml(customer.phone)}` : ''}
+        ${customer?.phone ? `Tel: ${escapeHtml(customer.phone)}<br>` : ''}
+        ${customer?.shippingAddress ? `Address: ${escapeHtml(customer.shippingAddress)}<br>` : ''}
+        ${customer?.billingAddress ? `Billing: ${escapeHtml(customer.billingAddress)}<br>` : ''}
+        ${customer?.importerName ? `Importer: ${escapeHtml(customer.importerName)}${customer.importerId ? ` (${escapeHtml(customer.importerId)})` : ''}<br>` : ''}
+        ${customer?.consigneeName ? `Consignee: ${escapeHtml(customer.consigneeName)}<br>` : ''}
+        ${customer?.notifyPartyName ? `Notify Party: ${escapeHtml(customer.notifyPartyName)}<br>` : ''}
       </div>
     </div>
   `;
 }
 
+function productForLine(line, productMap) {
+  return line?.product || productMap.get(line?.productId) || {};
+}
+
 function renderPricingTable(lines, productMap, currency) {
+  const showTradeFields = lines.some((line) => {
+    const product = productForLine(line, productMap);
+    return product?.hsCode || product?.originCountry;
+  });
   const rows = lines.map((line) => {
-    const product = productMap.get(line.productId);
+    const product = productForLine(line, productMap);
     const qty = Number(line.qty) || 0;
     const unitPrice = Number(line.unitPrice) || 0;
     const lineTotal = qty * unitPrice;
     return `<tr>
       <td>${escapeHtml(product?.sku || line.productId)}</td>
       <td>${escapeHtml(product?.name || '-')}</td>
+      ${showTradeFields ? `<td>${escapeHtml(product?.hsCode || '-')}</td><td>${escapeHtml(product?.originCountry || '-')}</td>` : ''}
       <td class="num">${qty.toLocaleString('en-US')}</td>
       <td class="num">${fmt(unitPrice)}</td>
       <td class="num">${fmt(lineTotal)}</td>
@@ -99,7 +122,7 @@ function renderPricingTable(lines, productMap, currency) {
   }).join('');
   return `
     <table class="lines">
-      <thead><tr><th>SKU</th><th>Description</th><th class="num">Qty</th><th class="num">Unit Price (${escapeHtml(currency)})</th><th class="num">Amount (${escapeHtml(currency)})</th></tr></thead>
+      <thead><tr><th>SKU</th><th>Description</th>${showTradeFields ? '<th>HS Code</th><th>Origin</th>' : ''}<th class="num">Qty</th><th class="num">Unit Price (${escapeHtml(currency)})</th><th class="num">Amount (${escapeHtml(currency)})</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
   `;
@@ -113,19 +136,28 @@ function renderPackingTable(lines, productMap, cbmResult) {
     }
   }
   const rows = lines.map((line) => {
-    const product = productMap.get(line.productId);
+    const product = productForLine(line, productMap);
     const cbmLine = cbmByProduct.get(line.productId);
+    const dimensions = product?.packaging?.cartonDimensionsCm;
+    const cartonSize = dimensions && [dimensions.length, dimensions.width, dimensions.height].every((value) => Number(value) > 0)
+      ? `${Number(dimensions.length)} x ${Number(dimensions.width)} x ${Number(dimensions.height)}`
+      : '-';
     const qty = Number(line.qty) || 0;
     return `<tr>
       <td>${escapeHtml(product?.sku || line.productId)}</td>
       <td>${escapeHtml(product?.name || '-')}</td>
       <td class="num">${qty.toLocaleString('en-US')}</td>
+      <td class="num">${cbmLine?.unitsPerCarton || '-'}</td>
       <td class="num">${cbmLine ? cbmLine.cartons : '-'}</td>
+      <td class="num">${cartonSize}</td>
       <td class="num">${cbmLine ? cbmLine.lineCbm.toFixed(3) : '-'}</td>
     </tr>`;
   }).join('');
+  const totalCartons = cbmResult?.ok
+    ? cbmResult.lines.filter((line) => line.ok).reduce((sum, line) => sum + Number(line.cartons || 0), 0)
+    : 0;
   const totalRow = cbmResult?.ok
-    ? `<tr><td colspan="4" style="text-align:right;font-weight:700;">Total CBM</td><td class="num" style="font-weight:700;">${cbmResult.totalCbm.toFixed(3)} m³</td></tr>`
+    ? `<tr><td colspan="5" style="text-align:right;font-weight:700;">Total cartons / CBM</td><td class="num" style="font-weight:700;">${totalCartons}</td><td class="num" style="font-weight:700;">${cbmResult.totalCbm.toFixed(3)} m³</td></tr>`
     : '';
   const warning = cbmResult?.hasWarnings
     ? '<p class="warning">Some lines are missing carton packaging specs (units/carton or carton dimensions) — cartons/CBM could not be computed for them. Update the product\'s packaging info to include them.</p>'
@@ -135,21 +167,64 @@ function renderPackingTable(lines, productMap, cbmResult) {
     : '';
   return `
     <table class="lines">
-      <thead><tr><th>SKU</th><th>Description</th><th class="num">Qty</th><th class="num">Cartons</th><th class="num">CBM (m³)</th></tr></thead>
+      <thead><tr><th>SKU</th><th>Description</th><th class="num">Qty</th><th class="num">Units / carton</th><th class="num">Cartons</th><th class="num">Carton size (L x W x H cm)</th><th class="num">CBM (m³)</th></tr></thead>
       <tbody>${rows}${totalRow}</tbody>
     </table>
     ${warning}${suggestion}
   `;
 }
 
+function renderShippingBlock(shipping) {
+  const details = [
+    ['Forwarder', shipping?.forwarder],
+    ['Forwarder Contact', shipping?.forwarderContact],
+    ['Booking No.', shipping?.bookingNo],
+    ['Booking Date', shipping?.bookingDate],
+    ['Customs No.', shipping?.customsNo],
+    ['Customs Date', shipping?.customsDate],
+    ['Container', shipping?.containerType],
+    ['Container No.', shipping?.containerNo],
+    ['Seal No.', shipping?.sealNo],
+    ['Vessel / Voyage', shipping?.vesselVoyage],
+    ['Port of Loading', shipping?.originPort],
+    ['Port of Discharge', shipping?.destinationPort],
+    ['Actual Shipment Date', shipping?.actualShipmentDate],
+    ['Freight', shipping?.freightAmount ? `${shipping.freightCurrency || ''} ${fmt(shipping.freightAmount)}`.trim() : ''],
+    ['Freight Reference', shipping?.freightRef],
+    ['Shipping Marks', shipping?.shippingMarks],
+    ['Forwarder Note', shipping?.forwarderNote]
+  ].filter(([, value]) => value);
+  if (!details.length) return '<div class="section-box"><h4>Shipping Details</h4><span class="muted">Not specified</span></div>';
+  return `<div class="section-box"><h4>Shipping Details</h4><div class="terms-grid">${details.map(([label, value]) => `<div><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</div>`).join('')}</div></div>`;
+}
+
+function renderTermsBlock(snapshot, buyer, shipping, isPackingList) {
+  const order = snapshot.order || {};
+  const details = [
+    ['Incoterm', snapshot.incoterm || order.incoterm],
+    ['Payment Terms', buyer?.paymentTerms],
+    ['Expected Delivery', order.expectedDeliveryDate],
+    ['Estimated Shipment', order.estimatedShipmentDate],
+    ['Actual Shipment', order.actualShipmentDate],
+    ...(!isPackingList ? [
+      ['Port of Loading', shipping?.originPort],
+      ['Port of Discharge', shipping?.destinationPort]
+    ] : [])
+  ].filter(([, value]) => value);
+  if (!details.length) return '';
+  return `<div class="section-box"><h4>Trade &amp; Delivery Terms</h4><div class="terms-grid">${details.map(([label, value]) => `<div><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</div>`).join('')}</div></div>`;
+}
+
 export function renderDocumentHtml({ order, doc, customer, productMap, company, cbmResult }) {
   const snapshot = doc.snapshot;
+  const seller = snapshot.seller || company;
+  const buyer = snapshot.buyer || customer;
   const title = DOC_TITLE[doc.type] || doc.type.toUpperCase();
   const isPackingList = doc.type === 'packing_list';
   const isInvoiceLike = doc.type === 'invoice' || doc.type === 'pi';
 
   const bodyTable = isPackingList
-    ? renderPackingTable(snapshot.lines, productMap, cbmResult)
+    ? renderPackingTable(snapshot.lines, productMap, snapshot.packing || cbmResult)
     : renderPricingTable(snapshot.lines, productMap, snapshot.currency);
 
   const totalsBlock = !isPackingList ? `
@@ -161,15 +236,23 @@ export function renderDocumentHtml({ order, doc, customer, productMap, company, 
     </div>
   ` : '';
 
-  const bankBlock = isInvoiceLike && company.bankInfo.length ? `
+  const bankBlock = isInvoiceLike && seller.bankInfo.length ? `
     <div class="section-box">
       <h4>Payment Details</h4>
-      ${company.bankInfo.map((line) => escapeHtml(line)).join('<br>')}
+      ${seller.bankInfo.map((line) => escapeHtml(line)).join('<br>')}
     </div>
   ` : '';
 
+  const termsBlock = renderTermsBlock(snapshot, buyer, snapshot.shipping, isPackingList);
+  const shippingBlock = isPackingList ? renderShippingBlock(snapshot.shipping) : '';
+
   const notesBlock = snapshot.notes ? `
     <div class="section-box"><h4>Notes</h4>${escapeHtml(snapshot.notes)}</div>
+  ` : '';
+  const voidBanner = doc.status === 'voided' ? `
+    <div class="void-banner">VOID / 已作废
+      <small>作废时间：${escapeHtml(String(doc.voidedAt || '').slice(0, 16).replace('T', ' ') || '-')}<br>作废原因：${escapeHtml(doc.voidReason || '-')}</small>
+    </div>
   ` : '';
 
   return `<!doctype html>
@@ -184,7 +267,7 @@ export function renderDocumentHtml({ order, doc, customer, productMap, company, 
   <div class="sheet">
     <div class="header">
       <div>
-        <p class="company-name">${escapeHtml(company.name)}</p>
+        <p class="company-name">${escapeHtml(seller.name)}</p>
         <p class="muted">Order: ${escapeHtml(order.orderNo)}</p>
       </div>
       <div>
@@ -195,7 +278,10 @@ export function renderDocumentHtml({ order, doc, customer, productMap, company, 
         </p>
       </div>
     </div>
-    ${renderPartyBlock(company, customer)}
+    ${voidBanner}
+    ${renderPartyBlock(seller, buyer)}
+    ${termsBlock}
+    ${shippingBlock}
     ${bodyTable}
     ${totalsBlock}
     ${bankBlock}

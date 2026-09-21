@@ -14,6 +14,19 @@ function normalizeCustomer(row) {
     phone: row.phone || '',
     company: row.company || '',
     country: row.country || '',
+    defaultCurrency: row.default_currency || 'USD',
+    defaultIncoterm: row.default_incoterm || '',
+    paymentTerms: row.payment_terms || '',
+    defaultPort: row.default_port || '',
+    shippingAddress: row.shipping_address || '',
+    billingAddress: row.billing_address || '',
+    importerName: row.importer_name || '',
+    importerId: row.importer_id || '',
+    consigneeName: row.consignee_name || '',
+    consigneeAddress: row.consignee_address || '',
+    notifyPartyName: row.notify_party_name || '',
+    notifyPartyAddress: row.notify_party_address || '',
+    internalNotes: row.internal_notes || '',
     source: row.source || '',
     inquiryCount: row.inquiry_count,
     orderCount: Number(row.order_count || 0),
@@ -103,8 +116,8 @@ async function handleCreate(request, env) {
   const id = newId('cust');
   const now = nowIso();
   await env.DB.prepare(`
-    INSERT INTO customers (id, email, name, phone, company, country, source, inquiry_count, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+    INSERT INTO customers (id, email, name, phone, company, country, default_currency, default_incoterm, payment_terms, default_port, shipping_address, billing_address, importer_name, importer_id, consignee_name, consignee_address, notify_party_name, notify_party_address, internal_notes, source, inquiry_count, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
   `).bind(
     id,
     email,
@@ -112,6 +125,19 @@ async function handleCreate(request, env) {
     String(body.phone || '').trim(),
     String(body.company || '').trim(),
     String(body.country || '').trim(),
+    String(body.defaultCurrency || 'USD').trim().toUpperCase(),
+    String(body.defaultIncoterm || '').trim().toUpperCase(),
+    String(body.paymentTerms || '').trim(),
+    String(body.defaultPort || '').trim(),
+    String(body.shippingAddress || '').trim(),
+    String(body.billingAddress || '').trim(),
+    String(body.importerName || '').trim(),
+    String(body.importerId || '').trim(),
+    String(body.consigneeName || '').trim(),
+    String(body.consigneeAddress || '').trim(),
+    String(body.notifyPartyName || '').trim(),
+    String(body.notifyPartyAddress || '').trim(),
+    String(body.internalNotes || '').trim(),
     String(body.source || 'manual').trim(),
     now,
     now
@@ -130,12 +156,29 @@ async function handleUpdate(request, env, id) {
     name: hasText(body.name) ? String(body.name).trim() : existing.name,
     phone: typeof body.phone === 'string' ? body.phone.trim() : existing.phone,
     company: typeof body.company === 'string' ? body.company.trim() : existing.company,
-    country: typeof body.country === 'string' ? body.country.trim() : existing.country
+    country: typeof body.country === 'string' ? body.country.trim() : existing.country,
+    defaultCurrency: typeof body.defaultCurrency === 'string' && body.defaultCurrency.trim() ? body.defaultCurrency.trim().toUpperCase() : (existing.default_currency || 'USD'),
+    defaultIncoterm: typeof body.defaultIncoterm === 'string' ? body.defaultIncoterm.trim().toUpperCase() : (existing.default_incoterm || ''),
+    paymentTerms: typeof body.paymentTerms === 'string' ? body.paymentTerms.trim() : (existing.payment_terms || ''),
+    defaultPort: typeof body.defaultPort === 'string' ? body.defaultPort.trim() : (existing.default_port || ''),
+    shippingAddress: typeof body.shippingAddress === 'string' ? body.shippingAddress.trim() : (existing.shipping_address || ''),
+    billingAddress: typeof body.billingAddress === 'string' ? body.billingAddress.trim() : (existing.billing_address || ''),
+    importerName: typeof body.importerName === 'string' ? body.importerName.trim() : (existing.importer_name || ''),
+    importerId: typeof body.importerId === 'string' ? body.importerId.trim() : (existing.importer_id || ''),
+    consigneeName: typeof body.consigneeName === 'string' ? body.consigneeName.trim() : (existing.consignee_name || ''),
+    consigneeAddress: typeof body.consigneeAddress === 'string' ? body.consigneeAddress.trim() : (existing.consignee_address || ''),
+    notifyPartyName: typeof body.notifyPartyName === 'string' ? body.notifyPartyName.trim() : (existing.notify_party_name || ''),
+    notifyPartyAddress: typeof body.notifyPartyAddress === 'string' ? body.notifyPartyAddress.trim() : (existing.notify_party_address || ''),
+    internalNotes: typeof body.internalNotes === 'string' ? body.internalNotes.trim() : (existing.internal_notes || '')
   };
 
   await env.DB.prepare(`
-    UPDATE customers SET name = ?, phone = ?, company = ?, country = ?, updated_at = ? WHERE id = ?
-  `).bind(next.name, next.phone, next.company, next.country, nowIso(), id).run();
+    UPDATE customers
+    SET name = ?, phone = ?, company = ?, country = ?, default_currency = ?, default_incoterm = ?,
+      payment_terms = ?, default_port = ?, shipping_address = ?, billing_address = ?, importer_name = ?, importer_id = ?, consignee_name = ?, consignee_address = ?, notify_party_name = ?, notify_party_address = ?, internal_notes = ?, updated_at = ?
+    WHERE id = ?
+  `).bind(next.name, next.phone, next.company, next.country, next.defaultCurrency, next.defaultIncoterm,
+    next.paymentTerms, next.defaultPort, next.shippingAddress, next.billingAddress, next.importerName, next.importerId, next.consigneeName, next.consigneeAddress, next.notifyPartyName, next.notifyPartyAddress, next.internalNotes, nowIso(), id).run();
 
   return handleDetail(env, id);
 }

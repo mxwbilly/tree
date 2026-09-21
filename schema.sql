@@ -15,6 +15,19 @@ CREATE TABLE IF NOT EXISTS customers (
   phone TEXT,
   company TEXT,
   country TEXT,
+  default_currency TEXT NOT NULL DEFAULT 'USD',
+  default_incoterm TEXT,
+  payment_terms TEXT,
+  default_port TEXT,
+  shipping_address TEXT,
+  billing_address TEXT,
+  importer_name TEXT,
+  importer_id TEXT,
+  consignee_name TEXT,
+  consignee_address TEXT,
+  notify_party_name TEXT,
+  notify_party_address TEXT,
+  internal_notes TEXT,
   source TEXT,
   inquiry_count INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL,
@@ -171,9 +184,23 @@ CREATE TABLE IF NOT EXISTS sales_orders (
   status TEXT NOT NULL DEFAULT 'quoted',
   currency TEXT NOT NULL DEFAULT 'USD',
   current_lines_json TEXT NOT NULL DEFAULT '[]',
+  shipping_json TEXT NOT NULL DEFAULT '{}',
+  expected_delivery_date TEXT,
+  estimated_shipment_date TEXT,
+  actual_shipment_date TEXT,
+  production_status TEXT NOT NULL DEFAULT 'not_started',
+  fulfillment_timeline_json TEXT NOT NULL DEFAULT '{}',
   incoterm TEXT,
   deposit_status TEXT NOT NULL DEFAULT 'unpaid',
   total_amount REAL NOT NULL DEFAULT 0,
+  actual_product_cost REAL,
+  actual_freight REAL,
+  bank_fee REAL,
+  other_fee REAL,
+  financial_currency TEXT,
+  financial_note TEXT,
+  financial_locked_at TEXT,
+  financial_locked_by TEXT,
   notes TEXT,
   created_by TEXT,
   created_at TEXT NOT NULL,
@@ -187,6 +214,37 @@ CREATE INDEX IF NOT EXISTS idx_sales_orders_status ON sales_orders(status);
 CREATE INDEX IF NOT EXISTS idx_sales_orders_created_at ON sales_orders(created_at);
 CREATE INDEX IF NOT EXISTS idx_sales_orders_status_created_at ON sales_orders(status, created_at);
 
+CREATE TABLE IF NOT EXISTS payments (
+  id TEXT PRIMARY KEY,
+  order_id TEXT NOT NULL,
+  payment_type TEXT NOT NULL,
+  amount REAL NOT NULL,
+  currency TEXT NOT NULL,
+  received_at TEXT NOT NULL,
+  reference_no TEXT,
+  note TEXT,
+  created_by TEXT,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (order_id) REFERENCES sales_orders(id),
+  FOREIGN KEY (created_by) REFERENCES users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_payments_order_id ON payments(order_id);
+
+-- A quotation can consolidate several products requested by the same buyer.
+-- Each inquiry can be linked to at most one active quotation chain, while one
+-- quotation may carry multiple inquiry sources for traceability.
+CREATE TABLE IF NOT EXISTS sales_order_inquiries (
+  order_id TEXT NOT NULL,
+  inquiry_id TEXT NOT NULL UNIQUE,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (order_id, inquiry_id),
+  FOREIGN KEY (order_id) REFERENCES sales_orders(id),
+  FOREIGN KEY (inquiry_id) REFERENCES inquiries(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_sales_order_inquiries_order_id ON sales_order_inquiries(order_id);
+
 -- One shared table for all 4 document types (quote / pi / packing_list /
 -- invoice). Each row is an immutable snapshot — later changes to the order,
 -- product cost, or exchange rate must never alter an already-issued document.
@@ -199,6 +257,16 @@ CREATE TABLE IF NOT EXISTS documents (
   snapshot_json TEXT NOT NULL,
   issued_by TEXT,
   issued_at TEXT NOT NULL,
+  mail_to TEXT,
+  mail_status TEXT,
+  mail_sent_at TEXT,
+  mail_message_id TEXT,
+  mail_attempted_at TEXT,
+  mail_error TEXT,
+  status TEXT NOT NULL DEFAULT 'active',
+  voided_at TEXT,
+  voided_by TEXT,
+  void_reason TEXT,
   FOREIGN KEY (order_id) REFERENCES sales_orders(id),
   FOREIGN KEY (issued_by) REFERENCES users(id)
 );

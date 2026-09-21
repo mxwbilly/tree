@@ -182,8 +182,8 @@ export async function computeCbm(env, { lines }) {
 // --- Profit calculation --------------------------------------------------
 // revenue comes from the SalesOrder's own total_amount (its currency is the
 // reporting currency); cost is re-derived per line via computeCost and
-// converted into the order's currency; freight is caller-supplied since
-// there is no Shipment/booking aggregate yet (Logistics stays calculation-only).
+// converted into the order's currency. When the caller does not supply a
+// freight value, the saved logistics amount on the order is used.
 export async function computeProfit(env, { orderId, freightAmount, freightCurrency }) {
   if (!orderId) return { ok: false, error: 'orderId is required.' };
   const order = await env.DB.prepare('SELECT * FROM sales_orders WHERE id = ?').bind(orderId).first();
@@ -197,6 +197,37 @@ export async function computeProfit(env, { orderId, freightAmount, freightCurren
 // profit rules used by the order-detail API.
 export async function computeProfitForOrder(env, order, { freightAmount, freightCurrency, cache } = {}) {
   if (!order?.id) return { ok: false, error: 'Order is required.' };
+
+  // A completed order can be locked to its actual settlement values. These
+  // values are all recorded in the order currency and take precedence over
+  // live supplier tiers, FX rates and the editable shipping profile.
+  if (order.financial_locked_at) {
+    const revenue = Number(order.total_amount || 0);
+    const totalCost = Number(order.actual_product_cost || 0);
+    const freight = Number(order.actual_freight || 0);
+    const bankFee = Number(order.bank_fee || 0);
+    const otherFee = Number(order.other_fee || 0);
+    const values = [revenue, totalCost, freight, bankFee, otherFee];
+    if (values.some((value) => !Number.isFinite(value) || value < 0)) {
+      return { ok: false, error: 'Locked financial values are invalid.' };
+    }
+    const profit = Math.round((revenue - totalCost - freight - bankFee - otherFee) * 100) / 100;
+    return {
+      ok: true,
+      orderId: order.id,
+      currency: order.currency,
+      revenue,
+      totalCost,
+      freight,
+      bankFee,
+      otherFee,
+      profit,
+      marginPercent: revenue > 0 ? Math.round((profit / revenue) * 10000) / 100 : null,
+      lineCosts: [],
+      hasWarnings: false,
+      isLocked: true
+    };
+  }
 
   const lines = parseJson(order.current_lines_json, []);
   if (!lines.length) return { ok: false, error: 'Order has no lines.' };
@@ -230,11 +261,14 @@ export async function computeProfitForOrder(env, order, { freightAmount, freight
     lineCosts.push({ productId: line.productId, qty: line.qty, unitCost: costResult.unitCost, costCurrency: costResult.currency, costInOrderCurrency, ok: true });
   }
 
+  const savedShipping = parseJson(order.shipping_json, {});
+  const resolvedFreightAmount = freightAmount !== undefined ? freightAmount : savedShipping.freightAmount;
+  const resolvedFreightCurrency = freightCurrency !== undefined ? freightCurrency : savedShipping.freightCurrency;
   let freightInOrderCurrency = 0;
-  if (freightAmount !== undefined && freightAmount !== null) {
-    const amt = Number(freightAmount);
+  if (resolvedFreightAmount !== undefined && resolvedFreightAmount !== null) {
+    const amt = Number(resolvedFreightAmount);
     if (!Number.isFinite(amt) || amt < 0) return { ok: false, error: 'freightAmount must be a non-negative number.' };
-    const fCurrency = String(freightCurrency || order.currency).trim().toUpperCase();
+    const fCurrency = String(resolvedFreightCurrency || order.currency).trim().toUpperCase();
     if (fCurrency !== order.currency) {
       const rateKey = `${fCurrency}|${order.currency}`;
       if (cache?.rates && !cache.rates.has(rateKey)) {
@@ -249,7 +283,9 @@ export async function computeProfitForOrder(env, order, { freightAmount, freight
   }
 
   const revenue = order.total_amount;
-  const profit = Math.round((revenue - totalCostInOrderCurrency - freightInOrderCurrency) * 100) / 100;
+  const bankFee = 0;
+  const otherFee = 0;
+  const profit = Math.round((revenue - totalCostInOrderCurrency - freightInOrderCurrency - bankFee - otherFee) * 100) / 100;
   const marginPercent = revenue > 0 ? Math.round((profit / revenue) * 10000) / 100 : null;
 
   return {
@@ -259,9 +295,12 @@ export async function computeProfitForOrder(env, order, { freightAmount, freight
     revenue,
     totalCost: Math.round(totalCostInOrderCurrency * 100) / 100,
     freight: freightInOrderCurrency,
+    bankFee,
+    otherFee,
     profit,
     marginPercent,
     lineCosts,
-    hasWarnings: lineCosts.some((item) => !item.ok)
+    hasWarnings: lineCosts.some((item) => !item.ok),
+    isLocked: false
   };
 }

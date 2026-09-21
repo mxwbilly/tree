@@ -1,14 +1,20 @@
 document.addEventListener('DOMContentLoaded', async function () {
-    const pageName = window.location.pathname.split('/').pop() || '';
+    const pageName = (window.location.pathname.split('/').pop() || '').replace(/\.html$/, '');
     const urlLang = new URLSearchParams(window.location.search).get('lang');
     const savedLang = localStorage.getItem('greensmart-lang');
     const supportedLangs = new Set(['en', 'vi', 'th', 'id']);
-    const lang = supportedLangs.has(urlLang) ? urlLang : (supportedLangs.has(savedLang) ? savedLang : 'en');
+    // 预渲染页：构建期已把 <html lang> 写成目标语言（如 /vi/transparent-orchid-pot）。
+    const prerenderedLang = document.documentElement.lang;
+    const isPrerendered = supportedLangs.has(prerenderedLang) && prerenderedLang !== 'en'
+        && window.location.pathname.includes(`/${prerenderedLang}/`);
+    const lang = isPrerendered
+        ? prerenderedLang
+        : (supportedLangs.has(urlLang) ? urlLang : (supportedLangs.has(savedLang) ? savedLang : 'en'));
     const detailPages = new Set([
-        'self-watering-double-layer.html',
-        'root-control-gallon-pot.html',
-        'transparent-orchid-pot.html',
-        'creative-shaped-planter.html'
+        'self-watering-double-layer',
+        'root-control-gallon-pot',
+        'transparent-orchid-pot',
+        'creative-shaped-planter'
     ]);
 
     if (!detailPages.has(pageName)) return;
@@ -29,16 +35,17 @@ document.addEventListener('DOMContentLoaded', async function () {
             const nextLang = target.dataset.lang;
             if (nextLang === currentLang) return;
 
-            const nextUrl = new URL(window.location.href);
-            nextUrl.searchParams.set('lang', nextLang);
-            window.location.href = nextUrl.toString();
+            // 预渲染页与英文页之间用真实路径切换；旧 ?lang= 参数方式仅作为兜底。
+            const slug = pageName.replace(/\.html$/, '');
+            const nextPath = nextLang === 'en' ? `/${slug}` : `/${nextLang}/${slug}`;
+            window.location.href = nextPath;
         });
 
         document.body.appendChild(switcher);
     }
 
     const procurementData = {
-        'self-watering-double-layer.html': {
+        'self-watering-double-layer': {
             moq: [
                 '50-199 pcs: standard colors, mixed sizes in same color accepted',
                 '200-499 pcs: custom color program and gift-box packaging',
@@ -50,7 +57,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                 'Peak season buffer: suggest booking 2-3 weeks earlier'
             ]
         },
-        'root-control-gallon-pot.html': {
+        'root-control-gallon-pot': {
             moq: [
                 '500-1499 pcs: standard sizes and colors, up to 4 sizes mixed',
                 '1500-3999 pcs: full gallon range mix with carton marks',
@@ -62,7 +69,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                 'Peak season buffer: reserve 2 weeks for logistics slots'
             ]
         },
-        'transparent-orchid-pot.html': {
+        'transparent-orchid-pot': {
             moq: [
                 '200-499 pcs per size: stock moulds, crystal clear standard',
                 '500-1999 pcs: mixed sizes and seedling cup combinations',
@@ -74,7 +81,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                 'Peak season buffer: suggest 2 weeks before orchid trade peaks'
             ]
         },
-        'creative-shaped-planter.html': {
+        'creative-shaped-planter': {
             moq: [
                 '50-199 pcs per design: mixed designs in same order accepted',
                 '200-499 pcs: gift-box packaging and OEM insert card',
@@ -104,8 +111,9 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     function mountProcurementPack(currentPage, currentLang, dictPages) {
         const pagePackDefault = procurementData[currentPage];
-        const pagePack = (currentLang !== 'en' && dictPages?.[currentPage]?.moq)
-            ? { moq: dictPages[currentPage].moq, lead: dictPages[currentPage].lead }
+        const dictPageContent = dictPages?.[currentPage] || dictPages?.[`${currentPage}.html`];
+        const pagePack = (currentLang !== 'en' && dictPageContent?.moq)
+            ? { moq: dictPageContent.moq, lead: dictPageContent.lead }
             : pagePackDefault;
         const anchor = document.querySelector('.detail-section');
         if (!pagePack || !anchor || document.querySelector('.detail-procurement')) {
@@ -205,11 +213,17 @@ document.addEventListener('DOMContentLoaded', async function () {
     const quoteBtn = document.querySelector('.detail-cta-bar .btn.btn-primary');
     const whatsappBtn = document.querySelector('.detail-cta-bar .btn.btn-whatsapp');
 
-    if (backBtn) backBtn.href = `/?lang=${encodeURIComponent(lang)}#products`;
-    if (quoteBtn) quoteBtn.href = `/?lang=${encodeURIComponent(lang)}#contact`;
-
+    // 返回首页 / CTA 链接：源文件已用 /#products、/#contact，多语言页由构建期改为 /vi/#products 等，
+    // 运行时不再用 ?lang= 参数覆盖，保持真实语言路径。
     localStorage.setItem('greensmart-lang', lang);
     mountLanguageSwitcher(lang);
+
+    // 预渲染页：正文已被构建期写入对应语言，跳过 fetch 词典与 DOM 重写，
+    // 只保留运行时功能（Procurement Pack、语言切换器）。moq/lead 用本地默认值兜底。
+    if (isPrerendered) {
+        mountProcurementPack(pageName, lang, null);
+        return;
+    }
 
     if (lang === 'en') {
         mountProcurementPack(pageName, lang, null);
@@ -223,7 +237,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     mountProcurementPack(pageName, lang, dict?.pages || null);
 
-    const content = dict?.pages?.[pageName];
+    const content = dict?.pages?.[pageName] || dict?.pages?.[`${pageName}.html`];
     if (!content) return;
 
     const metaDescription = document.querySelector('meta[name="description"]');

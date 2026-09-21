@@ -66,12 +66,29 @@
             max-width: 420px;
         }
         input, button, select {
+            box-sizing: border-box;
             border: 1px solid #cbd5e1;
             border-radius: 6px;
             padding: 10px 12px;
             font-size: 14px;
+            min-height: 40px;
             min-width: 0;
             max-width: 100%;
+        }
+        select {
+            appearance: none;
+            -webkit-appearance: none;
+            padding-right: 38px;
+            color: #0f172a;
+            background-color: #fff;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='m4 6 4 4 4-4' stroke='%23475569' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 16px;
+        }
+        select:disabled {
+            color: #94a3b8;
+            background-color: #f8fafc;
         }
         button {
             border: none;
@@ -190,6 +207,71 @@
             flex-wrap: wrap;
             white-space: nowrap;
         }
+        #orderShippingForm.shipping-form {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+            gap: 10px;
+            width: 100%;
+            max-width: none !important;
+        }
+        #orderShippingForm.shipping-form.hidden { display: none; }
+        .shipping-form .shipping-actions {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+        #orderFinancialForm.compact-form {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(110px, 1fr)) minmax(180px, 1.5fr) auto;
+            gap: 10px;
+            align-items: end;
+            width: 100%;
+            max-width: none;
+        }
+        #orderFinancialForm.compact-form .btn-compact {
+            white-space: nowrap;
+        }
+        .field-stack {
+            display: grid;
+            gap: 5px;
+            min-width: 0;
+        }
+        .field-stack label {
+            color: #475569;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        #orderFulfillmentForm.fulfillment-form {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+            align-items: end;
+        }
+        #orderFulfillmentForm.fulfillment-form.hidden { display: none; }
+        .form-feedback {
+            margin: 10px 0 0;
+            padding: 8px 10px;
+            border: 1px solid #fecaca;
+            border-radius: 6px;
+            color: #991b1b;
+            background: #fef2f2;
+            font-size: 13px;
+        }
+        .fulfillment-pill {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 999px;
+            padding: 3px 8px;
+            font-size: 12px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+        .fulfillment-normal { color: #166534; background: #dcfce7; }
+        .fulfillment-due { color: #92400e; background: #fef3c7; }
+        .fulfillment-overdue { color: #991b1b; background: #fee2e2; }
+        .fulfillment-pending { color: #475569; background: #e2e8f0; }
+        .fulfillment-shipped { color: #1d4ed8; background: #dbeafe; }
         #dashboardCard .row-actions { flex-wrap: nowrap; }
         .row-status-control {
             display: flex;
@@ -199,8 +281,11 @@
         }
         .row-status-control select {
             width: 104px;
-            padding: 6px 8px;
+            min-height: 34px;
+            padding: 6px 28px 6px 8px;
             font-size: 13px;
+            background-position: right 7px center;
+            background-size: 14px;
         }
         .details-grid {
             display: grid;
@@ -310,6 +395,15 @@
             .inquiry-record-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .inquiry-record-content { grid-template-columns: 1fr; gap: 16px; }
             .inquiry-record-section + .inquiry-record-section { border-left: 0; border-top: 1px solid #e2e8f0; padding-left: 0; padding-top: 16px; }
+        }
+        @media (max-width: 980px) {
+            #orderFinancialForm.compact-form { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        }
+        @media (max-width: 680px) {
+            #orderShippingForm.shipping-form { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+            #orderFulfillmentForm.fulfillment-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            #orderFinancialForm.compact-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .shipping-form .shipping-actions { justify-content: flex-start; }
         }
         .tab-nav {
             display: flex;
@@ -452,6 +546,23 @@
         .erp-form textarea {
             grid-column: 1 / -1;
         }
+        .detail-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 10px;
+            margin: 14px 0;
+        }
+        .detail-summary > div {
+            display: grid;
+            gap: 4px;
+            padding: 10px 12px;
+            border: 1px solid #dce6df;
+            border-radius: 6px;
+            background: #f8fbf9;
+        }
+        .detail-summary strong { overflow-wrap: anywhere; }
+        .clickable-row { cursor: pointer; }
+        .clickable-row:hover td { background: #f8fbf9; }
         .checkbox-field {
             display: flex;
             align-items: center;
@@ -468,6 +579,38 @@
             margin-bottom: 8px;
             align-items: center;
         }
+        .quote-source-context {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            margin-bottom: 12px;
+            padding: 10px 12px;
+            border: 1px solid #86efac;
+            border-left: 4px solid #16a34a;
+            border-radius: 6px;
+            background: #f0fdf4;
+        }
+        .quote-source-context.hidden { display: none; }
+        .quote-source-label { display: block; margin-bottom: 3px; color: #166534; font-size: 12px; font-weight: 700; }
+        .quote-source-context strong { margin-right: 8px; }
+        .quote-source-meta { color: #475569; font-size: 13px; }
+        .quote-merge-context {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin: -4px 0 12px;
+            padding: 9px 12px;
+            border: 1px solid #bfdbfe;
+            border-radius: 6px;
+            background: #eff6ff;
+            color: #1e3a5f;
+            font-size: 13px;
+        }
+        .quote-merge-context.hidden { display: none; }
+        #orderRows tr[data-order-id] { cursor: pointer; }
+        #orderRows tr[data-order-id]:hover td { background: #f8fafc; }
         .kpi-value.small {
             font-size: 16px;
         }
@@ -481,6 +624,12 @@
             color: #0369a1;
             margin-right: 4px;
         }
+        .doc-badge-frozen { background: #dcfce7; color: #166534; }
+        .doc-badge-voided { background: #fee2e2; color: #b91c1c; }
+        .mail-status-accepted { color: #15803d; }
+        .mail-status-sending { color: #a16207; }
+        .mail-status-failed { color: #b91c1c; }
+        .document-freeze-note { margin: -4px 0 10px; color: #64748b; font-size: 13px; }
         .document-preview-dialog {
             width: min(1120px, calc(100vw - 32px));
             height: min(860px, calc(100vh - 32px));
@@ -516,6 +665,10 @@
             .document-preview-header { align-items: flex-start; flex-direction: column; }
             .document-preview-actions { width: 100%; }
             .document-preview-actions button { flex: 1; }
+            .quote-source-context { align-items: stretch; flex-direction: column; }
+            .quote-source-context button { width: 100%; }
+            .quote-merge-context { align-items: stretch; flex-direction: column; }
+            .quote-merge-context button { width: 100%; }
         }
     </style>
 </head>
@@ -659,6 +812,19 @@
             </div>
             <section class="card hidden settings-card" id="settingsCard">
                 <h3 style="margin-top:0;">系统设置（仅管理员）</h3>
+                <p class="muted">公司资料会用于新生成的报价单、PI、CI 和装箱单；历史单据保留生成时的快照。</p>
+                <div class="erp-form" style="margin-bottom:16px;">
+                    <input id="companyNameInput" type="text" placeholder="公司名称">
+                    <input id="companyLegalNameInput" type="text" placeholder="法定公司名称（可选）">
+                    <input id="companyEmailInput" type="email" placeholder="公司邮箱">
+                    <input id="companyPhoneInput" type="text" placeholder="电话 / WhatsApp">
+                    <input id="companyWebsiteInput" type="text" placeholder="官网">
+                    <input id="companyRegistrationInput" type="text" placeholder="注册号（可选）">
+                    <input id="companyTaxIdInput" type="text" placeholder="税号（可选）">
+                    <input id="companyExportIdInput" type="text" placeholder="出口资质 / EORI（可选）">
+                    <textarea id="companyAddressInput" placeholder="公司地址（每行一条）" rows="2"></textarea>
+                    <textarea id="companyBankInfoInput" placeholder="收款银行信息（每行一条）" rows="2"></textarea>
+                </div>
                 <div class="toolbar">
                     <input id="notifyEmailInput" type="email" placeholder="通知邮箱">
                     <button id="saveSettingsBtn" type="button" class="btn-compact">保存设置</button>
@@ -701,6 +867,23 @@
                     <input id="customerCompanyInput" type="text" placeholder="公司名称">
                     <input id="customerCountryInput" type="text" placeholder="国家/地区">
                     <input id="customerPhoneInput" type="text" placeholder="电话/WhatsApp">
+                    <input id="customerCurrencyInput" type="text" placeholder="默认币种，如 USD" value="USD" maxlength="3">
+                    <select id="customerIncotermInput" aria-label="默认贸易条款">
+                        <option value="">默认贸易条款（可选）</option>
+                        <option value="EXW">EXW</option><option value="FCA">FCA</option><option value="FOB">FOB</option>
+                        <option value="CFR">CFR</option><option value="CIF">CIF</option><option value="DAP">DAP</option><option value="DDP">DDP</option>
+                    </select>
+                    <input id="customerPaymentTermsInput" type="text" placeholder="付款条款，如 30% T/T deposit">
+                    <input id="customerPortInput" type="text" placeholder="默认目的港/城市">
+                    <textarea id="customerAddressInput" placeholder="收货地址（可选）" rows="2"></textarea>
+                    <textarea id="customerBillingAddressInput" placeholder="账单地址（可选）" rows="2"></textarea>
+                    <input id="customerImporterNameInput" type="text" placeholder="进口商名称（可选）">
+                    <input id="customerImporterIdInput" type="text" placeholder="进口商税号/注册号（可选）">
+                    <input id="customerConsigneeNameInput" type="text" placeholder="收货人名称（可选）">
+                    <textarea id="customerConsigneeAddressInput" placeholder="收货人地址（可选）" rows="2"></textarea>
+                    <input id="customerNotifyPartyNameInput" type="text" placeholder="通知方名称（可选）">
+                    <textarea id="customerNotifyPartyAddressInput" placeholder="通知方地址（可选）" rows="2"></textarea>
+                    <textarea id="customerNotesInput" placeholder="内部备注：偏好、沟通事项等（仅后台可见）" rows="2"></textarea>
                     <button id="customerSubmitBtn" type="submit">新建客户</button>
                     <button id="customerCancelEditBtn" type="button" class="btn-outline hidden">取消编辑</button>
                 </form>
@@ -708,6 +891,7 @@
             <div class="detail-box hidden" id="customerDetailPanel" style="margin-top:16px;">
                 <h3 id="customerDetailTitle" style="margin-top:0;">客户详情</h3>
                 <p id="customerDetailMeta" class="muted"></p>
+                <div id="customerTradeProfile" class="detail-summary"></div>
                 <div class="details-grid">
                     <div><h4>近期询盘</h4><ul id="customerInquiryList" class="timeline-list"></ul></div>
                     <div><h4>订单历史</h4><ul id="customerOrderList" class="timeline-list"></ul></div>
@@ -726,8 +910,8 @@
                 <input id="productSpecInput" type="text" placeholder="产品规格/材质备注">
                 <label class="checkbox-field"><input id="productPublishInput" type="checkbox"> 发布到前台产品目录</label>
                 <input id="productPublicTitleInput" type="text" placeholder="前台展示标题（默认产品名称）">
-                <input id="productPublicImageInput" type="url" placeholder="前台图片 URL（https://... 或 /image.jpg）">
-                <input id="productPublicSecondaryImageInput" type="url" placeholder="前台第二张图片 URL（鼠标悬停展示，可选）">
+                <input id="productPublicImageInput" type="text" inputmode="url" placeholder="前台图片地址或文件名（如 /image.jpg）">
+                <input id="productPublicSecondaryImageInput" type="text" inputmode="url" placeholder="前台第二张图片地址或文件名（悬停展示，可选）">
                 <input id="productPublicDetailUrlInput" type="text" placeholder="产品详情页路径（如 /self-watering-double-layer.html，可选）">
                 <input id="productPublicOrderInput" type="number" min="0" step="1" value="0" placeholder="前台排序（数字小靠前）">
                 <textarea id="productPublicDescriptionInput" placeholder="前台产品简介（建议英文，150 字以内）" maxlength="500"></textarea>
@@ -742,6 +926,12 @@
                 <input id="productCartonLInput" type="number" min="0" step="0.1" placeholder="箱长(cm)">
                 <input id="productCartonWInput" type="number" min="0" step="0.1" placeholder="箱宽(cm)">
                 <input id="productCartonHInput" type="number" min="0" step="0.1" placeholder="箱高(cm)">
+                <input id="productHsCodeInput" type="text" placeholder="HS Code（可选）">
+                <input id="productOriginCountryInput" type="text" placeholder="原产国（可选）">
+                <input id="productUnitInput" type="text" placeholder="计量单位，如 pcs">
+                <input id="productPackageTypeInput" type="text" placeholder="包装类型，如 carton">
+                <input id="productNetWeightInput" type="number" min="0" step="0.001" placeholder="单箱净重 kg">
+                <input id="productGrossWeightInput" type="number" min="0" step="0.001" placeholder="单箱毛重 kg">
                 <button id="productSubmitBtn" type="submit">新建产品</button>
                 <button id="productCancelEditBtn" type="button" class="btn-outline hidden">取消编辑</button>
             </form>
@@ -845,10 +1035,11 @@
                         </select>
                         <input id="freightRateInput" type="number" min="0" step="0.01" placeholder="运费金额" required>
                         <input id="freightCurrencyInput" type="text" value="USD" maxlength="3" placeholder="币种">
+                        <input id="freightValidFromInput" type="date" aria-label="运费生效日期" required>
                         <button type="submit">新增运费</button>
                     </form>
                     <table>
-                        <thead><tr><th>航线</th><th>柜型</th><th>运费</th><th>操作</th></tr></thead>
+                        <thead><tr><th>航线</th><th>柜型</th><th>运费</th><th>生效日期</th><th>操作</th></tr></thead>
                         <tbody id="freightRows"></tbody>
                     </table>
                 </div>
@@ -863,12 +1054,25 @@
                 </div>
             </div>
             <div class="detail-box" style="margin-bottom:16px;">
-                <h3 style="margin-top:0;">新建报价</h3>
+                <h3 style="margin-top:0;">按已选产品创建报价</h3>
+            <div id="orderInquiryContext" class="quote-source-context hidden">
+                <div>
+                    <span class="quote-source-label">来源询盘</span>
+                    <strong id="orderInquiryRef"></strong>
+                    <span id="orderInquiryMeta" class="quote-source-meta"></span>
+                </div>
+            </div>
+            <div id="orderMergeContext" class="quote-merge-context hidden">
+                <span id="orderMergeLabel"></span>
+                <button id="attachInquiryToOrderBtn" type="button" class="btn-compact btn-outline">加入该报价</button>
+            </div>
             <form id="orderForm" class="erp-form" style="grid-template-columns: repeat(auto-fit, minmax(180px,1fr));">
+                <input id="orderInquiryIdInput" type="hidden">
                 <input id="orderCustomerSearchInput" type="text" placeholder="搜索客户（姓名/邮箱/公司）">
                 <select id="orderCustomerSelect" required><option value="">选择客户</option></select>
                 <input id="orderCustomerEmail" type="email" placeholder="收件邮箱将随客户自动带出" readonly aria-label="报价收件邮箱">
                 <input id="orderCurrencyInput" type="text" value="USD" maxlength="3" placeholder="币种">
+                <div class="field-stack"><label for="orderExpectedDeliveryInput">约定交期</label><input id="orderExpectedDeliveryInput" type="date"></div>
                 <select id="orderIncotermInput" aria-label="贸易条款">
                     <option value="">选择贸易条款</option>
                     <option value="EXW">EXW - Ex Works</option>
@@ -884,7 +1088,7 @@
             <div id="orderLinesContainer"></div>
             <div class="toolbar">
                 <button id="addOrderLineBtn" type="button" class="btn-outline">+ 添加产品行</button>
-                <button id="createOrderBtn" type="button">创建报价草案</button>
+                <button id="createOrderBtn" type="button">创建所选产品报价</button>
                 <span class="muted" id="orderTotalPreview"></span>
             </div>
             </div>
@@ -906,35 +1110,99 @@
             </div>
             <div style="overflow-x:auto;">
                 <table>
-                    <thead><tr><th>报价/订单号</th><th>状态</th><th>币种</th><th>总额</th><th>创建时间</th><th>操作</th></tr></thead>
+                    <thead><tr><th>报价/订单号</th><th>来源询盘</th><th>状态</th><th>交期</th><th>币种</th><th>总额</th><th>创建时间</th><th>操作</th></tr></thead>
                     <tbody id="orderRows"></tbody>
                 </table>
             </div>
             <div class="detail-box hidden" id="orderDetailPanel" style="margin-top:16px;">
                 <h3 style="margin-top:0;" id="orderDetailTitle">报价与单据详情</h3>
                 <p class="muted" id="orderDetailMeta"></p>
-                <div class="toolbar" id="orderActionButtons"></div>
-                <div class="toolbar" id="orderDocButtons"></div>
+                <div id="orderFulfillmentSection" class="detail-box" style="margin:14px 0;">
+                    <div class="section-head"><h4 style="margin:0;">交期与履约</h4><span id="orderFulfillmentHint" class="muted"></span></div>
+                    <form id="orderFulfillmentForm" class="fulfillment-form">
+                        <div class="field-stack"><label for="fulfillmentProductionStatusInput">生产状态</label><select id="fulfillmentProductionStatusInput"><option value="not_started">未排产</option><option value="in_production">生产中</option><option value="quality_inspection">质检中</option><option value="ready_to_ship">待出运</option><option value="shipped">已出运</option></select></div>
+                        <div class="field-stack"><label for="fulfillmentExpectedDeliveryInput">约定交期</label><input id="fulfillmentExpectedDeliveryInput" type="date"></div>
+                        <div class="field-stack"><label for="fulfillmentEstimatedShipmentInput">预计出运</label><input id="fulfillmentEstimatedShipmentInput" type="date"></div>
+                        <div class="field-stack"><label for="fulfillmentActualShipmentInput">实际出运</label><input id="fulfillmentActualShipmentInput" type="date"></div>
+                        <button type="submit" class="btn-compact">保存履约节点</button>
+                    </form>
+                    <p id="orderFulfillmentFeedback" class="form-feedback hidden" role="alert"></p>
+                </div>
+                <div id="orderPaymentSection" class="detail-box" style="margin:14px 0;">
+                    <div class="section-head"><h4 style="margin:0;">收款记录</h4><span id="orderPaymentSummary" class="muted"></span></div>
+                    <p id="orderPaymentHint" class="muted" style="margin:8px 0;"></p>
+                    <ul class="timeline-list" id="orderPaymentList"></ul>
+                    <form id="orderPaymentForm" class="compact-form">
+                        <select id="paymentTypeInput" aria-label="收款类型"><option value="deposit">定金</option><option value="balance">尾款</option><option value="full">全款</option></select>
+                        <input id="paymentAmountInput" type="number" min="0.01" step="0.01" placeholder="到账金额" required>
+                        <div class="row-actions" aria-label="按订单总额快捷填入"><span class="muted">快捷填入</span><button type="button" class="btn-compact btn-outline" data-payment-percent="20">20%</button><button type="button" class="btn-compact btn-outline" data-payment-percent="30">30%</button><button type="button" class="btn-compact btn-outline" data-payment-percent="50">50%</button></div>
+                        <input id="paymentDateInput" type="date" required>
+                        <input id="paymentReferenceInput" type="text" placeholder="流水号/凭证号（可选）">
+                        <input id="paymentNoteInput" type="text" placeholder="备注（可选）">
+                        <button type="submit" class="btn-compact">登记收款</button>
+                    </form>
+                </div>
+                <div id="orderFinancialSection" class="detail-box" style="margin:14px 0;">
+                    <div class="section-head"><h4 style="margin:0;">成本与利润</h4><span id="orderFinancialSummary" class="muted"></span></div>
+                    <p id="orderFinancialHint" class="muted" style="margin:8px 0;"></p>
+                    <form id="orderFinancialForm" class="compact-form">
+                        <div class="field-stack"><label for="financialProductCostInput">实际产品成本</label><input id="financialProductCostInput" type="number" min="0" step="0.01" placeholder="按订单币种" required></div>
+                        <div class="field-stack"><label for="financialFreightInput">实际运费</label><input id="financialFreightInput" type="number" min="0" step="0.01" placeholder="按订单币种" required></div>
+                        <div class="field-stack"><label for="financialBankFeeInput">银行手续费</label><input id="financialBankFeeInput" type="number" min="0" step="0.01" value="0" required></div>
+                        <div class="field-stack"><label for="financialOtherFeeInput">其他费用</label><input id="financialOtherFeeInput" type="number" min="0" step="0.01" value="0" required></div>
+                        <div class="field-stack"><label for="financialNoteInput">成本说明</label><input id="financialNoteInput" type="text" placeholder="凭证备注（可选）"></div>
+                        <button type="submit" class="btn-compact">锁定实际成本与费用</button>
+                    </form>
+                </div>
+                <div id="orderShippingSection" class="detail-box" style="margin:14px 0;">
+                    <div class="section-head"><h4 style="margin:0;">装箱与物流资料</h4><span id="orderShippingHint" class="muted"></span></div>
+                    <form id="orderShippingForm" class="shipping-form">
+                        <input id="shippingForwarderInput" type="text" placeholder="货代公司（可选）">
+                        <input id="shippingForwarderContactInput" type="text" placeholder="货代联系人/电话（可选）">
+                        <input id="shippingBookingNoInput" type="text" placeholder="订舱号（可选）">
+                        <input id="shippingBookingDateInput" type="date" aria-label="订舱日期">
+                        <select id="shippingContainerTypeInput" aria-label="柜型"><option value="">柜型（可选）</option><option value="20GP">20GP</option><option value="40GP">40GP</option><option value="40HQ">40HQ</option><option value="LCL">LCL 拼箱</option></select>
+                        <input id="shippingContainerNoInput" type="text" placeholder="柜号（可选）">
+                        <input id="shippingSealNoInput" type="text" placeholder="封条号（可选）">
+                        <input id="shippingVesselVoyageInput" type="text" placeholder="船名 / 航次（可选）">
+                        <input id="shippingCustomsNoInput" type="text" placeholder="报关单号（可选）">
+                        <input id="shippingCustomsDateInput" type="date" aria-label="报关日期">
+                        <select id="shippingOriginPortInput" aria-label="起运港"><option value="">起运港（可选）</option></select>
+                        <select id="shippingDestinationPortInput" aria-label="目的港"><option value="">目的港（可选）</option></select>
+                        <input id="shippingMarksInput" type="text" placeholder="唛头（可选）">
+                        <input id="shippingActualShipmentDateInput" type="date" aria-label="实际出运日期">
+                        <input id="shippingFreightAmountInput" type="number" min="0" step="0.01" placeholder="实际运费（可选）">
+                        <input id="shippingFreightCurrencyInput" type="text" maxlength="3" placeholder="运费币种，如 USD">
+                        <input id="shippingFreightRefInput" type="text" placeholder="运费凭证号（可选）">
+                        <input id="shippingForwarderNoteInput" type="text" placeholder="货代备注（可选）">
+                        <div class="shipping-actions"><button id="loadFreightRateBtn" type="button" class="btn-compact btn-outline">带入参考运费</button><button type="submit" class="btn-compact btn-outline">保存物流资料</button><button id="issuePackingListBtn" type="button" class="btn-compact">保存并出具装箱单</button></div>
+                    </form>
+                </div>
                 <h4>已出具文档</h4>
+                <p class="document-freeze-note">新出具的单据会固定当时的客户、产品、装箱和公司资料，后续修改不会影响历史版本。</p>
                 <ul class="timeline-list" id="orderDocList"></ul>
             </div>
         </section>
 
         <section class="card hidden" id="erpDashboardCard">
             <h2>统计看板</h2>
-            <p class="muted">仅统计已确认及以后状态的订单收入/利润；已流失订单只计入成交率分母，运费暂未计入（尚无货代模块）。</p>
+            <p class="muted">仅统计已确认及以后状态的订单收入与利润；已收清订单使用实际收款。已锁定订单使用实际成本、运费和费用，未锁定订单使用当前估算。</p>
             <div class="toolbar">
                 <label for="erpDateFrom" class="muted">从</label>
                 <input id="erpDateFrom" type="date">
                 <label for="erpDateTo" class="muted">到</label>
                 <input id="erpDateTo" type="date">
+                <label for="erpReportingCurrency" class="muted">统计币种</label>
+                <select id="erpReportingCurrency" aria-label="统计币种"><option value="USD">USD</option><option value="CNY">CNY</option><option value="EUR">EUR</option><option value="GBP">GBP</option><option value="VND">VND</option><option value="THB">THB</option><option value="IDR">IDR</option></select>
                 <button id="erpDateApplyBtn" type="button" class="btn-outline">应用筛选</button>
                 <button id="erpDateClearBtn" type="button" class="btn-outline">清空筛选</button>
             </div>
+            <p id="erpDashboardNotice" class="muted">金额会统一换算为所选统计币种；缺少汇率的订单不会计入金额合计。</p>
             <div class="kpi-grid" id="erpKpiGrid">
                 <div class="kpi-card"><div class="kpi-label">已成交订单数</div><div class="kpi-value" id="erpKpiOrders">0</div></div>
-                <div class="kpi-card"><div class="kpi-label">总收入</div><div class="kpi-value" id="erpKpiRevenue">0</div></div>
-                <div class="kpi-card"><div class="kpi-label">总利润</div><div class="kpi-value" id="erpKpiProfit">0</div></div>
+                <div class="kpi-card"><div class="kpi-label" id="erpKpiRevenueLabel">总收入</div><div class="kpi-value" id="erpKpiRevenue">0</div></div>
+                <div class="kpi-card"><div class="kpi-label" id="erpKpiFreightLabel">实际运费</div><div class="kpi-value" id="erpKpiFreight">0</div></div>
+                <div class="kpi-card"><div class="kpi-label" id="erpKpiProfitLabel">总利润</div><div class="kpi-value" id="erpKpiProfit">0</div></div>
                 <div class="kpi-card"><div class="kpi-label">利润率</div><div class="kpi-value" id="erpKpiMargin">-</div></div>
                 <div class="kpi-card"><div class="kpi-label">成交率</div><div class="kpi-value" id="erpKpiWinRate">-</div></div>
                 <div class="kpi-card"><div class="kpi-label">报价中</div><div class="kpi-value" id="erpKpiQuoted">0</div></div>
@@ -945,7 +1213,7 @@
                 <div class="detail-box">
                     <h4 style="margin-top:0;">月度利润趋势</h4>
                     <table>
-                        <thead><tr><th>月份</th><th>订单数</th><th>收入</th><th>成本</th><th>利润</th><th>利润率</th></tr></thead>
+                        <thead><tr><th>月份</th><th>订单数</th><th>收入</th><th>产品成本</th><th>实际运费</th><th>手续费/杂费</th><th>利润</th><th>利润率</th></tr></thead>
                         <tbody id="profitTrendRows"></tbody>
                     </table>
                 </div>
@@ -991,7 +1259,7 @@
             <iframe id="documentPreviewFrame" class="document-preview-frame" title="单据预览"></iframe>
         </div>
     </dialog>
-    <script src="src/scripts/admin.js?v=20260911-inline-inquiry-detail"></script>
-    <script src="src/scripts/erp-admin.js?v=20260911-inline-inquiry-detail"></script>
+    <script src="src/scripts/admin.js?v=20260914-order-actions"></script>
+    <script src="src/scripts/erp-admin.js?v=20260915-image-paths"></script>
 </body>
 </html>

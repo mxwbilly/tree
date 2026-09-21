@@ -10,10 +10,10 @@ document.addEventListener('DOMContentLoaded', async function () {
     const metaKeywords = document.querySelector('meta[name="keywords"]');
     const siteConfig = window.GREENSMART_CONFIG || {};
     const detailPageFiles = new Set([
-        'self-watering-double-layer.html',
-        'root-control-gallon-pot.html',
-        'transparent-orchid-pot.html',
-        'creative-shaped-planter.html'
+        'self-watering-double-layer',
+        'root-control-gallon-pot',
+        'transparent-orchid-pot',
+        'creative-shaped-planter'
     ]);
     const abParam = new URLSearchParams(window.location.search).get('ab');
     const heroTitleVariant = (abParam === 'hero-b' || abParam === 'b') ? 'hero_b' : 'hero_a';
@@ -102,12 +102,13 @@ document.addEventListener('DOMContentLoaded', async function () {
 
             const [pathWithQuery, hashPart] = href.split('#');
             const [basePath] = pathWithQuery.split('?');
-            if (!detailPageFiles.has(basePath)) {
+            const normalizedPath = basePath.replace(/\.html$/, '');
+            if (!detailPageFiles.has(normalizedPath)) {
                 return;
             }
 
             const hashSuffix = hashPart ? `#${hashPart}` : '';
-            anchor.setAttribute('href', `${basePath}?lang=${encodeURIComponent(lang)}${hashSuffix}`);
+            anchor.setAttribute('href', `${normalizedPath}?lang=${encodeURIComponent(lang)}${hashSuffix}`);
         });
     }
 
@@ -299,23 +300,23 @@ document.addEventListener('DOMContentLoaded', async function () {
         return data;
     }
 
-    async function applyTranslations(lang) {
-        const generation = ++_translationGeneration;
-        const [bundle, fallback] = await Promise.all([
-            loadDictionary(lang),
-            loadDictionary('en')
-        ]);
-        if (generation !== _translationGeneration) return;
-        const strings = bundle.strings || {};
-        const fallbackStrings = fallback.strings || {};
+    // 从已预渲染的 DOM 读取文案，避免在预渲染页重复下载 i18n 词典。
+    // 构建期 build.js 已把 data-i18n 节点的文本替换为目标语言，这里直接读取即可。
+    function readPrerenderedStrings() {
+        const strings = {};
+        document.querySelectorAll('[data-i18n]').forEach((node) => {
+            const key = node.getAttribute('data-i18n');
+            if (key) strings[key] = node.textContent;
+        });
+        return strings;
+    }
 
-        function pick(key) {
-            return strings[key] || fallbackStrings[key] || '';
-        }
+    // 纯 DOM 副作用：不涉及词典下载，供「预渲染页」与「常规翻译」共用。
+    function applyDomSideEffects(lang, strings, fallbackStrings) {
+        const pick = (key) => strings[key] || fallbackStrings[key] || '';
 
-        function updateFaqStructuredData() {
-            const faqScript = document.getElementById('faqStructuredData');
-            if (!faqScript) return;
+        const faqScript = document.getElementById('faqStructuredData');
+        if (faqScript) {
             const faqQuestions = [
                 { q: pick('faq_q1'), a: pick('faq_a1') },
                 { q: pick('faq_q2'), a: pick('faq_a2') },
@@ -340,6 +341,43 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
 
         document.documentElement.lang = lang;
+
+        document.querySelectorAll('[data-i18n-placeholder]').forEach((node) => {
+            const key = node.getAttribute('data-i18n-placeholder');
+            node.setAttribute('placeholder', strings[key] || fallbackStrings[key] || node.getAttribute('placeholder') || '');
+        });
+
+        document.querySelectorAll('[data-i18n-alt]').forEach((node) => {
+            const key = node.getAttribute('data-i18n-alt');
+            node.setAttribute('alt', strings[key] || fallbackStrings[key] || node.getAttribute('alt') || '');
+        });
+
+        applyHeroTitleVariant(lang);
+        updateDetailPageLinks(lang);
+        updateProductMultiSelectDisplay();
+
+        langButtons.forEach((button) => {
+            button.classList.toggle('active', button.dataset.lang === lang);
+        });
+
+        localStorage.setItem('greensmart-lang', lang);
+    }
+
+    async function applyTranslations(lang) {
+        const generation = ++_translationGeneration;
+        const [bundle, fallback] = await Promise.all([
+            loadDictionary(lang),
+            loadDictionary('en')
+        ]);
+        if (generation !== _translationGeneration) return;
+        const strings = bundle.strings || {};
+        const fallbackStrings = fallback.strings || {};
+
+        function pick(key) {
+            return strings[key] || fallbackStrings[key] || '';
+        }
+
+        document.documentElement.lang = lang;
         document.title = bundle.title || fallback.title;
         if (metaDescription) metaDescription.setAttribute('content', bundle.description || fallback.description);
         if (metaKeywords) metaKeywords.setAttribute('content', bundle.keywords || fallback.keywords);
@@ -354,26 +392,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             productTrigger.dataset.placeholderText = pick('form_product_placeholder');
         }
 
-        document.querySelectorAll('[data-i18n-placeholder]').forEach((node) => {
-            const key = node.getAttribute('data-i18n-placeholder');
-            node.setAttribute('placeholder', strings[key] || fallbackStrings[key] || node.getAttribute('placeholder') || '');
-        });
-
-        document.querySelectorAll('[data-i18n-alt]').forEach((node) => {
-            const key = node.getAttribute('data-i18n-alt');
-            node.setAttribute('alt', strings[key] || fallbackStrings[key] || node.getAttribute('alt') || '');
-        });
-
-        applyHeroTitleVariant(lang);
-        updateDetailPageLinks(lang);
-        updateFaqStructuredData();
-        updateProductMultiSelectDisplay();
-
-        langButtons.forEach((button) => {
-            button.classList.toggle('active', button.dataset.lang === lang);
-        });
-
-        localStorage.setItem('greensmart-lang', lang);
+        applyDomSideEffects(lang, strings, fallbackStrings);
     }
 
     window.addEventListener('scroll', function () {
@@ -453,7 +472,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         });
     });
 
-    document.querySelectorAll('.products-grid a[href*=".html"]').forEach((link) => {
+    document.querySelectorAll('.products-grid a[href]:not([href^="#"])').forEach((link) => {
         link.addEventListener('click', function () {
             trackEvent('view_product_detail', withTrackingMeta({
                 product_url: this.getAttribute('href') || '',
@@ -662,8 +681,8 @@ document.addEventListener('DOMContentLoaded', async function () {
     });
 
     const TREND_URL_KEY_MAP = {
-        'self-watering-double-layer.html': 'self_watering_planter',
-        'root-control-gallon-pot.html': 'nursery_tray',
+        'self-watering-double-layer': 'self_watering_planter',
+        'root-control-gallon-pot': 'nursery_tray',
     };
     const LANG_COUNTRY_MAP = { en: 'SG', vi: 'VN', th: 'TH', id: 'ID' };
     const TREND_BADGE_LABELS = {
@@ -693,9 +712,9 @@ document.addEventListener('DOMContentLoaded', async function () {
         const countryCode = LANG_COUNTRY_MAP[lang] || 'SG';
         const cards = document.querySelectorAll('.products-grid .product-card');
         cards.forEach((card) => {
-            const detailLink = card.querySelector('a[href*=".html"]');
+            const detailLink = card.querySelector('a[href]:not([href^="#"])');
             if (!detailLink) return;
-            const href = detailLink.getAttribute('href').split('?')[0];
+            const href = detailLink.getAttribute('href').split('?')[0].replace(/\.html$/, '');
             const productKey = TREND_URL_KEY_MAP[href];
             if (!productKey) return;
             const score = getTrendScore(trendData, productKey, countryCode);
@@ -780,7 +799,16 @@ document.addEventListener('DOMContentLoaded', async function () {
     } else {
         initialLang = 'en';
     }
-    await applyTranslations(initialLang);
+
+    // 预渲染语言页（vi/th/id）的文案已由构建期写入 DOM，无需再下载词典。
+    // 仅补充构建期未覆盖的副作用：FAQ JSON-LD、图片 alt、详情页链接、语言按钮态。
+    const isPrerendered = ['vi', 'th', 'id'].includes(staticHomeLanguage);
+    if (isPrerendered) {
+        const prerenderedStrings = readPrerenderedStrings();
+        applyDomSideEffects(initialLang, prerenderedStrings, prerenderedStrings);
+    } else {
+        await applyTranslations(initialLang);
+    }
     trackEvent('ab_variant_exposure', withTrackingMeta({
         test: 'hero_title',
         lang: initialLang

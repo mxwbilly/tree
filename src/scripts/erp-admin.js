@@ -110,6 +110,11 @@ document.getElementById('productForm').addEventListener('submit', async (event) 
     const h = document.getElementById('productCartonHInput').value;
     if (unitsPerCarton) packaging.unitsPerCarton = Number(unitsPerCarton);
     if (l && w && h) packaging.cartonDimensionsCm = { length: Number(l), width: Number(w), height: Number(h) };
+    const netWeight = document.getElementById('productNetWeightInput').value;
+    const grossWeight = document.getElementById('productGrossWeightInput').value;
+    packaging.packageType = document.getElementById('productPackageTypeInput').value.trim();
+    if (netWeight) packaging.netWeightKg = Number(netWeight);
+    if (grossWeight) packaging.grossWeightKg = Number(grossWeight);
 
     const currentProduct = allProducts.find((product) => product.id === id);
     const splitHomepageLines = (id, limit) => document.getElementById(id).value
@@ -117,11 +122,16 @@ document.getElementById('productForm').addEventListener('submit', async (event) 
         .map((value) => value.trim())
         .filter(Boolean)
         .slice(0, limit);
+    const normalizePublicImagePath = (value) => {
+        const path = String(value || '').trim();
+        if (!path || /^(https?:)?\/\//i.test(path) || path.startsWith('/')) return path;
+        return `/${path}`;
+    };
     const publicInfo = {
         published: document.getElementById('productPublishInput').checked,
         title: document.getElementById('productPublicTitleInput').value.trim(),
-        imageUrl: document.getElementById('productPublicImageInput').value.trim(),
-        secondaryImageUrl: document.getElementById('productPublicSecondaryImageInput').value.trim(),
+        imageUrl: normalizePublicImagePath(document.getElementById('productPublicImageInput').value),
+        secondaryImageUrl: normalizePublicImagePath(document.getElementById('productPublicSecondaryImageInput').value),
         detailUrl: document.getElementById('productPublicDetailUrlInput').value.trim(),
         description: document.getElementById('productPublicDescriptionInput').value.trim(),
         badge: document.getElementById('productPublicBadgeInput').value.trim(),
@@ -134,7 +144,10 @@ document.getElementById('productForm').addEventListener('submit', async (event) 
         sku: document.getElementById('productSkuInput').value.trim(),
         name: document.getElementById('productNameInput').value.trim(),
         category: document.getElementById('productCategoryInput').value.trim(),
-        spec: { ...(currentProduct?.spec || {}), note: document.getElementById('productSpecInput').value.trim(), public: publicInfo },
+        spec: { ...(currentProduct?.spec || {}), note: document.getElementById('productSpecInput').value.trim(), public: publicInfo,
+            hsCode: document.getElementById('productHsCodeInput').value.trim(),
+            originCountry: document.getElementById('productOriginCountryInput').value.trim(),
+            unit: document.getElementById('productUnitInput').value.trim() },
         defaultSupplierId: document.getElementById('productSupplierSelect').value || null,
         packaging
     };
@@ -165,6 +178,12 @@ function resetProductForm() {
     document.getElementById('productPublicChipInput').value = '';
     document.getElementById('productPublicHighlightsInput').value = '';
     document.getElementById('productPublicMetaInput').value = '';
+    document.getElementById('productHsCodeInput').value = '';
+    document.getElementById('productOriginCountryInput').value = '';
+    document.getElementById('productUnitInput').value = '';
+    document.getElementById('productPackageTypeInput').value = '';
+    document.getElementById('productNetWeightInput').value = '';
+    document.getElementById('productGrossWeightInput').value = '';
     document.getElementById('productSubmitBtn').textContent = '新建产品';
     document.getElementById('productCancelEditBtn').classList.add('hidden');
 }
@@ -200,6 +219,12 @@ document.getElementById('productRows').addEventListener('click', async (event) =
         document.getElementById('productCartonLInput').value = p.packaging?.cartonDimensionsCm?.length || '';
         document.getElementById('productCartonWInput').value = p.packaging?.cartonDimensionsCm?.width || '';
         document.getElementById('productCartonHInput').value = p.packaging?.cartonDimensionsCm?.height || '';
+        document.getElementById('productHsCodeInput').value = p.spec?.hsCode || '';
+        document.getElementById('productOriginCountryInput').value = p.spec?.originCountry || '';
+        document.getElementById('productUnitInput').value = p.spec?.unit || '';
+        document.getElementById('productPackageTypeInput').value = p.packaging?.packageType || '';
+        document.getElementById('productNetWeightInput').value = p.packaging?.netWeightKg || '';
+        document.getElementById('productGrossWeightInput').value = p.packaging?.grossWeightKg || '';
         document.getElementById('productSubmitBtn').textContent = '保存修改';
         document.getElementById('productCancelEditBtn').classList.remove('hidden');
     }
@@ -228,14 +253,14 @@ async function loadCustomers(q) {
             rows.innerHTML = '<tr><td colspan="7" class="muted">暂无客户</td></tr>';
             return;
         }
-        rows.innerHTML = allCustomers.map((customer) => `<tr>
+        rows.innerHTML = allCustomers.map((customer) => `<tr data-view-customer="${customer.id}" class="clickable-row">
             <td><strong>${escapeHtml(customer.name)}</strong><br><span class="muted">${escapeHtml(customer.email)}</span></td>
             <td>${escapeHtml(customer.company || '-')}</td>
             <td>${escapeHtml(customer.country || '-')}</td>
             <td>${Number(customer.inquiryCount || 0)}</td>
             <td>${Number(customer.orderCount || 0)}</td>
             <td>${customer.lastInquiryAt ? new Date(customer.lastInquiryAt).toLocaleDateString() : '-'}</td>
-            <td class="row-actions"><button type="button" class="btn-compact btn-outline" data-view-customer="${customer.id}">档案</button><button type="button" class="btn-compact btn-outline" data-edit-customer="${customer.id}">编辑</button></td>
+            <td class="row-actions"><button type="button" class="btn-compact btn-outline" data-edit-customer="${customer.id}">编辑</button></td>
         </tr><tr class="inline-editor-row hidden" data-customer-editor-row="${customer.id}"><td colspan="7"><div class="inline-editor-slot" data-customer-editor-slot="${customer.id}"></div></td></tr>`).join('');
     } catch (error) {
         rows.innerHTML = `<tr><td colspan="7" class="muted">${escapeHtml(error.message)}</td></tr>`;
@@ -270,6 +295,19 @@ function fillCustomerForm(customer) {
     document.getElementById('customerCompanyInput').value = customer.company || '';
     document.getElementById('customerCountryInput').value = customer.country || '';
     document.getElementById('customerPhoneInput').value = customer.phone || '';
+    document.getElementById('customerCurrencyInput').value = customer.defaultCurrency || 'USD';
+    document.getElementById('customerIncotermInput').value = customer.defaultIncoterm || '';
+    document.getElementById('customerPaymentTermsInput').value = customer.paymentTerms || '';
+    document.getElementById('customerPortInput').value = customer.defaultPort || '';
+    document.getElementById('customerAddressInput').value = customer.shippingAddress || '';
+    document.getElementById('customerBillingAddressInput').value = customer.billingAddress || '';
+    document.getElementById('customerImporterNameInput').value = customer.importerName || '';
+    document.getElementById('customerImporterIdInput').value = customer.importerId || '';
+    document.getElementById('customerConsigneeNameInput').value = customer.consigneeName || '';
+    document.getElementById('customerConsigneeAddressInput').value = customer.consigneeAddress || '';
+    document.getElementById('customerNotifyPartyNameInput').value = customer.notifyPartyName || '';
+    document.getElementById('customerNotifyPartyAddressInput').value = customer.notifyPartyAddress || '';
+    document.getElementById('customerNotesInput').value = customer.internalNotes || '';
     document.getElementById('customerSubmitBtn').textContent = '保存客户';
     document.getElementById('customerCancelEditBtn').classList.remove('hidden');
 }
@@ -280,6 +318,15 @@ async function viewCustomer(id) {
     document.getElementById('customerDetailPanel').classList.remove('hidden');
     document.getElementById('customerDetailTitle').textContent = customer.name || '客户详情';
     document.getElementById('customerDetailMeta').textContent = [customer.company, customer.country, customer.phone, customer.email].filter(Boolean).join(' · ');
+    const tradeItems = [
+        ['默认币种', customer.defaultCurrency || 'USD'],
+        ['贸易条款', customer.defaultIncoterm || '-'],
+        ['付款条款', customer.paymentTerms || '-'],
+        ['目的港', customer.defaultPort || '-'],
+        ['收货地址', customer.shippingAddress || '-'],
+        ['内部备注', customer.internalNotes || '-']
+    ];
+    document.getElementById('customerTradeProfile').innerHTML = tradeItems.map(([label, value]) => `<div><span class="muted">${label}</span><strong>${escapeHtml(value)}</strong></div>`).join('');
     const inquiries = customer.inquiries || [];
     document.getElementById('customerInquiryList').innerHTML = inquiries.length ? inquiries.map((item) => `<li><strong>${escapeHtml(item.product || '未填写产品')}</strong> · ${escapeHtml(item.status)} · 报价 ${item.quoteCount || 0} 份<br><span class="muted">${new Date(item.createdAt).toLocaleDateString()}</span></li>`).join('') : '<li>暂无询盘记录</li>';
     const orders = customer.orders || [];
@@ -294,7 +341,20 @@ document.getElementById('customerForm').addEventListener('submit', async (event)
         email: document.getElementById('customerEmailInput').value.trim(),
         company: document.getElementById('customerCompanyInput').value.trim(),
         country: document.getElementById('customerCountryInput').value.trim(),
-        phone: document.getElementById('customerPhoneInput').value.trim()
+        phone: document.getElementById('customerPhoneInput').value.trim(),
+        defaultCurrency: document.getElementById('customerCurrencyInput').value.trim(),
+        defaultIncoterm: document.getElementById('customerIncotermInput').value,
+        paymentTerms: document.getElementById('customerPaymentTermsInput').value.trim(),
+        defaultPort: document.getElementById('customerPortInput').value.trim(),
+        shippingAddress: document.getElementById('customerAddressInput').value.trim(),
+        billingAddress: document.getElementById('customerBillingAddressInput').value.trim(),
+        importerName: document.getElementById('customerImporterNameInput').value.trim(),
+        importerId: document.getElementById('customerImporterIdInput').value.trim(),
+        consigneeName: document.getElementById('customerConsigneeNameInput').value.trim(),
+        consigneeAddress: document.getElementById('customerConsigneeAddressInput').value.trim(),
+        notifyPartyName: document.getElementById('customerNotifyPartyNameInput').value.trim(),
+        notifyPartyAddress: document.getElementById('customerNotifyPartyAddressInput').value.trim(),
+        internalNotes: document.getElementById('customerNotesInput').value.trim()
     };
     try {
         if (id) await apiFetch(`/api/customers/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(body) });
@@ -315,8 +375,11 @@ document.getElementById('newCustomerBtn').addEventListener('click', () => {
 document.getElementById('customerSearchBtn').addEventListener('click', () => loadCustomers(document.getElementById('customerSearchInput').value.trim()));
 document.getElementById('customerRefreshBtn').addEventListener('click', () => loadCustomers());
 document.getElementById('customerRows').addEventListener('click', async (event) => {
-    const editId = event.target.dataset.editCustomer;
-    const viewId = event.target.dataset.viewCustomer;
+    const target = event.target;
+    const editButton = target.closest('[data-edit-customer]');
+    const row = target.closest('tr[data-view-customer]');
+    const editId = editButton?.dataset.editCustomer;
+    const viewId = row?.dataset.viewCustomer;
     if (editId) {
         const customer = allCustomers.find((item) => item.id === editId);
         const row = document.querySelector(`[data-customer-editor-row="${editId}"]`);
@@ -327,7 +390,7 @@ document.getElementById('customerRows').addEventListener('click', async (event) 
             showCustomerForm(slot, customer);
         }
     }
-    if (viewId) {
+    if (viewId && !editId) {
         try { await viewCustomer(viewId); } catch (error) { alert(error.message); }
     }
 });
@@ -509,7 +572,7 @@ function updateFxPageControls(page, pageSize, total) {
 
 async function loadFxRates() {
     const rows = document.getElementById('fxRows');
-    rows.innerHTML = '<tr><td colspan="4" class="muted">加载中...</td></tr>';
+    rows.innerHTML = '<tr><td colspan="5" class="muted">加载中...</td></tr>';
     try {
         const query = new URLSearchParams({ page: String(fxCurrentPage), pageSize: String(fxPageSize) });
         const keyword = document.getElementById('fxSearchInput').value.trim();
@@ -619,17 +682,18 @@ async function loadFreightRates() {
         const res = await apiFetch('/api/freight-rates');
         const items = res.items || [];
         if (!items.length) {
-            rows.innerHTML = '<tr><td colspan="4" class="muted">暂无运费记录</td></tr>';
+            rows.innerHTML = '<tr><td colspan="5" class="muted">暂无运费记录</td></tr>';
             return;
         }
         rows.innerHTML = items.map((r) => `<tr>
             <td>${escapeHtml(r.originPort)} → ${escapeHtml(r.destinationPort)}</td>
             <td>${escapeHtml(r.containerType)}</td>
             <td>${fmtMoney(r.rate)} ${escapeHtml(r.currency)}</td>
+            <td>${escapeHtml(r.validFrom || '-')}</td>
             <td><button type="button" class="btn-compact btn-muted" data-delete-freight="${r.id}">删除</button></td>
         </tr>`).join('');
     } catch (error) {
-        rows.innerHTML = `<tr><td colspan="4" class="muted">${escapeHtml(error.message)}</td></tr>`;
+        rows.innerHTML = `<tr><td colspan="5" class="muted">${escapeHtml(error.message)}</td></tr>`;
     }
 }
 
@@ -640,16 +704,20 @@ document.getElementById('freightForm').addEventListener('submit', async (event) 
         destinationPort: document.getElementById('freightDestInput').value.trim(),
         containerType: document.getElementById('freightContainerSelect').value,
         rate: Number(document.getElementById('freightRateInput').value),
-        currency: document.getElementById('freightCurrencyInput').value.trim() || 'USD'
+        currency: document.getElementById('freightCurrencyInput').value.trim() || 'USD',
+        validFrom: document.getElementById('freightValidFromInput').value
     };
     try {
         await apiFetch('/api/freight-rates', { method: 'POST', body: JSON.stringify(body) });
         document.getElementById('freightForm').reset();
+        document.getElementById('freightValidFromInput').value = new Date().toISOString().slice(0, 10);
         loadFreightRates();
     } catch (error) {
         alert(error.message);
     }
 });
+
+document.getElementById('freightValidFromInput').value = new Date().toISOString().slice(0, 10);
 
 document.getElementById('freightRows').addEventListener('click', async (event) => {
     const id = event.target.dataset.deleteFreight;
@@ -667,13 +735,15 @@ document.getElementById('freightRows').addEventListener('click', async (event) =
 let orderProducts = [];
 let allOrders = [];
 let orderLineCount = 0;
+let pendingInquiryForOrder = null;
+let mergeTargetOrder = null;
 
 async function loadProductsForOrderLines() {
     if (!allProducts.length) await loadProducts();
     orderProducts = allProducts;
 }
 
-function addOrderLine() {
+function addOrderLine(initial = {}) {
     orderLineCount += 1;
     const idx = orderLineCount;
     const container = document.getElementById('orderLinesContainer');
@@ -683,15 +753,16 @@ function addOrderLine() {
     row.innerHTML = `
         <select data-line-product="${idx}">
             <option value="">选择产品</option>
-            ${orderProducts.map((p) => `<option value="${p.id}">${escapeHtml(p.sku)} — ${escapeHtml(p.name)}</option>`).join('')}
+            ${orderProducts.map((p) => `<option value="${p.id}" ${p.id === initial.productId ? 'selected' : ''}>${escapeHtml(p.sku)} — ${escapeHtml(p.name)}</option>`).join('')}
         </select>
-        <input type="number" min="1" step="1" placeholder="数量" data-line-qty="${idx}">
-        <input type="number" min="0" step="0.01" placeholder="单价" data-line-price="${idx}">
+        <input type="number" min="1" step="1" placeholder="数量" data-line-qty="${idx}" value="${escapeHtml(initial.qty || '')}">
+        <input type="number" min="0" step="0.01" placeholder="单价" data-line-price="${idx}" value="${escapeHtml(initial.unitPrice || '')}">
         <button type="button" class="btn-compact btn-muted" data-remove-line="${idx}">移除</button>
     `;
     container.appendChild(row);
-    container.addEventListener('input', updateOrderTotalPreview);
 }
+
+document.getElementById('orderLinesContainer').addEventListener('input', updateOrderTotalPreview);
 
 document.getElementById('orderLinesContainer').addEventListener('click', (event) => {
     const idx = event.target.dataset.removeLine;
@@ -737,6 +808,88 @@ document.getElementById('orderIncotermInput').addEventListener('change', (event)
 let orderCustomers = [];
 let allOrderCustomers = [];
 
+function compactInquiryRef(inquiryId) {
+    const value = String(inquiryId || '');
+    return value.length > 18 ? `#${value.slice(0, 8)}…${value.slice(-6)}` : `#${value}`;
+}
+
+function parseInquiryQuantity(value) {
+    const match = String(value || '').replace(/,/g, '').match(/\d+/);
+    return match ? Number(match[0]) : '';
+}
+
+function findInquiryProduct(value) {
+    const needle = String(value || '').trim().toLowerCase();
+    if (!needle) return null;
+    const exactMatch = orderProducts.find((product) => {
+        const candidates = [product.id, product.sku, product.name].map((item) => String(item || '').trim().toLowerCase()).filter(Boolean);
+        return candidates.some((candidate) => candidate === needle || needle.includes(candidate) || candidate.includes(needle));
+    });
+    if (exactMatch) return exactMatch;
+
+    const ignoredWords = new Set(['and', 'the', 'for', 'with', 'pot', 'pots', 'planter', 'planters', 'flower', 'flowers']);
+    const tokenize = (text) => new Set(String(text || '').toLowerCase()
+        .replace(/[^a-z0-9]+/g, ' ')
+        .split(' ')
+        .map((word) => word.replace(/s$/, ''))
+        .filter((word) => word.length >= 3 && !ignoredWords.has(word)));
+    const inquiryTokens = tokenize(needle);
+    if (inquiryTokens.size < 2) return null;
+
+    let bestMatch = null;
+    let bestScore = 0;
+    orderProducts.forEach((product) => {
+        const productTokens = tokenize(`${product.sku || ''} ${product.name || ''} ${product.category || ''}`);
+        const overlap = [...inquiryTokens].filter((word) => productTokens.has(word)).length;
+        const coverage = overlap / inquiryTokens.size;
+        const score = overlap + coverage;
+        if (overlap >= 2 && score > bestScore) {
+            bestMatch = product;
+            bestScore = score;
+        }
+    });
+    return bestMatch;
+}
+
+function clearOrderInquiryContext() {
+    document.getElementById('orderInquiryIdInput').value = '';
+    document.getElementById('orderInquiryContext').classList.add('hidden');
+    document.getElementById('orderInquiryRef').textContent = '';
+    document.getElementById('orderInquiryMeta').textContent = '';
+    document.getElementById('orderCustomerSearchInput').disabled = false;
+    document.getElementById('orderCustomerSelect').disabled = false;
+    document.getElementById('createOrderBtn').disabled = false;
+    document.getElementById('orderMergeContext').classList.add('hidden');
+    document.getElementById('orderMergeLabel').textContent = '';
+    pendingInquiryForOrder = null;
+    mergeTargetOrder = null;
+}
+
+function setOrderInquiryContext(detail, linkedOrder = null) {
+    const inquiryId = detail.inquiryId || '';
+    pendingInquiryForOrder = detail;
+    document.getElementById('orderInquiryIdInput').value = inquiryId;
+    document.getElementById('orderInquiryRef').textContent = compactInquiryRef(inquiryId);
+    const parts = [detail.customerName, detail.country, detail.product, detail.quantity].filter(Boolean);
+    if (linkedOrder) parts.push(`已关联 ${linkedOrder.orderNo}`);
+    document.getElementById('orderInquiryMeta').textContent = parts.join(' · ');
+    document.getElementById('orderInquiryContext').classList.remove('hidden');
+    document.getElementById('orderCustomerSearchInput').disabled = true;
+    document.getElementById('orderCustomerSelect').disabled = true;
+    document.getElementById('createOrderBtn').disabled = Boolean(linkedOrder);
+}
+
+function setOrderMergeTarget(order) {
+    mergeTargetOrder = order || null;
+    const context = document.getElementById('orderMergeContext');
+    if (!order) {
+        context.classList.add('hidden');
+        return;
+    }
+    document.getElementById('orderMergeLabel').textContent = `该客户已有报价草案 ${order.orderNo}，可将当前产品加入同一份报价。`;
+    context.classList.remove('hidden');
+}
+
 function renderOrderCustomerOptions(selectedId) {
     const select = document.getElementById('orderCustomerSelect');
     const currentId = selectedId === undefined ? select.value : selectedId;
@@ -750,6 +903,15 @@ function updateOrderCustomerEmail() {
     const customerId = document.getElementById('orderCustomerSelect').value;
     const customer = orderCustomers.find((item) => item.id === customerId);
     document.getElementById('orderCustomerEmail').value = customer?.email || '';
+    if (!customer) return;
+    document.getElementById('orderCurrencyInput').value = customer.defaultCurrency || 'USD';
+    document.getElementById('orderIncotermInput').value = customer.defaultIncoterm || '';
+    const defaultNotes = [
+        customer.paymentTerms ? `付款条款：${customer.paymentTerms}` : '',
+        customer.defaultPort ? `目的港：${customer.defaultPort}` : '',
+        customer.shippingAddress ? `收货地址：${customer.shippingAddress}` : ''
+    ].filter(Boolean).join('\n');
+    if (defaultNotes) document.getElementById('orderNotesInput').value = defaultNotes;
 }
 
 function renderOrderCustomerFilter(selectedId) {
@@ -792,9 +954,7 @@ function debounce(fn, wait) {
     };
 }
 
-document.getElementById('createOrderBtn').addEventListener('click', async () => {
-    const customerId = document.getElementById('orderCustomerSelect').value;
-    if (!customerId) return alert('请先选择客户。');
+function collectOrderLines() {
     const lines = [];
     document.querySelectorAll('#orderLinesContainer .line-row').forEach((row) => {
         const idx = row.dataset.lineIndex;
@@ -803,30 +963,67 @@ document.getElementById('createOrderBtn').addEventListener('click', async () => 
         const unitPrice = Number(document.querySelector(`[data-line-price="${idx}"]`)?.value);
         if (productId && qty > 0) lines.push({ productId, qty, unitPrice: unitPrice || 0 });
     });
+    return lines;
+}
+
+function resetOrderDraft() {
+    document.getElementById('orderLinesContainer').innerHTML = '';
+    orderLineCount = 0;
+    document.getElementById('orderCustomerSearchInput').value = '';
+    clearOrderInquiryContext();
+    renderOrderCustomerOptions('');
+    updateOrderCustomerEmail();
+    document.getElementById('orderIncotermInput').value = '';
+    document.getElementById('orderCurrencyInput').value = 'USD';
+    document.getElementById('orderExpectedDeliveryInput').value = '';
+    document.getElementById('orderNotesInput').value = '';
+    addOrderLine();
+    updateOrderTotalPreview();
+}
+
+document.getElementById('createOrderBtn').addEventListener('click', async () => {
+    const customerId = document.getElementById('orderCustomerSelect').value;
+    if (!customerId) return alert('请先选择客户。');
+    const lines = collectOrderLines();
     if (!lines.length) return alert('请至少添加一行有效的产品行。');
 
     const body = {
+        inquiryIds: document.getElementById('orderInquiryIdInput').value ? [document.getElementById('orderInquiryIdInput').value] : [],
         customerId,
         currency: document.getElementById('orderCurrencyInput').value.trim() || 'USD',
         incoterm: document.getElementById('orderIncotermInput').value.trim(),
+        expectedDeliveryDate: document.getElementById('orderExpectedDeliveryInput').value,
         notes: document.getElementById('orderNotesInput').value.trim(),
         lines
     };
     try {
         const result = await apiFetch('/api/orders', { method: 'POST', body: JSON.stringify(body) });
-        document.getElementById('orderLinesContainer').innerHTML = '';
-        orderLineCount = 0;
-        document.getElementById('orderCustomerSearchInput').value = '';
-        renderOrderCustomerOptions('');
-        updateOrderCustomerEmail();
-        document.getElementById('orderIncotermInput').value = '';
-        document.getElementById('orderNotesInput').value = '';
-        addOrderLine();
-        updateOrderTotalPreview();
+        resetOrderDraft();
         await loadOrders();
         await viewOrder(result.item.id);
     } catch (error) {
         alert(error.message);
+    }
+});
+
+document.getElementById('attachInquiryToOrderBtn').addEventListener('click', async () => {
+    const inquiryId = document.getElementById('orderInquiryIdInput').value;
+    const lines = collectOrderLines();
+    if (!mergeTargetOrder || !inquiryId) return;
+    if (!lines.length) return alert('请至少添加一行有效的产品行。');
+    const button = document.getElementById('attachInquiryToOrderBtn');
+    button.disabled = true;
+    try {
+        const result = await apiFetch(`/api/orders/${encodeURIComponent(mergeTargetOrder.id)}/inquiries`, {
+            method: 'POST', body: JSON.stringify({ inquiryId, lines })
+        });
+        resetOrderDraft();
+        await loadOrders();
+        await viewOrder(result.item.id);
+    } catch (error) {
+        alert(error.message);
+    } finally {
+        button.disabled = false;
     }
 });
 
@@ -835,9 +1032,52 @@ const orderStatusLabel = {
     invoiced: '已出发票', paid: '已付款', closed: '已结案', lost: '已流失'
 };
 
+const PRODUCTION_STATUS_LABEL = {
+    not_started: '未排产', in_production: '生产中', quality_inspection: '质检中',
+    ready_to_ship: '待出运', shipped: '已出运'
+};
+
+function fulfillmentState(order) {
+    if (order.actualShipmentDate || order.productionStatus === 'shipped') return { label: '已出运', className: 'fulfillment-shipped' };
+    if (!order.expectedDeliveryDate) return { label: '待设置', className: 'fulfillment-pending' };
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const due = new Date(`${order.expectedDeliveryDate}T00:00:00`);
+    const days = Math.ceil((due - today) / 86400000);
+    if (days < 0) return { label: `已延期 ${Math.abs(days)} 天`, className: 'fulfillment-overdue' };
+    if (days <= 7) return { label: `${days === 0 ? '今日交期' : `${days} 天内交期`}`, className: 'fulfillment-due' };
+    return { label: order.expectedDeliveryDate, className: 'fulfillment-normal' };
+}
+
+function setFulfillmentFeedback(message = '') {
+    const feedback = document.getElementById('orderFulfillmentFeedback');
+    feedback.textContent = message;
+    feedback.classList.toggle('hidden', !message);
+}
+
+const ORDER_ACTION_SHORT_LABEL = {
+    confirm: '确认',
+    mark_paid: '收款',
+    close: '结案',
+    mark_lost: '流失'
+};
+
+const DOCUMENT_ACTION_SHORT_LABEL = {
+    pi: '出 PI',
+    packing_list: '出装箱单',
+    invoice: '出 CI'
+};
+
+function documentActionLabel(type, status) {
+    if (type === 'pi' && status === 'pi_issued') return '更新 PI';
+    if (type === 'packing_list' && status === 'packing_ready') return '更新装箱单';
+    if (type === 'invoice' && status === 'invoiced') return '更新 CI';
+    return DOCUMENT_ACTION_SHORT_LABEL[type];
+}
+
 async function loadOrders() {
     const rows = document.getElementById('orderRows');
-    rows.innerHTML = '<tr><td colspan="6" class="muted">加载中...</td></tr>';
+        rows.innerHTML = '<tr><td colspan="8" class="muted">加载中...</td></tr>';
     try {
         const status = document.getElementById('orderStatusFilter').value;
         const customerId = document.getElementById('orderCustomerFilter').value;
@@ -847,19 +1087,24 @@ async function loadOrders() {
         const res = await apiFetch(`/api/orders?${query.toString()}`);
         allOrders = res.items || [];
         if (!allOrders.length) {
-            rows.innerHTML = '<tr><td colspan="6" class="muted">暂无订单</td></tr>';
+            rows.innerHTML = '<tr><td colspan="8" class="muted">暂无订单</td></tr>';
             return;
         }
-        rows.innerHTML = allOrders.map((o) => `<tr>
+        rows.innerHTML = allOrders.map((o) => {
+            const fulfillment = fulfillmentState(o);
+            return `<tr data-order-id="${o.id}">
             <td>${escapeHtml(o.orderNo)}</td>
+            <td>${o.inquiryIds?.length ? (o.inquiryIds.length === 1 ? escapeHtml(compactInquiryRef(o.inquiryIds[0])) : `${o.inquiryIds.length} 条询盘`) : '<span class="muted">手动创建</span>'}</td>
             <td><span class="status-pill">${escapeHtml(orderStatusLabel[o.status] || o.status)}</span></td>
+            <td><span class="fulfillment-pill ${fulfillment.className}">${escapeHtml(fulfillment.label)}</span></td>
             <td>${escapeHtml(o.currency)}</td>
             <td>${fmtMoney(o.totalAmount)}</td>
             <td>${escapeHtml(String(o.createdAt).slice(0, 16).replace('T', ' '))}</td>
-            <td><button type="button" class="btn-compact btn-outline" data-view-order="${o.id}">详情</button></td>
-        </tr>`).join('');
+            <td>${renderOrderRowActions(o)}</td>
+        </tr>`;
+        }).join('');
     } catch (error) {
-        rows.innerHTML = `<tr><td colspan="6" class="muted">${escapeHtml(error.message)}</td></tr>`;
+        rows.innerHTML = `<tr><td colspan="8" class="muted">${escapeHtml(error.message)}</td></tr>`;
     }
 }
 
@@ -868,27 +1113,66 @@ document.getElementById('orderCustomerFilter').addEventListener('change', loadOr
 document.getElementById('orderRefreshBtn').addEventListener('click', loadOrders);
 
 window.addEventListener('greensmart:open-orders-for-customer', async (event) => {
+    const inquiryId = event.detail?.inquiryId;
     const customerId = event.detail?.customerId;
     if (!customerId) return;
-    await loadOrderCustomers();
-    document.getElementById('orderCustomerFilter').value = customerId;
     document.querySelector('.tab-btn[data-tab="orders"]')?.click();
+    await loadProductsForOrderLines();
+    await loadOrderCustomers();
+    document.getElementById('orderCustomerSelect').value = customerId;
+    updateOrderCustomerEmail();
+    document.getElementById('orderCustomerFilter').value = customerId;
     await loadOrders();
+    const existing = inquiryId
+        ? await apiFetch(`/api/orders?inquiryId=${encodeURIComponent(inquiryId)}&pageSize=1`)
+        : { items: [] };
+    const linkedOrder = existing.items?.[0] || null;
+    setOrderInquiryContext(event.detail, linkedOrder);
+    if (linkedOrder) {
+        await viewOrder(linkedOrder.id);
+        return;
+    }
+    const product = findInquiryProduct(event.detail?.product);
+    const qty = parseInquiryQuantity(event.detail?.quantity);
+    document.getElementById('orderLinesContainer').innerHTML = '';
+    orderLineCount = 0;
+    addOrderLine({ productId: product?.id || '', qty });
+    updateOrderTotalPreview();
+    setOrderMergeTarget(allOrders.find((order) => order.status === 'quoted') || null);
 });
 
 const DOCUMENT_TYPE_LABEL = { quote: '报价单', pi: '形式发票 (PI)', packing_list: '装箱单', invoice: '商业发票 (CI)' };
-const ACTION_LABEL = { confirm: '确认订单（收定金）', mark_paid: '标记全款已付', close: '结案', mark_lost: '标记流失' };
+const ACTION_LABEL = { confirm: '确认订单', close: '结案', mark_lost: '标记流失' };
 // Mirrors the backend's DOCUMENT_RULES/ACTION_RULES in functions/api/orders —
 // kept here only to decide which buttons to show; the server re-validates.
 const DOC_ALLOWED_FROM = {
-    quote: ['quoted'], pi: ['quoted', 'pi_issued'], packing_list: ['confirmed', 'packing_ready'], invoice: ['packing_ready', 'invoiced']
+    pi: ['quoted', 'pi_issued'], invoice: ['packing_ready', 'invoiced']
 };
 const ACTION_ALLOWED_FROM = {
-    confirm: ['pi_issued'], mark_paid: ['invoiced'], close: ['paid'],
+    confirm: ['pi_issued'], close: ['paid'],
     mark_lost: ['quoted', 'pi_issued', 'confirmed', 'packing_ready', 'invoiced']
 };
 
 let activeOrderId = '';
+
+function renderOrderRowActions(order) {
+    const actions = Object.keys(ACTION_LABEL)
+        .filter((action) => ACTION_ALLOWED_FROM[action].includes(order.status))
+        .map((action) => `<button type="button" class="btn-compact" data-order-action="${action}" data-order-id="${order.id}">${ORDER_ACTION_SHORT_LABEL[action]}</button>`);
+    const documents = Object.keys(DOCUMENT_ACTION_SHORT_LABEL)
+        .filter((type) => DOC_ALLOWED_FROM[type]?.includes(order.status))
+        .map((type) => `<button type="button" class="btn-compact btn-outline" data-issue-doc="${type}" data-order-id="${order.id}">${documentActionLabel(type, order.status)}</button>`);
+    return actions.length || documents.length ? `<div class="row-actions">${actions.join('')}${documents.join('')}</div>` : '<span class="muted">-</span>';
+}
+
+function documentMailSummary(doc) {
+    const attempted = doc.mailAttemptedAt ? String(doc.mailAttemptedAt).slice(0, 16).replace('T', ' ') : '';
+    const accepted = doc.mailSentAt ? String(doc.mailSentAt).slice(0, 16).replace('T', ' ') : '';
+    if (doc.mailStatus === 'sending') return '<span class="muted mail-status-sending">发送中' + (attempted ? ' · 最近尝试 ' + escapeHtml(attempted) : '') + '</span>';
+    if (doc.mailStatus === 'accepted' || doc.mailStatus === 'sent') return '<span class="muted mail-status-accepted">邮件服务已接受 · ' + escapeHtml(doc.mailTo || '未记录收件人') + (accepted ? ' · ' + escapeHtml(accepted) : '') + '</span>';
+    if (doc.mailStatus === 'failed') return '<span class="muted mail-status-failed">发送失败' + (doc.mailError ? '：' + escapeHtml(doc.mailError) : '') + (attempted ? ' · 最近尝试 ' + escapeHtml(attempted) : '') + '</span>';
+    return '<span class="muted">未发送</span>';
+}
 
 async function viewOrder(orderId) {
     activeOrderId = orderId;
@@ -900,25 +1184,105 @@ async function viewOrder(orderId) {
         const order = res.item;
         document.getElementById('orderDetailTitle').textContent = `报价 / 订单 ${order.orderNo}`;
         document.getElementById('orderDetailMeta').textContent =
-            `状态：${orderStatusLabel[order.status] || order.status} | 币种：${order.currency} | 总额：${fmtMoney(order.totalAmount)} | 行数：${order.lines.length}`;
+            `${order.inquiryIds?.length ? `来源询盘：${order.inquiryIds.length === 1 ? compactInquiryRef(order.inquiryIds[0]) : `${order.inquiryIds.length} 条`} | ` : ''}状态：${orderStatusLabel[order.status] || order.status} | 币种：${order.currency} | 总额：${fmtMoney(order.totalAmount)} | 行数：${order.lines.length}`;
 
-        const actionButtons = Object.keys(ACTION_LABEL)
-            .filter((action) => ACTION_ALLOWED_FROM[action].includes(order.status))
-            .map((action) => `<button type="button" class="btn-compact" data-order-action="${action}">${ACTION_LABEL[action]}</button>`)
-            .join('');
-        document.getElementById('orderActionButtons').innerHTML = actionButtons || '<span class="muted">当前状态无可执行操作</span>';
+        document.getElementById('fulfillmentProductionStatusInput').value = order.productionStatus || 'not_started';
+        document.getElementById('fulfillmentExpectedDeliveryInput').value = order.expectedDeliveryDate || '';
+        document.getElementById('fulfillmentEstimatedShipmentInput').value = order.estimatedShipmentDate || '';
+        document.getElementById('fulfillmentActualShipmentInput').value = order.actualShipmentDate || '';
+        const fulfillment = fulfillmentState(order);
+        const fulfillmentReadOnly = ['closed', 'lost'].includes(order.status);
+        document.getElementById('orderFulfillmentHint').innerHTML = fulfillmentReadOnly
+            ? `<span class="fulfillment-pill ${fulfillment.className}">${escapeHtml(fulfillment.label)}</span> · 已结案/已流失订单仅供查看`
+            : `<span class="fulfillment-pill ${fulfillment.className}">${escapeHtml(fulfillment.label)}</span> · ${escapeHtml(PRODUCTION_STATUS_LABEL[order.productionStatus] || '未排产')}`;
+        document.getElementById('orderFulfillmentForm').classList.toggle('hidden', fulfillmentReadOnly);
+        setFulfillmentFeedback('');
 
-        const docButtons = Object.keys(DOCUMENT_TYPE_LABEL)
-            .filter((type) => DOC_ALLOWED_FROM[type].includes(order.status))
-            .map((type) => `<button type="button" class="btn-compact btn-outline" data-issue-doc="${type}">出具${DOCUMENT_TYPE_LABEL[type]}</button>`)
-            .join('');
-        document.getElementById('orderDocButtons').innerHTML = docButtons || '<span class="muted">当前状态无可出具文档</span>';
+        const payments = order.payments || [];
+        const receivedTotal = payments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+        document.getElementById('orderPaymentForm').dataset.orderTotal = String(Number(order.totalAmount || 0));
+        document.getElementById('orderPaymentSummary').textContent = `已收 ${order.currency} ${fmtMoney(receivedTotal)} · 未收 ${order.currency} ${fmtMoney(Math.max(0, Number(order.totalAmount || 0) - receivedTotal))}`;
+        document.getElementById('orderPaymentList').innerHTML = payments.length ? payments.map((payment) => `<li><strong>${payment.type === 'deposit' ? '定金' : payment.type === 'balance' ? '尾款' : '全款'} · ${escapeHtml(payment.currency)} ${fmtMoney(payment.amount)}</strong> · ${escapeHtml(payment.receivedAt)}${payment.referenceNo ? ` · ${escapeHtml(payment.referenceNo)}` : ''}${payment.note ? `<br><span class="muted">${escapeHtml(payment.note)}</span>` : ''}</li>`).join('') : '<li class="muted">暂无收款记录</li>';
+        const paymentForm = document.getElementById('orderPaymentForm');
+        const canRecordPayment = ['confirmed', 'packing_ready', 'invoiced', 'paid'].includes(order.status) && receivedTotal < Number(order.totalAmount || 0);
+        paymentForm.classList.toggle('hidden', !canRecordPayment);
+        document.getElementById('orderPaymentHint').textContent = canRecordPayment
+            ? '按实际到账登记定金、尾款或全款；系统会自动汇总未收金额。'
+            : receivedTotal >= Number(order.totalAmount || 0)
+                ? '该订单已收清，无需继续登记。'
+                : '请先确认订单，再登记定金或后续收款。';
+        if (canRecordPayment) document.getElementById('paymentDateInput').value = new Date().toISOString().slice(0, 10);
+
+        const financial = order.financial || {};
+        const profit = order.profit;
+        const financialLocked = Boolean(financial.lockedAt);
+        const canLockFinancials = ['paid', 'closed'].includes(order.status) && !financialLocked;
+        const financialForm = document.getElementById('orderFinancialForm');
+        const financeInputs = [
+            'financialProductCostInput', 'financialFreightInput', 'financialBankFeeInput',
+            'financialOtherFeeInput', 'financialNoteInput'
+        ];
+        const fillValue = (value) => value === null || value === undefined ? '' : Number(value).toFixed(2);
+        document.getElementById('financialProductCostInput').value = fillValue(financialLocked ? financial.actualProductCost : profit?.totalCost);
+        document.getElementById('financialFreightInput').value = fillValue(financialLocked ? financial.actualFreight : profit?.freight);
+        document.getElementById('financialBankFeeInput').value = fillValue(financialLocked ? financial.bankFee : 0);
+        document.getElementById('financialOtherFeeInput').value = fillValue(financialLocked ? financial.otherFee : 0);
+        document.getElementById('financialNoteInput').value = financial.note || '';
+        financeInputs.forEach((id) => { document.getElementById(id).disabled = financialLocked; });
+        financialForm.querySelector('button[type="submit"]').disabled = financialLocked;
+        financialForm.classList.toggle('hidden', !canLockFinancials && !financialLocked);
+        const financialSummary = document.getElementById('orderFinancialSummary');
+        financialSummary.textContent = profit?.ok
+            ? `${financialLocked ? '已锁定实际利润' : '当前预计利润'}：${order.currency} ${fmtMoney(profit.profit)} · 利润率 ${profit.marginPercent ?? '-'}%`
+            : '成本数据不完整，暂无法计算利润';
+        document.getElementById('orderFinancialHint').textContent = financialLocked
+            ? `已于 ${String(financial.lockedAt).slice(0, 16).replace('T', ' ')} 锁定实际成本与费用；统计看板将固定采用该数据。`
+            : canLockFinancials
+                ? `请核对实际产品成本、运费、银行手续费与其他费用（均为 ${order.currency}），锁定后不可直接修改。`
+                : '订单收清后可录入并锁定实际成本与费用；当前显示的是供应商价目和物流资料的动态估算。';
+
+        const shipping = order.shipping || {};
+        document.getElementById('shippingForwarderInput').value = shipping.forwarder || '';
+        document.getElementById('shippingForwarderContactInput').value = shipping.forwarderContact || '';
+        document.getElementById('shippingBookingNoInput').value = shipping.bookingNo || '';
+        document.getElementById('shippingBookingDateInput').value = shipping.bookingDate || '';
+        document.getElementById('shippingContainerTypeInput').value = shipping.containerType || '';
+        document.getElementById('shippingContainerNoInput').value = shipping.containerNo || '';
+        document.getElementById('shippingSealNoInput').value = shipping.sealNo || '';
+        document.getElementById('shippingVesselVoyageInput').value = shipping.vesselVoyage || '';
+        document.getElementById('shippingCustomsNoInput').value = shipping.customsNo || '';
+        document.getElementById('shippingCustomsDateInput').value = shipping.customsDate || '';
+        document.getElementById('shippingOriginPortInput').value = shipping.originPort || '';
+        document.getElementById('shippingDestinationPortInput').value = shipping.destinationPort || '';
+        document.getElementById('shippingMarksInput').value = shipping.shippingMarks || '';
+        document.getElementById('shippingActualShipmentDateInput').value = shipping.actualShipmentDate || order.actualShipmentDate || '';
+        document.getElementById('shippingFreightAmountInput').value = shipping.freightAmount ?? '';
+        document.getElementById('shippingFreightCurrencyInput').value = shipping.freightCurrency || order.currency || 'USD';
+        document.getElementById('shippingFreightRefInput').value = shipping.freightRef || '';
+        document.getElementById('shippingForwarderNoteInput').value = shipping.forwarderNote || '';
+        await loadShippingPortOptions(shipping.originPort, shipping.destinationPort);
+        const shippingReadOnly = ['closed', 'lost'].includes(order.status);
+        document.getElementById('orderShippingForm').classList.toggle('hidden', shippingReadOnly);
+        const canIssuePackingList = ['confirmed', 'packing_ready'].includes(order.status);
+        document.getElementById('issuePackingListBtn').classList.toggle('hidden', !canIssuePackingList);
+        document.getElementById('orderShippingHint').textContent = shippingReadOnly
+            ? '已结案/已流失订单仅供查看，物流资料不能再修改。'
+            : canIssuePackingList
+                ? '保存后将固定写入下一版装箱单。'
+                : '确认订单后可出具装箱单；产品包装规格仅在装箱单中使用。';
 
         const docList = document.getElementById('orderDocList');
         docList.innerHTML = (order.documents || []).map((doc) => `<li>
             <span class="doc-badge">${escapeHtml(DOCUMENT_TYPE_LABEL[doc.type] || doc.type)}</span>
+            ${Number(doc.snapshot?.snapshotVersion || 0) >= 2 ? '<span class="doc-badge doc-badge-frozen">资料已冻结</span>' : ''}
+            ${doc.status === 'voided' ? '<span class="doc-badge doc-badge-voided">已作废</span>' : ''}
             ${escapeHtml(doc.docNo)} · v${doc.version} · ${escapeHtml(String(doc.issuedAt).slice(0, 16).replace('T', ' '))}
+            <span class="muted">${doc.status === 'voided'
+                ? `作废原因：${escapeHtml(doc.voidReason || '-')} · ${escapeHtml(String(doc.voidedAt || '').slice(0, 16).replace('T', ' '))}`
+                : documentMailSummary(doc)}</span>
             <button type="button" class="btn-compact btn-outline" data-preview-doc="${doc.id}" data-doc-type="${escapeHtml(doc.type)}">预览</button>
+            ${doc.status === 'voided' ? '' : `<button type="button" class="btn-compact" data-send-doc="${doc.id}" ${doc.mailStatus === 'sending' ? 'disabled' : ''}>${['sent', 'accepted'].includes(doc.mailStatus) ? '再次发送' : '发送邮件'}</button>`}
+            ${doc.status === 'active' && !['sent', 'accepted', 'sending'].includes(doc.mailStatus) ? `<button type="button" class="btn-compact btn-danger" data-void-doc="${doc.id}">作废</button>` : ''}
         </li>`).join('') || '<li class="muted">暂无文档</li>';
     } catch (error) {
         document.getElementById('orderDetailTitle').textContent = '加载失败';
@@ -926,32 +1290,189 @@ async function viewOrder(orderId) {
     }
 }
 
-document.getElementById('orderRows').addEventListener('click', (event) => {
-    const id = event.target.dataset.viewOrder;
-    if (id) viewOrder(id);
-});
-
-document.getElementById('orderActionButtons').addEventListener('click', async (event) => {
-    const action = event.target.dataset.orderAction;
-    if (!action || !activeOrderId) return;
+document.getElementById('orderRows').addEventListener('click', async (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const actionButton = target.closest('button[data-order-action], button[data-issue-doc]');
+    const row = target.closest('tr[data-order-id]');
+    const orderId = actionButton?.dataset.orderId || row?.dataset.orderId;
+    if (!orderId) return;
+    if (!actionButton) {
+        viewOrder(orderId);
+        return;
+    }
     try {
-        await apiFetch(`/api/orders/${activeOrderId}/transition`, { method: 'POST', body: JSON.stringify({ action }) });
-        viewOrder(activeOrderId);
-        loadOrders();
+        if (actionButton.dataset.orderAction) {
+            await apiFetch(`/api/orders/${orderId}/transition`, { method: 'POST', body: JSON.stringify({ action: actionButton.dataset.orderAction }) });
+        } else if (actionButton.dataset.issueDoc) {
+            await apiFetch(`/api/orders/${orderId}/documents`, { method: 'POST', body: JSON.stringify({ type: actionButton.dataset.issueDoc }) });
+        }
+        await viewOrder(orderId);
+        await loadOrders();
     } catch (error) {
         alert(error.message);
     }
 });
 
-document.getElementById('orderDocButtons').addEventListener('click', async (event) => {
-    const type = event.target.dataset.issueDoc;
-    if (!type || !activeOrderId) return;
+document.getElementById('orderPaymentForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!activeOrderId) return;
     try {
-        await apiFetch(`/api/orders/${activeOrderId}/documents`, { method: 'POST', body: JSON.stringify({ type }) });
-        viewOrder(activeOrderId);
-        loadOrders();
+        await apiFetch(`/api/orders/${activeOrderId}/payments`, {
+            method: 'POST',
+            body: JSON.stringify({
+                type: document.getElementById('paymentTypeInput').value,
+                amount: document.getElementById('paymentAmountInput').value,
+                receivedAt: document.getElementById('paymentDateInput').value,
+                referenceNo: document.getElementById('paymentReferenceInput').value.trim(),
+                note: document.getElementById('paymentNoteInput').value.trim()
+            })
+        });
+        document.getElementById('orderPaymentForm').reset();
+        await viewOrder(activeOrderId);
+        await loadOrders();
     } catch (error) {
         alert(error.message);
+    }
+});
+
+document.getElementById('orderFinancialForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!activeOrderId) return;
+    if (!window.confirm('锁定后将作为该订单的实际利润依据，不能直接修改。确认锁定吗？')) return;
+    try {
+        await apiFetch(`/api/orders/${activeOrderId}/financials/lock`, {
+            method: 'POST',
+            body: JSON.stringify({
+                actualProductCost: document.getElementById('financialProductCostInput').value,
+                actualFreight: document.getElementById('financialFreightInput').value,
+                bankFee: document.getElementById('financialBankFeeInput').value,
+                otherFee: document.getElementById('financialOtherFeeInput').value,
+                note: document.getElementById('financialNoteInput').value.trim()
+            })
+        });
+        await viewOrder(activeOrderId);
+        await loadOrders();
+    } catch (error) {
+        alert(error.message);
+    }
+});
+
+document.getElementById('orderFulfillmentForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!activeOrderId) return;
+    try {
+        await apiFetch(`/api/orders/${activeOrderId}/fulfillment`, {
+            method: 'POST',
+            body: JSON.stringify({
+                productionStatus: document.getElementById('fulfillmentProductionStatusInput').value,
+                expectedDeliveryDate: document.getElementById('fulfillmentExpectedDeliveryInput').value,
+                estimatedShipmentDate: document.getElementById('fulfillmentEstimatedShipmentInput').value,
+                actualShipmentDate: document.getElementById('fulfillmentActualShipmentInput').value
+            })
+        });
+        await viewOrder(activeOrderId);
+        await loadOrders();
+    } catch (error) {
+        setFulfillmentFeedback(error.message || '履约节点保存失败，请检查后重试。');
+    }
+});
+
+document.getElementById('orderPaymentForm').addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-payment-percent]');
+    if (!button) return;
+    const total = Number(document.getElementById('orderPaymentForm').dataset.orderTotal || 0);
+    const percent = Number(button.dataset.paymentPercent || 0);
+    if (!Number.isFinite(total) || total <= 0 || !Number.isFinite(percent) || percent <= 0) return;
+    document.getElementById('paymentAmountInput').value = (total * percent / 100).toFixed(2);
+});
+
+function getShippingPayload() {
+    return {
+        forwarder: document.getElementById('shippingForwarderInput').value.trim(),
+        forwarderContact: document.getElementById('shippingForwarderContactInput').value.trim(),
+        bookingNo: document.getElementById('shippingBookingNoInput').value.trim(),
+        bookingDate: document.getElementById('shippingBookingDateInput').value,
+        containerType: document.getElementById('shippingContainerTypeInput').value,
+        containerNo: document.getElementById('shippingContainerNoInput').value.trim(),
+        sealNo: document.getElementById('shippingSealNoInput').value.trim(),
+        vesselVoyage: document.getElementById('shippingVesselVoyageInput').value.trim(),
+        customsNo: document.getElementById('shippingCustomsNoInput').value.trim(),
+        customsDate: document.getElementById('shippingCustomsDateInput').value,
+        originPort: document.getElementById('shippingOriginPortInput').value.trim(),
+        destinationPort: document.getElementById('shippingDestinationPortInput').value.trim(),
+        shippingMarks: document.getElementById('shippingMarksInput').value.trim(),
+        actualShipmentDate: document.getElementById('shippingActualShipmentDateInput').value,
+        freightAmount: document.getElementById('shippingFreightAmountInput').value,
+        freightCurrency: document.getElementById('shippingFreightCurrencyInput').value.trim(),
+        freightRef: document.getElementById('shippingFreightRefInput').value.trim(),
+        forwarderNote: document.getElementById('shippingForwarderNoteInput').value.trim()
+    };
+}
+
+async function saveOrderShipping() {
+    if (!activeOrderId) return;
+    await apiFetch(`/api/orders/${activeOrderId}/shipping`, { method: 'POST', body: JSON.stringify({ shipping: getShippingPayload() }) });
+}
+
+async function loadShippingPortOptions(selectedOrigin = '', selectedDestination = '') {
+    const renderOptions = (id, ports, selectedValue, placeholder) => {
+        const values = [...new Set([...ports, selectedValue].filter(Boolean))]
+            .sort((a, b) => a.localeCompare(b));
+        const select = document.getElementById(id);
+        select.innerHTML = `<option value="">${placeholder}</option>${values
+            .map((port) => `<option value="${escapeHtml(port)}">${escapeHtml(port)}</option>`)
+            .join('')}`;
+        select.value = selectedValue || '';
+    };
+    try {
+        const result = await apiFetch('/api/freight-rates');
+        const rates = result.items || [];
+        renderOptions('shippingOriginPortInput', rates.map((rate) => rate.originPort), selectedOrigin, '起运港（可选）');
+        renderOptions('shippingDestinationPortInput', rates.map((rate) => rate.destinationPort), selectedDestination, '目的港（可选）');
+    } catch {
+        // Keep saved values usable when the freight-rate list is unavailable.
+        renderOptions('shippingOriginPortInput', [], selectedOrigin, '起运港（可选）');
+        renderOptions('shippingDestinationPortInput', [], selectedDestination, '目的港（可选）');
+    }
+}
+
+document.getElementById('orderShippingForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    try {
+        await saveOrderShipping();
+        await viewOrder(activeOrderId);
+    } catch (error) {
+        alert(error.message);
+    }
+});
+
+document.getElementById('issuePackingListBtn').addEventListener('click', async () => {
+    if (!activeOrderId) return;
+    try {
+        await saveOrderShipping();
+        await apiFetch(`/api/orders/${activeOrderId}/documents`, { method: 'POST', body: JSON.stringify({ type: 'packing_list' }) });
+        await viewOrder(activeOrderId);
+        await loadOrders();
+    } catch (error) {
+        alert(error.message);
+    }
+});
+
+document.getElementById('loadFreightRateBtn').addEventListener('click', async () => {
+    const origin = document.getElementById('shippingOriginPortInput').value.trim();
+    const destination = document.getElementById('shippingDestinationPortInput').value.trim();
+    const containerType = document.getElementById('shippingContainerTypeInput').value;
+    if (!origin || !destination || !containerType) {
+        alert('请先填写起运港、目的港并选择柜型。');
+        return;
+    }
+    try {
+        const result = await apiFetch(`/api/freight-rates/latest?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&containerType=${encodeURIComponent(containerType)}`);
+        document.getElementById('shippingFreightAmountInput').value = Number(result.item.rate).toFixed(2);
+        document.getElementById('shippingFreightCurrencyInput').value = result.item.currency || 'USD';
+    } catch (error) {
+        alert(`未找到可用的参考运费：${error.message}`);
     }
 });
 
@@ -975,8 +1496,37 @@ async function openDocumentPreview(docId, docType) {
 }
 
 document.getElementById('orderDocList').addEventListener('click', async (event) => {
-    const docId = event.target.dataset.previewDoc;
-    if (docId) openDocumentPreview(docId, event.target.dataset.docType);
+    const target = event.target;
+    const previewDocId = target.dataset.previewDoc;
+    const sendDocId = target.dataset.sendDoc;
+    const voidDocId = target.dataset.voidDoc;
+    if (previewDocId) openDocumentPreview(previewDocId, target.dataset.docType);
+    if (sendDocId) {
+        try {
+            await apiFetch(`/api/orders/${activeOrderId}/documents/${sendDocId}/send`, { method: 'POST' });
+            await viewOrder(activeOrderId);
+        } catch (error) {
+            alert(error.message);
+        }
+    }
+    if (voidDocId) {
+        const reason = window.prompt('请输入作废原因（必填）：');
+        if (reason === null) return;
+        if (!reason.trim()) {
+            alert('请填写作废原因。');
+            return;
+        }
+        if (!window.confirm('作废后保留编号和历史快照，可预览但不能发送邮件。确认作废吗？')) return;
+        try {
+            await apiFetch(`/api/orders/${activeOrderId}/documents/${voidDocId}/void`, {
+                method: 'POST',
+                body: JSON.stringify({ reason: reason.trim() })
+            });
+            await viewOrder(activeOrderId);
+        } catch (error) {
+            alert(error.message);
+        }
+    }
 });
 
 document.getElementById('documentPreviewPrintBtn').addEventListener('click', () => {
@@ -1000,7 +1550,12 @@ function erpDateRangeQuery() {
     const params = new URLSearchParams();
     if (from) params.set('from', from);
     if (to) params.set('to', to);
+    params.set('currency', document.getElementById('erpReportingCurrency').value || 'USD');
     return params.toString();
+}
+
+function fmtReportMoney(value, currency) {
+    return `${currency || 'USD'} ${fmtMoney(value)}`;
 }
 
 async function loadErpDashboard() {
@@ -1012,9 +1567,20 @@ async function loadErpDashboard() {
 
     try {
         const summary = await apiFetch(withRange('/api/dashboard/summary'));
+        const currency = summary.reportingCurrency || document.getElementById('erpReportingCurrency').value || 'USD';
         document.getElementById('erpKpiOrders').textContent = summary.committedOrderCount;
-        document.getElementById('erpKpiRevenue').textContent = fmtMoney(summary.revenue);
-        document.getElementById('erpKpiProfit').textContent = fmtMoney(summary.profit);
+        document.getElementById('erpKpiRevenue').textContent = fmtReportMoney(summary.revenue, currency);
+        document.getElementById('erpKpiFreight').textContent = fmtReportMoney(summary.freight || 0, currency);
+        document.getElementById('erpKpiProfit').textContent = fmtReportMoney(summary.profit, currency);
+        document.getElementById('erpKpiRevenueLabel').textContent = `总收入（${currency}）`;
+        document.getElementById('erpKpiFreightLabel').textContent = `实际运费（${currency}）`;
+        document.getElementById('erpKpiProfitLabel').textContent = `总利润（${currency}）`;
+        const exclusions = [];
+        if (summary.missingPaymentCount) exclusions.push(`${summary.missingPaymentCount} 张已完成订单未登记收款`);
+        if (summary.missingRateCount) exclusions.push(`${summary.missingRateCount} 张订单缺少约定汇率`);
+        document.getElementById('erpDashboardNotice').textContent = exclusions.length
+            ? `已按 ${currency} 统计；${exclusions.join('，')}，暂未计入金额合计。`
+            : `已按 ${currency} 统一统计金额与利润：已完成订单取实际收款，进行中订单取约定汇率。`;
         document.getElementById('erpKpiMargin').textContent = fmtPercent(summary.marginPercent);
         document.getElementById('erpKpiWinRate').textContent = fmtPercent(summary.winRate);
         document.getElementById('erpKpiQuoted').textContent = summary.quotedCount || 0;
@@ -1025,30 +1591,34 @@ async function loadErpDashboard() {
 
     try {
         const profit = await apiFetch(withRange('/api/dashboard/profit'));
+        const currency = profit.reportingCurrency || document.getElementById('erpReportingCurrency').value || 'USD';
         const rows = document.getElementById('profitTrendRows');
         const items = profit.items || [];
         rows.innerHTML = items.length ? items.map((row) => `<tr>
             <td>${escapeHtml(row.month)}</td>
             <td>${row.orderCount}</td>
-            <td>${fmtMoney(row.revenue)}</td>
-            <td>${fmtMoney(row.cost)}</td>
-            <td>${fmtMoney(row.profit)}</td>
+            <td>${fmtReportMoney(row.revenue, currency)}</td>
+            <td>${fmtReportMoney(row.cost, currency)}</td>
+            <td>${fmtReportMoney(row.freight || 0, currency)}</td>
+            <td>${fmtReportMoney(row.fees || 0, currency)}</td>
+            <td>${fmtReportMoney(row.profit, currency)}</td>
             <td>${fmtPercent(row.marginPercent)}</td>
-        </tr>`).join('') : '<tr><td colspan="6" class="muted">暂无数据</td></tr>';
+        </tr>`).join('') : '<tr><td colspan="8" class="muted">暂无数据</td></tr>';
     } catch (error) {
         console.error(error);
     }
 
     try {
         const customers = await apiFetch(withRange('/api/dashboard/customers?limit=10', true));
+        const currency = customers.reportingCurrency || document.getElementById('erpReportingCurrency').value || 'USD';
         const rows = document.getElementById('customerAnalysisRows');
         const items = customers.items || [];
         rows.innerHTML = items.length ? items.map((row) => `<tr>
             <td>${escapeHtml(row.customerName)}${row.company ? ` (${escapeHtml(row.company)})` : ''}</td>
             <td>${escapeHtml(row.country || '-')}</td>
             <td>${row.orderCount}</td>
-            <td>${fmtMoney(row.revenue)}</td>
-            <td>${fmtMoney(row.profit)}</td>
+            <td>${fmtReportMoney(row.revenue, currency)}</td>
+            <td>${fmtReportMoney(row.profit, currency)}</td>
         </tr>`).join('') : '<tr><td colspan="5" class="muted">暂无数据</td></tr>';
     } catch (error) {
         console.error(error);
@@ -1056,14 +1626,15 @@ async function loadErpDashboard() {
 
     try {
         const countries = await apiFetch(withRange('/api/dashboard/countries'));
+        const currency = countries.reportingCurrency || document.getElementById('erpReportingCurrency').value || 'USD';
         const rows = document.getElementById('countryAnalysisRows');
         const items = countries.items || [];
         rows.innerHTML = items.length ? items.map((row) => `<tr>
             <td>${escapeHtml(row.country)}</td>
             <td>${row.customerCount}</td>
             <td>${row.orderCount}</td>
-            <td>${fmtMoney(row.revenue)}</td>
-            <td>${fmtMoney(row.profit)}</td>
+            <td>${fmtReportMoney(row.revenue, currency)}</td>
+            <td>${fmtReportMoney(row.profit, currency)}</td>
             <td>${fmtPercent(row.marginPercent)}</td>
         </tr>`).join('') : '<tr><td colspan="6" class="muted">暂无数据</td></tr>';
     } catch (error) {
@@ -1072,13 +1643,14 @@ async function loadErpDashboard() {
 
     try {
         const products = await apiFetch(withRange('/api/dashboard/products'));
+        const currency = products.reportingCurrency || document.getElementById('erpReportingCurrency').value || 'USD';
         const rows = document.getElementById('productAnalysisRows');
         const items = products.items || [];
         rows.innerHTML = items.length ? items.map((row) => `<tr>
             <td>${escapeHtml(row.productName)}</td>
             <td>${row.orderCount}</td>
-            <td>${fmtMoney(row.revenue)}</td>
-            <td>${fmtMoney(row.profit)}</td>
+            <td>${fmtReportMoney(row.revenue, currency)}</td>
+            <td>${fmtReportMoney(row.profit, currency)}</td>
             <td>${fmtPercent(row.marginPercent)}</td>
         </tr>`).join('') : '<tr><td colspan="5" class="muted">暂无数据</td></tr>';
     } catch (error) {
