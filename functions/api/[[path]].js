@@ -999,6 +999,14 @@ async function handleMailTest(env) {
 }
 
 async function routeAdmin(request, env, path, waitUntil) {
+  // 后台凭据安全预检：仅后台路由需要 JWT_SECRET/ADMIN_EMAIL/ADMIN_PASSWORD。
+  // 公开接口（health/public-config/inquiries）不应被后台凭据缺失拦截。
+  const securityIssues = getSecurityConfigIssues(env);
+  if (securityIssues.length) {
+    console.error(`[config] Missing or insecure admin values: ${securityIssues.join(', ')}`);
+    return json({ ok: false, error: 'Server security configuration is incomplete.' }, { status: 500 });
+  }
+
   if (path === '/api/admin/auth/login' && request.method === 'POST') {
     await ensureBootstrap(env);
     return handleLogin(request, env);
@@ -1080,11 +1088,6 @@ export async function onRequest(context) {
   const { request, env, waitUntil } = context;
   if (!env.DB) {
     return json({ ok: false, error: 'D1 binding DB is not configured.' }, { status: 500 });
-  }
-  const securityIssues = getSecurityConfigIssues(env);
-  if (securityIssues.length) {
-    console.error(`[config] Missing or insecure values: ${securityIssues.join(', ')}`);
-    return json({ ok: false, error: 'Server security configuration is incomplete.' }, { status: 500 });
   }
 
   const url = new URL(request.url);

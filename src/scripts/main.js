@@ -246,6 +246,44 @@ document.addEventListener('DOMContentLoaded', async function () {
         trigger.textContent = `${labels.slice(0, 2).join(' / ')} +${labels.length - 2}`;
     }
 
+    // 从产品库（/api/public-products）动态填充询盘表单的产品下拉，与 ERP 产品库保持同步。
+    // value 用产品库稳定 id（prod_gs_*），询盘入库后可通过 product 字段精确关联产品。
+    // 保留 HTML 中硬编码的 "Other / custom inquiry" 兜底项；接口失败时静默回退到现有硬编码选项。
+    async function populateProductOptions() {
+        if (!productMultiSelect) return;
+        const menu = productMultiSelect.querySelector('[data-multi-select-menu]');
+        if (!menu) return;
+
+        try {
+            const response = await fetch('/api/public-products');
+            const result = await response.json();
+            const items = response.ok && Array.isArray(result.items) ? result.items : [];
+            if (!items.length) return;
+
+            const options = items.map((item) => {
+                const id = String(item.id || '').trim();
+                const title = String(item.title || item.name || '').trim();
+                if (!id || !title) return '';
+                return `<label class="multi-select-option">` +
+                    `<input type="checkbox" name="product" value="${escapePublishedProductText(id)}">` +
+                    `<span>${escapePublishedProductText(title)}</span>` +
+                    `</label>`;
+            }).join('');
+
+            if (!options) return;
+
+            // 保留现有 "Other / custom inquiry"（value="other"）项
+            const fallbackOption = Array.from(menu.querySelectorAll('input[name="product"]'))
+                .find((input) => input.value === 'other')?.closest('label');
+
+            menu.innerHTML = options;
+            if (fallbackOption) menu.appendChild(fallbackOption);
+        } catch (error) {
+            // 接口失败：保留 HTML 硬编码选项，不影响表单可用性
+            console.warn('Product options could not be loaded; using static fallback.', error);
+        }
+    }
+
     function initProductMultiSelect() {
         if (!productMultiSelect) {
             return;
@@ -481,7 +519,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         });
     });
 
-    initProductMultiSelect();
+    populateProductOptions().finally(initProductMultiSelect);
     initTurnstile();
 
     function escapePublishedProductText(value) {
