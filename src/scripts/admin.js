@@ -766,9 +766,16 @@ inquiryRows?.addEventListener('click', async (event) => {
     if (role === 'save-row-status') {
         const statusSelect = inquiryRows.querySelector(`select[data-role="row-status"][data-id="${inquiryId}"]`);
         if (!(statusSelect instanceof HTMLSelectElement)) return;
+        const nextStatus = statusSelect.value;
+        if (nextStatus === 'won' || nextStatus === 'lost') {
+            const hint = nextStatus === 'lost'
+                ? '标记流失后，关联的未收款订单将一并标记为流失。此操作可逆。'
+                : '确认将该询盘标记为已成交？';
+            if (!confirm(hint)) return;
+        }
         target.setAttribute('disabled', 'disabled');
         try {
-            await patchInquiry(inquiryId, { status: statusSelect.value });
+            await patchInquiry(inquiryId, { status: nextStatus });
         } catch (error) {
             alert(error.message);
         } finally {

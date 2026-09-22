@@ -1303,7 +1303,13 @@ document.getElementById('orderRows').addEventListener('click', async (event) => 
     }
     try {
         if (actionButton.dataset.orderAction) {
-            await apiFetch(`/api/orders/${orderId}/transition`, { method: 'POST', body: JSON.stringify({ action: actionButton.dataset.orderAction }) });
+            const action = actionButton.dataset.orderAction;
+            if (action === 'mark_lost') {
+                if (!confirm('标记流失后，关联的未成交询盘将一并标记为流失。确认继续？')) return;
+            } else if (action === 'close') {
+                if (!confirm('结案后订单进入终态，不能再修改或发出新单据，但可继续查看详情与历史单据。确认结案？')) return;
+            }
+            await apiFetch(`/api/orders/${orderId}/transition`, { method: 'POST', body: JSON.stringify({ action }) });
         } else if (actionButton.dataset.issueDoc) {
             await apiFetch(`/api/orders/${orderId}/documents`, { method: 'POST', body: JSON.stringify({ type: actionButton.dataset.issueDoc }) });
         }

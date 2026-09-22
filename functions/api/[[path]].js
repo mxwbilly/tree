@@ -757,6 +757,10 @@ async function handleDeleteInquiry(env, inquiryId) {
   const inquiry = await getInquiry(env, inquiryId);
   if (!inquiry) return json({ ok: false, error: 'Inquiry not found.' }, { status: 404 });
 
+  if (String(inquiry.status || '') === 'won') {
+    return json({ ok: false, error: '已成交询盘不可删除。' }, { status: 409 });
+  }
+
   const linkedOrder = await env.DB.prepare(`
     SELECT sales_orders.order_no
     FROM sales_order_inquiries
@@ -886,7 +890,34 @@ async function handlePatchInquiry(request, env, auth, inquiryId) {
   await saveInquiryJson(env, inquiry);
   await appendActivityLog(env, { type: 'inquiry.updated', actorId: auth.sub, targetId: inquiry.id, payload: { status: inquiry.status } });
 
+  if (inquiry.status === 'lost') {
+    await cascadeLostToOrders(env, auth, inquiry.id);
+  }
+
   return json({ ok: true, item: inquiry });
+}
+
+async function cascadeLostToOrders(env, auth, inquiryId) {
+  const { results: links } = await env.DB.prepare(`
+    SELECT sales_orders.id, sales_orders.order_no, sales_orders.status
+    FROM sales_order_inquiries
+    JOIN sales_orders ON sales_orders.id = sales_order_inquiries.order_id
+    WHERE sales_order_inquiries.inquiry_id = ?
+  `).bind(inquiryId).all();
+
+  const OPEN_STATUSES = new Set(['quoted', 'pi_issued', 'confirmed', 'packing_ready', 'invoiced']);
+  const statements = [];
+  for (const row of links || []) {
+    if (!OPEN_STATUSES.has(row.status)) continue;
+    statements.push(
+      env.DB.prepare('UPDATE sales_orders SET status = ?, updated_at = ? WHERE id = ?')
+        .bind('lost', nowIso(), row.id),
+      env.DB.prepare('INSERT INTO activity_logs (id, type, actor_id, target_id, payload_json, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+        .bind(newId('log'), 'order.lost_cascaded', auth.sub, row.id, JSON.stringify({ inquiryId }), nowIso())
+    );
+  }
+
+  if (statements.length) await env.DB.batch(statements);
 }
 
 async function handleMailStatus(env) {

@@ -592,7 +592,7 @@ async function handleUpdateFulfillmentTimeline(request, env, id) {
   return handleOrderDetail(env, id);
 }
 
-async function handleTransition(request, env, id) {
+async function handleTransition(request, env, auth, id) {
   const existing = await env.DB.prepare('SELECT * FROM sales_orders WHERE id = ?').bind(id).first();
   if (!existing) return json({ ok: false, error: 'Order not found.' }, { status: 404 });
 
@@ -613,7 +613,35 @@ async function handleTransition(request, env, id) {
       .bind(rule.nextStatus, now, id).run();
   }
 
+  if (action === 'mark_lost') {
+    await cascadeLostToInquiries(env, auth, id, existing.order_no, now);
+  }
+
   return handleOrderDetail(env, id);
+}
+
+async function cascadeLostToInquiries(env, auth, orderId, orderNo, now) {
+  const { results: links } = await env.DB.prepare(`
+    SELECT inquiries.id, inquiries.status, inquiries.timeline_json
+    FROM sales_order_inquiries
+    JOIN inquiries ON inquiries.id = sales_order_inquiries.inquiry_id
+    WHERE sales_order_inquiries.order_id = ?
+  `).bind(orderId).all();
+
+  const statements = [];
+  for (const row of links || []) {
+    if (row.status === 'won' || row.status === 'lost') continue;
+    const timeline = parseJson(row.timeline_json, []);
+    timeline.push({ at: now, type: 'lost', actorId: auth.sub, note: `Marked lost because linked order ${orderNo} was lost.` });
+    statements.push(
+      env.DB.prepare('UPDATE inquiries SET status = ?, timeline_json = ?, updated_at = ? WHERE id = ?')
+        .bind('lost', JSON.stringify(timeline), now, row.id),
+      env.DB.prepare('INSERT INTO activity_logs (id, type, actor_id, target_id, payload_json, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+        .bind(newId('log'), 'inquiry.lost_cascaded', auth.sub, row.id, JSON.stringify({ orderId, orderNo }), now)
+    );
+  }
+
+  if (statements.length) await env.DB.batch(statements);
 }
 
 async function handleCreatePayment(request, env, auth, orderId) {
@@ -853,7 +881,7 @@ export async function onRequest(context) {
 
   const transitionMatch = path.match(/^\/api\/orders\/([^/]+)\/transition$/);
   if (transitionMatch && request.method === 'POST') {
-    return handleTransition(request, env, decodeURIComponent(transitionMatch[1]));
+    return handleTransition(request, env, auth, decodeURIComponent(transitionMatch[1]));
   }
 
   const paymentCollectionMatch = path.match(/^\/api\/orders\/([^/]+)\/payments$/);
