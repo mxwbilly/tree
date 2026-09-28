@@ -121,54 +121,54 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
 
         const en = {
-            title: 'Procurement Execution Pack',
-            desc: 'Share MOQ ladder, lead-time plan, and RFQ template in the first reply to reduce back-and-forth.',
+            title: 'Procurement Quick Reference',
+            desc: 'Check MOQ tiers, lead times, and download the RFQ template to plan your order with confidence.',
             moqTitle: 'MOQ Ladder Reference',
             leadTitle: 'Lead-Time and Planning Notes',
             fileTitle: 'RFQ Template Download',
             fileRows: [
                 'Includes key fields: product, size, quantity, destination port, timeline, packing, and terms.',
-                'Can be sent directly to buyers and reused for faster internal quoting.',
-                'Recommend attaching template version and quote validity in every offer.'
+                'Fill in product, quantity, and destination port to receive a formal quote within one business day.',
+                'Every quote reply includes packing details and a clear price validity period.'
             ],
             ctaFile: 'Download RFQ Template (CSV)'
         };
         const vi = {
-            title: 'Bo tai lieu thuc thi mua hang',
-            desc: 'Gui moc MOQ, ke hoach lead time, va mau RFQ ngay lan phan hoi dau de giam trao doi qua lai.',
+            title: 'Thong tin tham khao mua hang nhanh',
+            desc: 'Xem moc MOQ, lead time va tai mau RFQ de lap ke hoach dat hang mot cach chu dong.',
             moqTitle: 'Moc MOQ tham chieu',
             leadTitle: 'Ghi chu lead time va lap ke hoach',
             fileTitle: 'Tai mau RFQ',
             fileRows: [
                 'Da gom truong cot loi: san pham, kich thuoc, so luong, cang dich, tien do, dong goi, va dieu khoan.',
-                'Co the gui truc tiep cho nguoi mua va dung lai de bao gia noi bo nhanh hon.',
-                'Nen gui kem phien ban mau va thoi han hieu luc bao gia.'
+                'Dien san pham, so luong va cang dich de nhan bao gia chinh thuc trong mot ngay lam viec.',
+                'Moi bao gia tra ve deu kem thong tin dong goi va thoi han hieu luc gia ro rang.'
             ],
             ctaFile: 'Tai mau RFQ (CSV)'
         };
         const th = {
-            title: 'ชุดเอกสารปฏิบัติการจัดซื้อ',
-            desc: 'ส่งช่วง MOQ, แผน lead time และเทมเพลต RFQ ตั้งแต่การตอบครั้งแรก เพื่อลดการคุยวนซ้ำ.',
+            title: 'ข้อมูลอ้างอิงการจัดซื้อสำหรับผู้ซื้อ',
+            desc: 'ตรวจสอบช่วง MOQ, lead time และดาวน์โหลดเทมเพลต RFQ เพื่อวางแผนการสั่งซื้อได้อย่างมั่นใจ',
             moqTitle: 'ช่วง MOQ อ้างอิง',
             leadTitle: 'หมายเหตุ lead time และการวางแผน',
             fileTitle: 'ดาวน์โหลดเทมเพลต RFQ',
             fileRows: [
                 'มีฟิลด์สำคัญครบ: สินค้า, ขนาด, จำนวน, ท่าเรือปลายทาง, timeline, แพ็กกิ้ง และเงื่อนไข.',
-                'ส่งให้ผู้ซื้อกรอกได้ทันที และใช้ต่อสำหรับออกใบเสนอราคาในทีม.',
-                'แนะนำให้แนบเวอร์ชันเทมเพลตและวันหมดอายุราคาในทุกใบเสนอราคา.'
+                'กรอกสินค้า จำนวน และท่าเรือปลายทาง เพื่อรับใบเสนอราคาอย่างเป็นทางการภายในหนึ่งวันทำการ',
+                'ใบเสนอราคาทุกฉบับระบุรายละเอียดการแพ็กและระยะเวลาอายุราคาชัดเจน'
             ],
             ctaFile: 'ดาวน์โหลดเทมเพลต RFQ (CSV)'
         };
         const id = {
-            title: 'Paket Eksekusi Pengadaan',
-            desc: 'Kirim tangga MOQ, rencana lead time, dan template RFQ pada balasan pertama untuk mengurangi bolak-balik.',
+            title: 'Referensi Cepat Pengadaan',
+            desc: 'Cek jenjang MOQ, lead time, dan unduh template RFQ untuk merencanakan pesanan dengan percaya diri.',
             moqTitle: 'Referensi Tangga MOQ',
             leadTitle: 'Catatan Lead Time dan Perencanaan',
             fileTitle: 'Unduh Template RFQ',
             fileRows: [
                 'Mencakup field inti: produk, ukuran, jumlah, pelabuhan tujuan, timeline, kemasan, dan ketentuan.',
-                'Bisa langsung dikirim ke pembeli dan dipakai ulang agar penawaran internal lebih cepat.',
-                'Disarankan menyertakan versi template dan masa berlaku harga di setiap penawaran.'
+                'Isi produk, jumlah, dan pelabuhan tujuan untuk menerima penawaran resmi dalam satu hari kerja.',
+                'Setiap penawaran kami sertakan detail kemasan dan masa berlaku harga yang jelas.'
             ],
             ctaFile: 'Unduh Template RFQ (CSV)'
         };
