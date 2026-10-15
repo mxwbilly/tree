@@ -103,6 +103,13 @@ export function expiredSessionCookie(request) {
 }
 
 export async function requireAuth(request, env, roles = []) {
+  // 本地开发开关：仅当 LOCAL_NO_AUTH 环境变量存在时跳过鉴权。
+  // 该变量只配置在 .dev.vars（wrangler pages dev 本地运行），生产环境不会加载，
+  // 因此生产鉴权不受影响。
+  if (String(env?.LOCAL_NO_AUTH || '').trim() === '1') {
+    return { auth: { sub: 'local-dev', role: 'admin', email: 'local-dev@example.com', name: 'Local Dev' } };
+  }
+
   const token = getRequestToken(request);
   if (!token) {
     return { response: jsonUnauthorized('Missing authorization token.') };

@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS customers (
   consignee_address TEXT,
   notify_party_name TEXT,
   notify_party_address TEXT,
+  contact_role TEXT,
   internal_notes TEXT,
   source TEXT,
   inquiry_count INTEGER NOT NULL DEFAULT 0,
@@ -36,6 +37,21 @@ CREATE TABLE IF NOT EXISTS customers (
 );
 
 CREATE INDEX IF NOT EXISTS idx_customers_created_at ON customers(created_at);
+
+CREATE TABLE IF NOT EXISTS contacts (
+  id TEXT PRIMARY KEY,
+  customer_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  email TEXT,
+  phone TEXT,
+  role TEXT,
+  is_primary INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_contacts_customer_id ON contacts(customer_id);
 
 CREATE TABLE IF NOT EXISTS inquiries (
   id TEXT PRIMARY KEY,

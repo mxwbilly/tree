@@ -11,7 +11,7 @@ const dataPath = path.join(root, '.wrangler', 'qa-schema');
 const requiredTables = [
     'users', 'customers', 'inquiries', 'settings', 'activity_logs', 'suppliers',
     'products', 'supplier_price_tiers', 'exchange_rates', 'freight_rates',
-    'sales_orders', 'payments', 'sales_order_inquiries', 'documents'
+    'sales_orders', 'payments', 'sales_order_inquiries', 'documents', 'contacts'
 ];
 
 function runWrangler(args) {
@@ -47,6 +47,9 @@ try {
         .forEach((column) => assertContains(documentColumns, `"name": "${column}"`, 'document void column check'));
     ['mail_attempted_at', 'mail_error']
         .forEach((column) => assertContains(documentColumns, `"name": "${column}"`, 'document mail tracking column check'));
+    const contactColumns = runWrangler([...commonArgs, '--command', 'PRAGMA table_info(contacts);']);
+    ['customer_id', 'name', 'email', 'phone', 'role', 'is_primary']
+        .forEach((column) => assertContains(contactColumns, `"name": "${column}"`, 'contact column check'));
 
     const seedSql = [
         "INSERT INTO customers (id, email, name, inquiry_count, created_at, updated_at) VALUES ('qa_customer', 'qa@example.test', 'QA Buyer', 0, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z');",

@@ -546,6 +546,38 @@
         .erp-form textarea {
             grid-column: 1 / -1;
         }
+        /* 表单内 textarea 默认一行高（覆盖全局 min-height:90px） */
+        .erp-form label.span-full textarea { min-height: 0; height: auto; }
+        /* 客户表单：字段名显示在输入框上方 */
+        .erp-form label {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #37474f;
+        }
+        .erp-form label .lbl { display: flex; align-items: center; }
+        .erp-form label > input,
+        .erp-form label > select,
+        .erp-form label > textarea {
+            font-weight: 400;
+        }
+        .erp-form label .req { color: #d32f2f; margin-left: 3px; }
+        .erp-form label.span-full { grid-column: 1 / -1; }
+        /* 勾选型 label：横排、不换行 */
+        .erp-form label.chk {
+            flex-direction: row;
+            align-items: center;
+            gap: 6px;
+            grid-column: 1 / -1;
+            justify-content: flex-start;
+            font-weight: 500;
+        }
+        .erp-form label.chk input[type="checkbox"] { width: auto; margin: 0; }
+        /* 联系人区块：占满表单整行，内部纵向排列，不参与 erp-form 的格子横排 */
+        #formContactsBox { grid-column: 1 / -1; display: block; }
+        #formContactsBox .erp-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
         .detail-summary {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -862,28 +894,45 @@
             <div id="customerEditorParking" class="hidden">
                 <form id="customerForm" class="erp-form">
                     <input type="hidden" id="customerIdInput">
-                    <input id="customerNameInput" type="text" placeholder="客户姓名（必填）" required>
-                    <input id="customerEmailInput" type="email" placeholder="邮箱（必填）" required>
-                    <input id="customerCompanyInput" type="text" placeholder="公司名称">
-                    <input id="customerCountryInput" type="text" placeholder="国家/地区">
-                    <input id="customerPhoneInput" type="text" placeholder="电话/WhatsApp">
-                    <input id="customerCurrencyInput" type="text" placeholder="默认币种，如 USD" value="USD" maxlength="3">
-                    <select id="customerIncotermInput" aria-label="默认贸易条款">
-                        <option value="">默认贸易条款（可选）</option>
+                    <label><span class="lbl">客户姓名<i class="req">*</i></span><input id="customerNameInput" type="text" placeholder="必填" required></label>
+                    <label><span class="lbl">邮箱<i class="req">*</i></span><input id="customerEmailInput" type="email" placeholder="必填" required></label>
+                    <label>公司名称<input id="customerCompanyInput" type="text" placeholder="可选"></label>
+                    <label>国家/地区<input id="customerCountryInput" type="text" placeholder="可选"></label>
+                    <label>联系人角色<select id="customerRoleInput">
+                        <option value="">（可选）</option>
+                        <option value="purchasing">采购 / Purchasing</option>
+                        <option value="technical">技术 / Technical</option>
+                        <option value="finance">财务 / Finance</option>
+                        <option value="logistics">物流 / Logistics</option>
+                        <option value="decision_maker">决策人 / Decision Maker</option>
+                        <option value="other">其他 / Other</option>
+                    </select></label>
+                    <label>电话/WhatsApp<input id="customerPhoneInput" type="text" placeholder="可选"></label>
+                    <label>默认币种<input id="customerCurrencyInput" type="text" placeholder="如 USD" value="USD" maxlength="3"></label>
+                    <label>默认贸易条款<select id="customerIncotermInput">
+                        <option value="">（可选）</option>
                         <option value="EXW">EXW</option><option value="FCA">FCA</option><option value="FOB">FOB</option>
                         <option value="CFR">CFR</option><option value="CIF">CIF</option><option value="DAP">DAP</option><option value="DDP">DDP</option>
-                    </select>
-                    <input id="customerPaymentTermsInput" type="text" placeholder="付款条款，如 30% T/T deposit">
-                    <input id="customerPortInput" type="text" placeholder="默认目的港/城市">
-                    <textarea id="customerAddressInput" placeholder="收货地址（可选）" rows="2"></textarea>
-                    <textarea id="customerBillingAddressInput" placeholder="账单地址（可选）" rows="2"></textarea>
-                    <input id="customerImporterNameInput" type="text" placeholder="进口商名称（可选）">
-                    <input id="customerImporterIdInput" type="text" placeholder="进口商税号/注册号（可选）">
-                    <input id="customerConsigneeNameInput" type="text" placeholder="收货人名称（可选）">
-                    <textarea id="customerConsigneeAddressInput" placeholder="收货人地址（可选）" rows="2"></textarea>
-                    <input id="customerNotifyPartyNameInput" type="text" placeholder="通知方名称（可选）">
-                    <textarea id="customerNotifyPartyAddressInput" placeholder="通知方地址（可选）" rows="2"></textarea>
-                    <textarea id="customerNotesInput" placeholder="内部备注：偏好、沟通事项等（仅后台可见）" rows="2"></textarea>
+                    </select></label>
+                    <label>付款条款<input id="customerPaymentTermsInput" type="text" placeholder="如 30% T/T deposit"></label>
+                    <label>默认目的港/城市<input id="customerPortInput" type="text" placeholder="可选"></label>
+                    <div class="detail-box" id="formContactsBox" style="margin-top:4px;grid-column:1/-1;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <h4 style="margin:0;">联系人（同公司多人，各自角色）</h4>
+                            <button type="button" class="btn-compact btn-outline" id="addContactBtn">+ 添加联系人</button>
+                        </div>
+                        <ul id="customerContactList" class="timeline-list" style="margin-top:8px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;list-style:none;padding:0;"></ul>
+                        <div id="contactEditorSlot" class="hidden" style="margin-top:8px;"></div>
+                    </div>
+                    <label class="span-full">收货地址<textarea id="customerAddressInput" placeholder="可选" rows="1"></textarea></label>
+                    <label class="span-full">账单地址<textarea id="customerBillingAddressInput" placeholder="可选" rows="1"></textarea></label>
+                    <label>进口商名称<input id="customerImporterNameInput" type="text" placeholder="可选"></label>
+                    <label>进口商税号/注册号<input id="customerImporterIdInput" type="text" placeholder="可选"></label>
+                    <label>收货人名称<input id="customerConsigneeNameInput" type="text" placeholder="可选"></label>
+                    <label class="span-full">收货人地址<textarea id="customerConsigneeAddressInput" placeholder="可选" rows="1"></textarea></label>
+                    <label>通知方名称<input id="customerNotifyPartyNameInput" type="text" placeholder="可选"></label>
+                    <label class="span-full">通知方地址<textarea id="customerNotifyPartyAddressInput" placeholder="可选" rows="1"></textarea></label>
+                    <label class="span-full">内部备注<textarea id="customerNotesInput" placeholder="偏好、沟通事项等（仅后台可见）" rows="1"></textarea></label>
                     <button id="customerSubmitBtn" type="submit">新建客户</button>
                     <button id="customerCancelEditBtn" type="button" class="btn-outline hidden">取消编辑</button>
                 </form>
@@ -1259,7 +1308,7 @@
             <iframe id="documentPreviewFrame" class="document-preview-frame" title="单据预览"></iframe>
         </div>
     </dialog>
-    <script src="src/scripts/admin.js?v=20260914-order-actions"></script>
-    <script src="src/scripts/erp-admin.js?v=20260915-image-paths"></script>
+    <script src="src/scripts/admin.js"></script>
+    <script src="src/scripts/erp-admin.js"></script>
 </body>
 </html>

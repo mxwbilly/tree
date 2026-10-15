@@ -241,6 +241,15 @@ document.getElementById('productRows').addEventListener('click', async (event) =
 
 // --- Customers ---------------------------------------------------------
 let allCustomers = [];
+let currentCustomerId = '';
+const CONTACT_ROLE_LABELS = {
+    purchasing: '采购',
+    technical: '技术',
+    finance: '财务',
+    logistics: '物流',
+    decision_maker: '决策人',
+    other: '其他'
+};
 
 async function loadCustomers(q) {
     const rows = document.getElementById('customerRows');
@@ -275,6 +284,12 @@ function resetCustomerForm() {
     document.getElementById('customerEmailInput').disabled = false;
     document.getElementById('customerSubmitBtn').textContent = '新建客户';
     document.getElementById('customerCancelEditBtn').classList.add('hidden');
+    // 新建客户时先隐藏联系人区块（需先保存客户拿到 id 才能加联系人）
+    currentCustomerId = '';
+    document.getElementById('formContactsBox').classList.add('hidden');
+    document.getElementById('contactEditorSlot').classList.add('hidden');
+    document.getElementById('contactEditorSlot').innerHTML = '';
+    document.getElementById('customerContactList').innerHTML = '';
     parking.appendChild(form);
     form.classList.add('hidden');
 }
@@ -282,8 +297,7 @@ function resetCustomerForm() {
 function showCustomerForm(slot, customer) {
     const form = document.getElementById('customerForm');
     if (customer) fillCustomerForm(customer);
-    else resetCustomerForm();
-    slot.appendChild(form);
+    else resetCustomerForm();    slot.appendChild(form);
     form.classList.remove('hidden');
 }
 
@@ -294,6 +308,7 @@ function fillCustomerForm(customer) {
     document.getElementById('customerEmailInput').disabled = true;
     document.getElementById('customerCompanyInput').value = customer.company || '';
     document.getElementById('customerCountryInput').value = customer.country || '';
+    document.getElementById('customerRoleInput').value = customer.contactRole || '';
     document.getElementById('customerPhoneInput').value = customer.phone || '';
     document.getElementById('customerCurrencyInput').value = customer.defaultCurrency || 'USD';
     document.getElementById('customerIncotermInput').value = customer.defaultIncoterm || '';
@@ -310,11 +325,19 @@ function fillCustomerForm(customer) {
     document.getElementById('customerNotesInput').value = customer.internalNotes || '';
     document.getElementById('customerSubmitBtn').textContent = '保存客户';
     document.getElementById('customerCancelEditBtn').classList.remove('hidden');
+    // 编辑客户时显示并加载该客户的联系人列表
+    currentCustomerId = customer.id;
+    document.getElementById('formContactsBox').classList.remove('hidden');
+    document.getElementById('customerContactList').innerHTML = '<li class="muted">加载中...</li>';
+    document.getElementById('contactEditorSlot').classList.add('hidden');
+    document.getElementById('contactEditorSlot').innerHTML = '';
+    refreshContacts().catch(() => { document.getElementById('customerContactList').innerHTML = '<li class="muted">联系人加载失败</li>'; });
 }
 
 async function viewCustomer(id) {
     const result = await apiFetch(`/api/customers/${encodeURIComponent(id)}`);
     const customer = result.item;
+    currentCustomerId = id;
     document.getElementById('customerDetailPanel').classList.remove('hidden');
     document.getElementById('customerDetailTitle').textContent = customer.name || '客户详情';
     document.getElementById('customerDetailMeta').textContent = [customer.company, customer.country, customer.phone, customer.email].filter(Boolean).join(' · ');
@@ -333,6 +356,86 @@ async function viewCustomer(id) {
     document.getElementById('customerOrderList').innerHTML = orders.length ? orders.map((item) => `<li><strong>${escapeHtml(item.orderNo)}</strong> · ${escapeHtml(item.status)} · ${escapeHtml(item.currency)} ${fmtMoney(item.totalAmount)}<br><span class="muted">${new Date(item.createdAt).toLocaleDateString()}</span></li>`).join('') : '<li>暂无订单记录</li>';
 }
 
+function contactRoleLabel(role) {
+    return CONTACT_ROLE_LABELS[role] || role || '-';
+}
+
+function renderContacts(contacts) {
+    const list = document.getElementById('customerContactList');
+    if (!contacts.length) {
+        list.innerHTML = '<li class="muted">暂无联系人，点击右上角「添加联系人」。</li>';
+        return;
+    }
+    list.innerHTML = contacts.map((contact) => {
+        const role = contactRoleLabel(contact.role);
+        const primaryBadge = contact.isPrimary ? '<span class="badge">主联系人</span> ' : '';
+        const detail = [contact.email, contact.phone].filter(Boolean).join(' · ');
+        // 网格 4 列卡片，减少纵向占用
+        return `<li style="display:flex;flex-direction:column;justify-content:space-between;gap:6px;border:1px solid var(--border,#e0e0e0);border-radius:8px;padding:8px 10px;background:var(--card,#fafafa);">
+            <span>${primaryBadge}<strong>${escapeHtml(contact.name)}</strong>${role !== '-' ? ` · <span class="muted">${escapeHtml(role)}</span>` : ''}${detail ? `<br><span class="muted" style="word-break:break-all;">${escapeHtml(detail)}</span>` : ''}</span>
+            <span class="row-actions" style="white-space:nowrap;">
+                <button type="button" class="btn-compact btn-outline" data-edit-contact="${contact.id}">编辑</button>
+                <button type="button" class="btn-compact btn-outline" data-del-contact="${contact.id}">删除</button>
+            </span>
+        </li>`;
+    }).join('');
+}
+
+function contactFormHtml(contact) {
+    const c = contact || {};
+    const roleOptions = ['', 'purchasing', 'technical', 'finance', 'logistics', 'decision_maker', 'other']
+        .map((value) => `<option value="${value}" ${(c.role || '') === value ? 'selected' : ''}>${value === '' ? '（可选）' : CONTACT_ROLE_LABELS[value]}</option>`)
+        .join('');
+    // 注意：联系人区块嵌在客户大表单(#customerForm)内，HTML 禁止表单嵌套，
+    // 内层 <form> 会被浏览器解析器丢弃导致布局竖排+提交失效，因此这里用 div 容器。
+    return `<div class="erp-form" id="contactForm" style="grid-template-columns:repeat(4,minmax(140px,1fr));align-items:end;gap:10px 12px;">
+        <input type="hidden" id="contactIdInput" value="${c.id || ''}">
+        <label><span class="lbl">姓名<i class="req">*</i></span><input id="contactNameInput" type="text" placeholder="必填" value="${escapeHtml(c.name || '')}" required></label>
+        <label><span class="lbl">邮箱</span><input id="contactEmailInput" type="email" placeholder="可选" value="${escapeHtml(c.email || '')}"></label>
+        <label><span class="lbl">电话/WhatsApp</span><input id="contactPhoneInput" type="text" placeholder="可选" value="${escapeHtml(c.phone || '')}"></label>
+        <label><span class="lbl">角色</span><select id="contactRoleInput">${roleOptions}</select></label>
+        <label class="chk"><input type="checkbox" id="contactPrimaryInput" ${c.isPrimary ? 'checked' : ''}> 设为主联系人</label>
+        <button id="contactSubmitBtn" type="button">${c.id ? '保存联系人' : '添加联系人'}</button>
+        <button id="contactCancelBtn" type="button" class="btn-outline">取消</button>
+    </div>`;
+}
+
+function showContactForm(contact) {
+    const slot = document.getElementById('contactEditorSlot');
+    slot.innerHTML = contactFormHtml(contact || null);
+    slot.classList.remove('hidden');
+    const cancel = document.getElementById('contactCancelBtn');
+    if (cancel) cancel.addEventListener('click', () => { slot.classList.add('hidden'); slot.innerHTML = ''; });
+}
+
+async function refreshContacts() {
+    if (!currentCustomerId) return;
+    const result = await apiFetch(`/api/contacts?customerId=${encodeURIComponent(currentCustomerId)}`);
+    renderContacts(result.items || []);
+}
+
+async function submitContactForm(event) {
+    event.preventDefault();
+    const id = document.getElementById('contactIdInput').value;
+    const body = {
+        customerId: currentCustomerId,
+        name: document.getElementById('contactNameInput').value.trim(),
+        email: document.getElementById('contactEmailInput').value.trim(),
+        phone: document.getElementById('contactPhoneInput').value.trim(),
+        role: document.getElementById('contactRoleInput').value,
+        isPrimary: document.getElementById('contactPrimaryInput').checked
+    };
+    try {
+        if (id) await apiFetch(`/api/contacts/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(body) });
+        else await apiFetch('/api/contacts', { method: 'POST', body: JSON.stringify(body) });
+        document.getElementById('contactEditorSlot').classList.add('hidden');
+        document.getElementById('contactEditorSlot').innerHTML = '';
+        await refreshContacts();
+    } catch (error) {
+        alert(error.message);
+    }
+}
+
 document.getElementById('customerForm').addEventListener('submit', async (event) => {
     event.preventDefault();
     const id = document.getElementById('customerIdInput').value;
@@ -341,6 +444,7 @@ document.getElementById('customerForm').addEventListener('submit', async (event)
         email: document.getElementById('customerEmailInput').value.trim(),
         company: document.getElementById('customerCompanyInput').value.trim(),
         country: document.getElementById('customerCountryInput').value.trim(),
+        contactRole: document.getElementById('customerRoleInput').value,
         phone: document.getElementById('customerPhoneInput').value.trim(),
         defaultCurrency: document.getElementById('customerCurrencyInput').value.trim(),
         defaultIncoterm: document.getElementById('customerIncotermInput').value,
@@ -392,6 +496,38 @@ document.getElementById('customerRows').addEventListener('click', async (event) 
     }
     if (viewId && !editId) {
         try { await viewCustomer(viewId); } catch (error) { alert(error.message); }
+    }
+});
+
+document.getElementById('addContactBtn').addEventListener('click', () => {
+    if (!currentCustomerId) { alert('请先选择一个客户查看详情。'); return; }
+    showContactForm(null);
+});
+
+document.getElementById('customerContactList').addEventListener('click', async (event) => {
+    const editBtn = event.target.closest('[data-edit-contact]');
+    const delBtn = event.target.closest('[data-del-contact]');
+    if (editBtn) {
+        const id = editBtn.dataset.editContact;
+        const result = await apiFetch(`/api/contacts?customerId=${encodeURIComponent(currentCustomerId)}`);
+        const contact = (result.items || []).find((item) => item.id === id);
+        if (contact) showContactForm(contact);
+    }
+    if (delBtn) {
+        const id = delBtn.dataset.delContact;
+        if (!confirm('确定删除该联系人？')) return;
+        try {
+            await apiFetch(`/api/contacts/${encodeURIComponent(id)}`, { method: 'DELETE' });
+            await refreshContacts();
+        } catch (error) {
+            alert(error.message);
+        }
+    }
+});
+
+document.getElementById('contactEditorSlot').addEventListener('click', async (event) => {
+    if (event.target && event.target.id === 'contactSubmitBtn') {
+        await submitContactForm(event);
     }
 });
 

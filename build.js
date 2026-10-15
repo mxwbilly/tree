@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const crypto = require('crypto');
 const esbuild = require('esbuild');
 
 const root = __dirname;
@@ -514,8 +515,35 @@ function listDistFiles(directory, prefix = '') {
   return files.sort((a, b) => a.localeCompare(b));
 }
 
-function writeBuildManifest(staticEntries) {
-  const manifestPath = path.join(dist, 'build-manifest.json');
+// 按内容哈希改写 HTML 中的 ?v= 版本参数：同文件内容变 → 哈希变 → 浏览器强制拉新
+function cacheBustAssets() {
+  const htmlFiles = listDistFiles(dist).filter((f) => f.endsWith('.html'));
+  const hashCache = new Map();
+  const hashOf = (rel) => {
+    if (!hashCache.has(rel)) {
+      const p = path.join(dist, rel);
+      hashCache.set(rel, fs.existsSync(p) ? crypto.createHash('md5').update(fs.readFileSync(p)).digest('hex').slice(0, 10) : null);
+    }
+    return hashCache.get(rel);
+  };
+  let count = 0;
+  for (const file of htmlFiles) {
+    const p = path.join(dist, file);
+    let html = fs.readFileSync(p, 'utf8');
+    const next = html.replace(/(["'(=])((?:src\/|assets\/)[^"'()=]+\.(?:js|css))(\?v=[^"'&]*)?/g, (m, lead, assetPath, existingV) => {
+      const rel = assetPath.replace(/^\.\//, '').replace(/^\//, '');
+      const hash = hashOf(rel);
+      if (!hash) return m;
+      if (existingV && existingV === `?v=${hash}`) return m;
+      count += 1;
+      return `${lead}${assetPath}?v=${hash}`;
+    });
+    if (next !== html) fs.writeFileSync(p, next, 'utf8');
+  }
+  return count;
+}
+
+function writeBuildManifest(staticEntries) {  const manifestPath = path.join(dist, 'build-manifest.json');
   const files = listDistFiles(dist).filter((entry) => entry !== 'build-manifest.json');
   const manifest = {
     discoveredStaticEntries: staticEntries,
@@ -555,6 +583,10 @@ async function build() {
   for (const entry of cssEntries) {
     await minifyCss(entry);
   }
+
+  // 4. 按内容哈希改写 ?v= 版本参数（内容一变 URL 自动变，根治浏览器缓存旧 JS）
+  const busted = cacheBustAssets();
+  if (busted > 0) console.log(`\n指缓存指纹已更新：改写 ${busted} 处 ?v= 引用`);
 
   writeBuildManifest(staticEntries);
 

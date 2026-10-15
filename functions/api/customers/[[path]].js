@@ -26,6 +26,7 @@ function normalizeCustomer(row) {
     consigneeAddress: row.consignee_address || '',
     notifyPartyName: row.notify_party_name || '',
     notifyPartyAddress: row.notify_party_address || '',
+    contactRole: row.contact_role || '',
     internalNotes: row.internal_notes || '',
     source: row.source || '',
     inquiryCount: row.inquiry_count,
@@ -85,6 +86,10 @@ async function handleDetail(env, id) {
     SELECT order_no, status, currency, total_amount, created_at
     FROM sales_orders WHERE customer_id = ? ORDER BY created_at DESC LIMIT 20
   `).bind(id).all();
+  const { results: contacts } = await env.DB.prepare(`
+    SELECT id, customer_id, name, email, phone, role, is_primary, created_at, updated_at
+    FROM contacts WHERE customer_id = ? ORDER BY is_primary DESC, created_at ASC
+  `).bind(id).all();
   const item = normalizeCustomer(row);
   item.inquiries = (inquiries || []).map((inquiry) => ({
     id: inquiry.id,
@@ -101,6 +106,17 @@ async function handleDetail(env, id) {
     totalAmount: Number(order.total_amount || 0),
     createdAt: order.created_at
   }));
+  item.contacts = (contacts || []).map((contact) => ({
+    id: contact.id,
+    customerId: contact.customer_id,
+    name: contact.name,
+    email: contact.email || '',
+    phone: contact.phone || '',
+    role: contact.role || '',
+    isPrimary: Number(contact.is_primary || 0) === 1,
+    createdAt: contact.created_at,
+    updatedAt: contact.updated_at
+  }));
   return json({ ok: true, item });
 }
 
@@ -116,8 +132,8 @@ async function handleCreate(request, env) {
   const id = newId('cust');
   const now = nowIso();
   await env.DB.prepare(`
-    INSERT INTO customers (id, email, name, phone, company, country, default_currency, default_incoterm, payment_terms, default_port, shipping_address, billing_address, importer_name, importer_id, consignee_name, consignee_address, notify_party_name, notify_party_address, internal_notes, source, inquiry_count, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+    INSERT INTO customers (id, email, name, phone, company, country, default_currency, default_incoterm, payment_terms, default_port, shipping_address, billing_address, importer_name, importer_id, consignee_name, consignee_address, notify_party_name, notify_party_address, contact_role, internal_notes, source, inquiry_count, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
   `).bind(
     id,
     email,
@@ -137,6 +153,7 @@ async function handleCreate(request, env) {
     String(body.consigneeAddress || '').trim(),
     String(body.notifyPartyName || '').trim(),
     String(body.notifyPartyAddress || '').trim(),
+    String(body.contactRole || '').trim(),
     String(body.internalNotes || '').trim(),
     String(body.source || 'manual').trim(),
     now,
@@ -169,16 +186,17 @@ async function handleUpdate(request, env, id) {
     consigneeAddress: typeof body.consigneeAddress === 'string' ? body.consigneeAddress.trim() : (existing.consignee_address || ''),
     notifyPartyName: typeof body.notifyPartyName === 'string' ? body.notifyPartyName.trim() : (existing.notify_party_name || ''),
     notifyPartyAddress: typeof body.notifyPartyAddress === 'string' ? body.notifyPartyAddress.trim() : (existing.notify_party_address || ''),
+    contactRole: typeof body.contactRole === 'string' ? body.contactRole.trim() : (existing.contact_role || ''),
     internalNotes: typeof body.internalNotes === 'string' ? body.internalNotes.trim() : (existing.internal_notes || '')
   };
 
   await env.DB.prepare(`
     UPDATE customers
     SET name = ?, phone = ?, company = ?, country = ?, default_currency = ?, default_incoterm = ?,
-      payment_terms = ?, default_port = ?, shipping_address = ?, billing_address = ?, importer_name = ?, importer_id = ?, consignee_name = ?, consignee_address = ?, notify_party_name = ?, notify_party_address = ?, internal_notes = ?, updated_at = ?
+      payment_terms = ?, default_port = ?, shipping_address = ?, billing_address = ?, importer_name = ?, importer_id = ?, consignee_name = ?, consignee_address = ?, notify_party_name = ?, notify_party_address = ?, contact_role = ?, internal_notes = ?, updated_at = ?
     WHERE id = ?
   `).bind(next.name, next.phone, next.company, next.country, next.defaultCurrency, next.defaultIncoterm,
-    next.paymentTerms, next.defaultPort, next.shippingAddress, next.billingAddress, next.importerName, next.importerId, next.consigneeName, next.consigneeAddress, next.notifyPartyName, next.notifyPartyAddress, next.internalNotes, nowIso(), id).run();
+    next.paymentTerms, next.defaultPort, next.shippingAddress, next.billingAddress, next.importerName, next.importerId, next.consigneeName, next.consigneeAddress, next.notifyPartyName, next.notifyPartyAddress, next.contactRole, next.internalNotes, nowIso(), id).run();
 
   return handleDetail(env, id);
 }
