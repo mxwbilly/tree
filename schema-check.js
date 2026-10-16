@@ -11,7 +11,7 @@ const dataPath = path.join(root, '.wrangler', 'qa-schema');
 const requiredTables = [
     'users', 'customers', 'inquiries', 'settings', 'activity_logs', 'suppliers',
     'products', 'supplier_price_tiers', 'exchange_rates', 'freight_rates',
-    'sales_orders', 'payments', 'sales_order_inquiries', 'documents', 'contacts'
+    'sales_orders', 'payments', 'sales_order_inquiries', 'documents', 'contacts', 'order_customs_items'
 ];
 
 function runWrangler(args) {
@@ -42,6 +42,8 @@ try {
     assertContains(orderColumns, '"name": "fulfillment_timeline_json"', 'fulfillment timeline column check');
     ['actual_product_cost', 'actual_freight', 'bank_fee', 'other_fee', 'financial_currency', 'financial_locked_at']
         .forEach((column) => assertContains(orderColumns, `"name": "${column}"`, 'order financial column check'));
+    ['quote_valid_days', 'quote_valid_until', 'quote_exchange_rate', 'quote_exchange_rate_date']
+        .forEach((column) => assertContains(orderColumns, `"name": "${column}"`, 'order quote validity column check'));
     const documentColumns = runWrangler([...commonArgs, '--command', 'PRAGMA table_info(documents);']);
     ['status', 'voided_at', 'voided_by', 'void_reason']
         .forEach((column) => assertContains(documentColumns, `"name": "${column}"`, 'document void column check'));

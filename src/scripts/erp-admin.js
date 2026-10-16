@@ -954,6 +954,33 @@ function parseInquiryQuantity(value) {
     return match ? Number(match[0]) : '';
 }
 
+// 忽略连字符/下划线差异的宽松 id 比较（询盘存 prod-gs-creative-001，产品库是 prod_gs_creative_001）。
+function normalizeProductKey(value) {
+    return String(value || '').trim().toLowerCase().replace(/[-_\s]+/g, '-');
+}
+
+// 根据询盘 product 字段（逗号分隔多选，如 "prod_gs_creative_001,other"）匹配产品库。
+// 返回匹配到的产品数组；other / 匹配不到的段跳过。
+function matchInquiryProducts(value) {
+    const matched = [];
+    const seen = new Set();
+    for (const raw of String(value || '').split(',')) {
+        const key = normalizeProductKey(raw);
+        if (!key || key === 'other' || key === 'custom' || key === 'custom inquiry') continue;
+        const product = orderProducts.find((p) => {
+            const candidates = [p.id, p.sku].map(normalizeProductKey).filter(Boolean);
+            const hit = candidates.some((c) => c === key);
+            if (hit && !seen.has(p.id)) {
+                seen.add(p.id);
+                return true;
+            }
+            return false;
+        });
+        if (product) matched.push(product);
+    }
+    return matched;
+}
+
 function findInquiryProduct(value) {
     const needle = String(value || '').trim().toLowerCase();
     if (!needle) return null;
@@ -1111,6 +1138,7 @@ function resetOrderDraft() {
     updateOrderCustomerEmail();
     document.getElementById('orderIncotermInput').value = '';
     document.getElementById('orderCurrencyInput').value = 'USD';
+    document.getElementById('orderQuoteValidDaysInput').value = '30';
     document.getElementById('orderExpectedDeliveryInput').value = '';
     document.getElementById('orderNotesInput').value = '';
     addOrderLine();
@@ -1128,6 +1156,7 @@ document.getElementById('createOrderBtn').addEventListener('click', async () => 
         customerId,
         currency: document.getElementById('orderCurrencyInput').value.trim() || 'USD',
         incoterm: document.getElementById('orderIncotermInput').value.trim(),
+        quoteValidDays: Number(document.getElementById('orderQuoteValidDaysInput').value) || 30,
         expectedDeliveryDate: document.getElementById('orderExpectedDeliveryInput').value,
         notes: document.getElementById('orderNotesInput').value.trim(),
         lines
@@ -1268,11 +1297,18 @@ window.addEventListener('greensmart:open-orders-for-customer', async (event) => 
         await viewOrder(linkedOrder.id);
         return;
     }
-    const product = findInquiryProduct(event.detail?.product);
+    // 根据询盘信息自动填充产品行：多选产品逐行填充，数量取询盘意向数量。
+    const matchedProducts = matchInquiryProducts(event.detail?.product);
     const qty = parseInquiryQuantity(event.detail?.quantity);
     document.getElementById('orderLinesContainer').innerHTML = '';
     orderLineCount = 0;
-    addOrderLine({ productId: product?.id || '', qty });
+    if (matchedProducts.length) {
+        matchedProducts.forEach((product) => addOrderLine({ productId: product.id, qty }));
+        // 全部匹配失败时回退旧的模糊匹配
+    } else {
+        const product = findInquiryProduct(event.detail?.product);
+        addOrderLine({ productId: product?.id || '', qty });
+    }
     updateOrderTotalPreview();
     setOrderMergeTarget(allOrders.find((order) => order.status === 'quoted') || null);
 });
@@ -1321,6 +1357,8 @@ async function viewOrder(orderId) {
         document.getElementById('orderDetailTitle').textContent = `报价 / 订单 ${order.orderNo}`;
         document.getElementById('orderDetailMeta').textContent =
             `${order.inquiryIds?.length ? `来源询盘：${order.inquiryIds.length === 1 ? compactInquiryRef(order.inquiryIds[0]) : `${order.inquiryIds.length} 条`} | ` : ''}状态：${orderStatusLabel[order.status] || order.status} | 币种：${order.currency} | 总额：${fmtMoney(order.totalAmount)} | 行数：${order.lines.length}`;
+
+        renderRateDeviation(order);
 
         document.getElementById('fulfillmentProductionStatusInput').value = order.productionStatus || 'not_started';
         document.getElementById('fulfillmentExpectedDeliveryInput').value = order.expectedDeliveryDate || '';
@@ -1408,6 +1446,7 @@ async function viewOrder(orderId) {
                 : '确认订单后可出具装箱单；产品包装规格仅在装箱单中使用。';
 
         const docList = document.getElementById('orderDocList');
+        renderCustomsItems(order);
         docList.innerHTML = (order.documents || []).map((doc) => `<li>
             <span class="doc-badge">${escapeHtml(DOCUMENT_TYPE_LABEL[doc.type] || doc.type)}</span>
             ${Number(doc.snapshot?.snapshotVersion || 0) >= 2 ? '<span class="doc-badge doc-badge-frozen">资料已冻结</span>' : ''}
@@ -1583,6 +1622,189 @@ document.getElementById('orderShippingForm').addEventListener('submit', async (e
     event.preventDefault();
     try {
         await saveOrderShipping();
+        await viewOrder(activeOrderId);
+    } catch (error) {
+        alert(error.message);
+    }
+});
+
+// —— 报关材料清单 ——
+const CUSTOMS_STATUS_LABEL = { pending: '待准备', ready: '已备齐', submitted: '已提交货代' };
+
+function renderRateDeviation(order) {
+    const el = document.getElementById('orderRateDeviationWarning');
+    const d = order.rateDeviation;
+    if (!d || !d.lockedRate) {
+        el.classList.add('hidden');
+        el.textContent = '';
+        return;
+    }
+    const pct = (d.deviation * 100).toFixed(2);
+    const sign = d.deviation >= 0 ? '+' : '';
+    el.classList.remove('hidden');
+    el.textContent = d.exceeded
+        ? `⚠ 汇率偏离提醒：报价锁定汇率 1 ${order.currency} = ${d.lockedRate} CNY（${d.lockedDate}），当前 ${d.currentRate} CNY（${d.currentDate}），偏离 ${sign}${pct}%，已超过 ±2% 阈值，建议与客户重新报价。`
+        : `汇率：锁定 ${d.lockedRate} CNY（${d.lockedDate}），当前 ${d.currentRate} CNY，偏离 ${sign}${pct}%（阈值 ±2%）。`;
+}
+
+function renderCustomsItems(order) {
+    const list = document.getElementById('orderCustomsList');
+    const hint = document.getElementById('orderCustomsHint');
+    const section = document.getElementById('orderCustomsSection');
+    const items = order.customsItems || [];
+    const readOnly = ['closed', 'lost'].includes(order.status);
+
+    const pendingCount = items.filter((item) => item.status === 'pending').length;
+    const submittedCount = items.filter((item) => item.status === 'submitted').length;
+    const docCoveredCount = items.filter((item) => item.linkedDoc).length;
+
+    hint.textContent = items.length
+        ? `${submittedCount}/${items.length} 已提交货代${docCoveredCount ? ` · ${docCoveredCount} 项可直接复用已出具单据` : ''}`
+        : '暂无材料，可点击「重置为默认模板」生成';
+
+    if (pendingCount > 0) {
+        hint.innerHTML = `<span class="customs-warning">⚠ 还有 ${pendingCount} 项未提交</span> · ${submittedCount}/${items.length} 已提交${docCoveredCount ? ` · ${docCoveredCount} 项可复用已出具单据` : ''}`;
+    }
+
+    // 出运阶段的软提醒
+    const softWarningEl = document.getElementById('orderCustomsSoftWarning');
+    const showWarning = !readOnly && items.length > 0 && pendingCount > 0 && order.productionStatus === 'ready_to_ship';
+    softWarningEl.classList.toggle('hidden', !showWarning);
+    if (showWarning) {
+        softWarningEl.textContent = `当前已「待出运」，但仍有 ${pendingCount} 项报关材料未提交货代，建议出运前补齐。`;
+    }
+
+    list.innerHTML = items.map((item) => {
+        const statusOptions = ['pending', 'ready', 'submitted']
+            .map((value) => `<option value="${value}" ${item.status === value ? 'selected' : ''}>${CUSTOMS_STATUS_LABEL[value]}</option>`)
+            .join('');
+        const meta = item.checkedAt
+            ? `<span class="customs-meta">${item.status === 'submitted' ? '已提交' : '已备齐'} · ${escapeHtml(String(item.checkedAt).slice(0, 10))}</span>`
+            : '';
+
+        // 版本选择：仅当存在多个可关联版本时显示下拉，否则固定展示徽标。
+        let docControl = '';
+        const versions = item.linkedDocs || [];
+        if (versions.length > 1) {
+            const versionOptions = versions
+                .map((v) => `<option value="${v.id}" ${v.id === item.linkedDocId ? 'selected' : ''}>v${v.version} · ${escapeHtml(v.docNo)}</option>`)
+                .join('');
+            docControl = `<select class="customs-doc-select" data-customs-item-id="${item.id}" ${readOnly ? 'disabled' : ''}>${versionOptions}</select>`;
+        } else if (item.linkedDoc) {
+            docControl = `<span class="doc-badge" title="系统已出具该单据，可直接使用">已有单据 ${escapeHtml(item.linkedDoc.docNo)} v${item.linkedDoc.version}</span>`;
+        }
+
+        return `<li class="customs-${item.status}">
+            <span class="customs-label">${escapeHtml(item.label)}</span>
+            ${docControl}
+            ${meta}
+            <select class="customs-status-select" data-customs-item-id="${item.id}" ${readOnly ? 'disabled' : ''}>${statusOptions}</select>
+            ${readOnly ? '' : `<button type="button" class="btn-compact btn-outline" data-del-customs-item="${item.id}">删</button>`}
+        </li>`;
+    }).join('');
+
+    // 增删按钮可见性
+    document.getElementById('addCustomsItemBtn').classList.toggle('hidden', readOnly);
+    document.getElementById('resetCustomsBtn').classList.toggle('hidden', readOnly);
+    if (readOnly) {
+        document.getElementById('orderCustomsAddSlot').classList.add('hidden');
+    }
+}
+
+async function updateCustomsItemStatus(itemId, status) {
+    if (!activeOrderId) return;
+    await apiFetch(`/api/orders/${activeOrderId}/customs/items/${itemId}`, {
+        method: 'PATCH', body: JSON.stringify({ status })
+    });
+}
+
+async function linkCustomsDoc(itemId, docId) {
+    if (!activeOrderId) return;
+    await apiFetch(`/api/orders/${activeOrderId}/customs/items/${itemId}/link`, {
+        method: 'POST', body: JSON.stringify({ docId: docId || '' })
+    });
+}
+
+async function deleteCustomsItem(itemId) {
+    if (!activeOrderId) return;
+    if (!confirm('确定删除这项报关材料吗？')) return;
+    await apiFetch(`/api/orders/${activeOrderId}/customs/items/${itemId}`, { method: 'DELETE' });
+}
+
+async function addCustomsItem(label) {
+    if (!activeOrderId) return;
+    await apiFetch(`/api/orders/${activeOrderId}/customs/items`, {
+        method: 'POST', body: JSON.stringify({ label })
+    });
+}
+
+async function resetCustomsChecklist() {
+    if (!activeOrderId) return;
+    if (!confirm('将清空当前清单并恢复为默认模板，已记录的提交状态会丢失，确定吗？')) return;
+    await apiFetch(`/api/orders/${activeOrderId}/customs`, {
+        method: 'POST', body: JSON.stringify({ force: true })
+    });
+}
+
+// 报关清单操作：事件委托
+document.getElementById('orderCustomsList').addEventListener('change', async (event) => {
+    const select = event.target.closest('.customs-status-select');
+    if (select) {
+        try {
+            await updateCustomsItemStatus(select.dataset.customsItemId, select.value);
+            await viewOrder(activeOrderId);
+        } catch (error) {
+            alert(error.message);
+        }
+        return;
+    }
+    const docSelect = event.target.closest('.customs-doc-select');
+    if (docSelect) {
+        try {
+            await linkCustomsDoc(docSelect.dataset.customsItemId, docSelect.value);
+            await viewOrder(activeOrderId);
+        } catch (error) {
+            alert(error.message);
+        }
+    }
+});
+
+document.getElementById('orderCustomsList').addEventListener('click', async (event) => {
+    const delBtn = event.target.closest('[data-del-customs-item]');
+    if (!delBtn) return;
+    try {
+        await deleteCustomsItem(delBtn.dataset.delCustomsItem);
+        await viewOrder(activeOrderId);
+    } catch (error) {
+        alert(error.message);
+    }
+});
+
+document.getElementById('addCustomsItemBtn').addEventListener('click', () => {
+    document.getElementById('orderCustomsAddSlot').classList.remove('hidden');
+    document.getElementById('customsNewItemLabelInput').value = '';
+});
+
+document.getElementById('customsNewItemCancelBtn').addEventListener('click', () => {
+    document.getElementById('orderCustomsAddSlot').classList.add('hidden');
+});
+
+document.getElementById('customsNewItemConfirmBtn').addEventListener('click', async () => {
+    const input = document.getElementById('customsNewItemLabelInput');
+    const label = input.value.trim();
+    if (!label) { alert('请输入材料名称。'); return; }
+    try {
+        await addCustomsItem(label);
+        document.getElementById('orderCustomsAddSlot').classList.add('hidden');
+        await viewOrder(activeOrderId);
+    } catch (error) {
+        alert(error.message);
+    }
+});
+
+document.getElementById('resetCustomsBtn').addEventListener('click', async () => {
+    try {
+        await resetCustomsChecklist();
         await viewOrder(activeOrderId);
     } catch (error) {
         alert(error.message);

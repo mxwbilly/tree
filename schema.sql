@@ -218,6 +218,10 @@ CREATE TABLE IF NOT EXISTS sales_orders (
   financial_locked_at TEXT,
   financial_locked_by TEXT,
   notes TEXT,
+  quote_valid_days INTEGER NOT NULL DEFAULT 30,
+  quote_valid_until TEXT,
+  quote_exchange_rate REAL,
+  quote_exchange_rate_date TEXT,
   created_by TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
@@ -246,6 +250,25 @@ CREATE TABLE IF NOT EXISTS payments (
 );
 
 CREATE INDEX IF NOT EXISTS idx_payments_order_id ON payments(order_id);
+
+-- 报关材料清单：订单出运阶段的逐项材料核对表（pending -> ready -> submitted）。
+CREATE TABLE IF NOT EXISTS order_customs_items (
+  id TEXT PRIMARY KEY,
+  order_id TEXT NOT NULL,
+  item_key TEXT NOT NULL,
+  label TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  checked_by TEXT,
+  checked_at TEXT,
+  note TEXT,
+  doc_id TEXT,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (order_id) REFERENCES sales_orders(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_order_customs_items_order_id ON order_customs_items(order_id);
 
 -- A quotation can consolidate several products requested by the same buyer.
 -- Each inquiry can be linked to at most one active quotation chain, while one

@@ -211,6 +211,14 @@ function renderTermsBlock(snapshot, buyer, shipping, isPackingList) {
       ['Port of Discharge', shipping?.destinationPort]
     ] : [])
   ].filter(([, value]) => value);
+  // 报价有效期与汇率锁定：仅价格型单据展示（snapshotVersion 3 起）。
+  if (!isPackingList && snapshot.quoteValidUntil) {
+    const days = snapshot.quoteValidityDays || '';
+    details.push(['Validity', `${days ? `${days} days · ` : ''}valid until ${snapshot.quoteValidUntil}`]);
+  }
+  if (!isPackingList && snapshot.exchangeRate && snapshot.currency && snapshot.currency !== 'CNY') {
+    details.push(['Exchange Rate Basis', `1 ${snapshot.currency} = ${fmt(snapshot.exchangeRate)} CNY${snapshot.exchangeRateDate ? ` (as of ${snapshot.exchangeRateDate})` : ''}`]);
+  }
   if (!details.length) return '';
   return `<div class="section-box"><h4>Trade &amp; Delivery Terms</h4><div class="terms-grid">${details.map(([label, value]) => `<div><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</div>`).join('')}</div></div>`;
 }

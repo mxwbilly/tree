@@ -3,6 +3,7 @@ import { requireAuth } from '../../_lib/auth.js';
 import { getCompanyInfo, getConfiguredCompanyInfo } from '../../_lib/company.js';
 import { renderDocumentHtml } from '../../_lib/document-renderer.js';
 import { computeCbm, computeProfitForOrder } from '../../_lib/calc-engine.js';
+import { getLatestExchangeRate } from '../../_lib/rates.js';
 import { sendEmailViaResend } from '../../_lib/mailer.js';
 
 // Issuing a document of `type` is only allowed while the order is in one of
@@ -27,6 +28,22 @@ const ACTION_RULES = {
 const DOC_NO_PREFIX = { quote: 'QT', pi: 'PI', packing_list: 'PL', invoice: 'INV' };
 const PRODUCTION_STATUSES = new Set(['not_started', 'in_production', 'quality_inspection', 'ready_to_ship', 'shipped']);
 const FULFILLMENT_TIMELINE_NODES = ['production', 'inspection', 'booking', 'customs', 'shipped'];
+
+// 报关材料通用模板：新订单在首次进入出运阶段时按此生成默认清单。
+// item_key 稳定标识（用于幂等生成），label 为展示名。
+const CUSTOMS_TEMPLATE = [
+  { key: 'commercial_invoice', label: '商业发票 Commercial Invoice' },
+  { key: 'packing_list', label: '装箱单 Packing List' },
+  { key: 'contract', label: '销售合同 Contract（客户签字盖章回传）' },
+  { key: 'customs_authorization', label: '报关委托书' },
+  { key: 'declaration_draft', label: '报关单草稿' },
+  { key: 'hs_code', label: 'HS 编码确认' },
+  { key: 'inspection_cert', label: '商检/检验证书（法定检验产品）' },
+  { key: 'origin_cert', label: '原产地证 CO / FORM A 等' },
+  { key: 'verification_form', label: '出口收汇核销单' },
+  { key: 'bill_of_lading', label: '提单 BL / 电放' }
+];
+const CUSTOMS_STATUSES = new Set(['pending', 'ready', 'submitted']);
 
 function normalizeOptionalDate(value) {
   const text = String(value ?? '').trim();
@@ -71,6 +88,10 @@ function normalizeOrder(row) {
     depositStatus: row.deposit_status,
     totalAmount: row.total_amount,
     notes: row.notes || '',
+    quoteValidDays: Number(row.quote_valid_days ?? 30),
+    quoteValidUntil: row.quote_valid_until || '',
+    quoteExchangeRate: row.quote_exchange_rate === null || row.quote_exchange_rate === undefined ? null : Number(row.quote_exchange_rate),
+    quoteExchangeRateDate: row.quote_exchange_rate_date || '',
     createdBy: row.created_by || null,
     createdAt: row.created_at,
     updatedAt: row.updated_at
@@ -117,6 +138,74 @@ function normalizeDocument(row) {
 function normalizePayment(row) {
   if (!row) return null;
   return { id: row.id, orderId: row.order_id, type: row.payment_type, amount: Number(row.amount || 0), currency: row.currency, receivedAt: row.received_at, referenceNo: row.reference_no || '', note: row.note || '', createdAt: row.created_at };
+}
+
+function normalizeCustomsItem(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    orderId: row.order_id,
+    itemKey: row.item_key,
+    label: row.label,
+    status: row.status || 'pending',
+    checkedBy: row.checked_by || null,
+    checkedAt: row.checked_at || null,
+    note: row.note || '',
+    docId: row.doc_id || null,
+    sortOrder: Number(row.sort_order || 0)
+  };
+}
+
+async function listCustomsItems(env, orderId) {
+  const { results } = await env.DB.prepare(
+    'SELECT * FROM order_customs_items WHERE order_id = ? ORDER BY sort_order ASC, created_at ASC'
+  ).bind(orderId).all();
+  return (results || []).map(normalizeCustomsItem);
+}
+
+// 清单项 ← 已出具文档的自动映射：系统单据可直接充当对应报关材料。
+const CUSTOMS_DOC_LINKS = {
+  packing_list: 'packing_list',      // 装箱单
+  commercial_invoice: 'invoice',     // 商业发票
+  contract: 'pi'                     // 销售合同 ← PI（形式发票即合同依据）
+};
+
+// 给清单项标注已出具的关联单据（取该类型最新一版有效单据）。
+// 给清单项标注可关联的已出具单据版本列表（同类型可能多版本），并回显用户已选版本。
+async function attachLinkedDocs(env, orderId, items) {
+  const { results } = await env.DB.prepare(
+    "SELECT id, type, doc_no, version, issued_at FROM documents WHERE order_id = ? AND status = 'active' ORDER BY issued_at ASC"
+  ).bind(orderId).all();
+  const byType = new Map();
+  for (const row of results || []) {
+    if (!byType.has(row.type)) byType.set(row.type, []);
+    byType.get(row.type).push(row);
+  }
+  return items.map((item) => {
+    const docType = CUSTOMS_DOC_LINKS[item.itemKey];
+    const versions = docType ? (byType.get(docType) || []) : [];
+    if (!versions.length) return item;
+    // 用户已选版本若仍有效则保留，否则回退到最新版。
+    const chosen = versions.find((v) => v.id === item.docId) || versions[versions.length - 1];
+    return {
+      ...item,
+      linkedDocs: versions.map((v) => ({ id: v.id, docNo: v.doc_no, version: v.version, issuedAt: v.issued_at })),
+      linkedDocId: chosen.id,
+      linkedDoc: { type: docType, docNo: chosen.doc_no, version: chosen.version, issuedAt: chosen.issued_at }
+    };
+  });
+}
+
+// 幂等生成默认报关清单：若订单尚无任何 customs item 则按模板补齐。
+async function ensureCustomsTemplate(env, orderId) {
+  const existing = await listCustomsItems(env, orderId);
+  if (existing.length) return existing;
+  const now = nowIso();
+  const stmts = CUSTOMS_TEMPLATE.map((item, index) => env.DB.prepare(
+    'INSERT INTO order_customs_items (id, order_id, item_key, label, status, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+  ).bind(newId('cst'), orderId, item.key, item.label, 'pending', index, now, now));
+  await env.DB.batch(stmts);
+  return listCustomsItems(env, orderId);
 }
 
 function normalizeFinancial(row) {
@@ -209,8 +298,28 @@ async function buildDocumentSnapshot(env, { order, customer, type, lines, notes 
   const packing = type === 'packing_list'
     ? await computeCbm(env, { lines: liveLines.map((line) => ({ productId: line.productId, qty: line.qty })) })
     : null;
+
+  // 报价有效期：由有效天数算出截止日期（出具日 + 天数 - 1 天）。
+  const validDays = Number(order.quote_valid_days ?? 30) || 30;
+  const today = nowIso().slice(0, 10);
+  const validUntil = addDays(today, validDays - 1);
+
+  // 汇率锁定：仅价格型单据（quote/pi）需要，锁定「报价币种 → 人民币」当天汇率。
+  let exchangeRate = null;
+  let exchangeRateDate = '';
+  if (type === 'quote' || type === 'pi') {
+    const currency = String(order.currency || '').trim().toUpperCase();
+    if (currency && currency !== 'CNY') {
+      const rate = await getLatestExchangeRate(env, currency, 'CNY', today);
+      if (rate && Number(rate.rate)) {
+        exchangeRate = Number(rate.rate);
+        exchangeRateDate = rate.effectiveDate || today;
+      }
+    }
+  }
+
   return {
-    snapshotVersion: 2,
+    snapshotVersion: 3,
     seller: freezeSeller(await getConfiguredCompanyInfo(env)),
     buyer: freezeBuyer(customer),
     order: {
@@ -225,9 +334,42 @@ async function buildDocumentSnapshot(env, { order, customer, type, lines, notes 
     currency: String(order.currency || ''),
     incoterm: String(order.incoterm || ''),
     totalAmount: Number(order.total_amount || 0),
+    quoteValidityDays: validDays,
+    quoteValidUntil: validUntil,
+    exchangeRate,
+    exchangeRateDate,
     shipping,
     packing,
     notes: String(notes || '')
+  };
+}
+
+// 计算「日期 + n 天」，返回 YYYY-MM-DD。
+function addDays(dateStr, days) {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+// 汇率偏离检查：对比订单锁定汇率 vs 当天最新汇率，返回偏离信息（用于后台提醒）。
+const RATE_DEVIATION_THRESHOLD = 0.02; // ±2%
+async function computeRateDeviation(env, order) {
+  const lockedRate = Number(order.quote_exchange_rate);
+  const currency = String(order.currency || '').trim().toUpperCase();
+  if (!lockedRate || !currency || currency === 'CNY') return null;
+  const today = nowIso().slice(0, 10);
+  const latest = await getLatestExchangeRate(env, currency, 'CNY', today);
+  if (!latest || !Number(latest.rate)) return null;
+  const currentRate = Number(latest.rate);
+  const deviation = (currentRate - lockedRate) / lockedRate;
+  return {
+    lockedRate,
+    currentRate,
+    deviation,
+    lockedDate: order.quote_exchange_rate_date || '',
+    currentDate: latest.effectiveDate || today,
+    threshold: RATE_DEVIATION_THRESHOLD,
+    exceeded: Math.abs(deviation) >= RATE_DEVIATION_THRESHOLD
   };
 }
 
@@ -310,12 +452,16 @@ async function handleOrderDetail(env, id) {
   const { results: docRows } = await env.DB.prepare('SELECT * FROM documents WHERE order_id = ? ORDER BY issued_at ASC').bind(id).all();
   const { results: paymentRows } = await env.DB.prepare('SELECT * FROM payments WHERE order_id = ? ORDER BY received_at DESC, created_at DESC').bind(id).all();
   const profit = await computeProfitForOrder(env, row);
+  const customsItems = await attachLinkedDocs(env, id, await ensureCustomsTemplate(env, id));
+  const rateDeviation = await computeRateDeviation(env, row);
   return json({ ok: true, item: {
     ...normalizeOrder(row),
     financial: normalizeFinancial(row),
     profit: profit.ok ? profit : null,
     documents: (docRows || []).map(normalizeDocument),
-    payments: (paymentRows || []).map(normalizePayment)
+    payments: (paymentRows || []).map(normalizePayment),
+    customsItems,
+    rateDeviation
   } });
 }
 
@@ -369,6 +515,9 @@ async function handleCreateOrder(request, env, auth) {
   const id = newId('so');
   const currentLinesJson = JSON.stringify(lines);
   const totalAmount = computeTotal(lines);
+  const quoteValidDays = Number.isFinite(Number(body.quoteValidDays)) && Number(body.quoteValidDays) > 0
+    ? Math.round(Number(body.quoteValidDays))
+    : 30;
   const orderForSnapshot = {
     order_no: orderNo,
     currency,
@@ -377,7 +526,8 @@ async function handleCreateOrder(request, env, auth) {
     shipping_json: '{}',
     expected_delivery_date: fulfillment.expectedDeliveryDate,
     estimated_shipment_date: fulfillment.estimatedShipmentDate,
-    actual_shipment_date: fulfillment.actualShipmentDate
+    actual_shipment_date: fulfillment.actualShipmentDate,
+    quote_valid_days: quoteValidDays
   };
   const quoteSnapshot = await buildDocumentSnapshot(env, {
     order: orderForSnapshot,
@@ -395,12 +545,13 @@ async function handleCreateOrder(request, env, auth) {
   // must never exist without at least one document snapshot.
   const statements = [
     env.DB.prepare(`
-      INSERT INTO sales_orders (id, order_no, customer_id, status, currency, current_lines_json, expected_delivery_date, estimated_shipment_date, actual_shipment_date, production_status, incoterm, deposit_status, total_amount, notes, created_by, created_at, updated_at)
-      VALUES (?, ?, ?, 'quoted', ?, ?, ?, ?, ?, ?, ?, 'unpaid', ?, ?, ?, ?, ?)
+      INSERT INTO sales_orders (id, order_no, customer_id, status, currency, current_lines_json, expected_delivery_date, estimated_shipment_date, actual_shipment_date, production_status, incoterm, deposit_status, total_amount, notes, quote_valid_days, quote_valid_until, quote_exchange_rate, quote_exchange_rate_date, created_by, created_at, updated_at)
+      VALUES (?, ?, ?, 'quoted', ?, ?, ?, ?, ?, ?, ?, 'unpaid', ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       id, orderNo, body.customerId, currency, currentLinesJson,
       fulfillment.expectedDeliveryDate || null, fulfillment.estimatedShipmentDate || null, fulfillment.actualShipmentDate || null, fulfillment.productionStatus,
-      String(body.incoterm || '').trim(), totalAmount, String(body.notes || '').trim(),
+      String(body.incoterm || '').trim(), totalAmount, String(body.notes || '').trim(), quoteValidDays,
+      quoteSnapshot.quoteValidUntil || null, quoteSnapshot.exchangeRate || null, quoteSnapshot.exchangeRateDate || null,
       auth.sub, now, now
     ),
     env.DB.prepare(`
@@ -492,12 +643,17 @@ async function handleUpdateOrder(request, env, id) {
   const nextIncoterm = typeof body.incoterm === 'string' ? body.incoterm.trim() : existing.incoterm;
   const nextNotes = typeof body.notes === 'string' ? body.notes.trim() : existing.notes;
   const totalAmount = computeTotal(nextLines);
+  // 报价有效期天数（仅报价草稿阶段可改，正整数）。
+  const nextValidDays = body.quoteValidDays !== undefined && body.quoteValidDays !== null
+    ? Number(body.quoteValidDays)
+    : Number(existing.quote_valid_days ?? 30);
+  const validDays = Number.isFinite(nextValidDays) && nextValidDays > 0 ? Math.round(nextValidDays) : 30;
 
   await env.DB.prepare(`
     UPDATE sales_orders
-    SET current_lines_json = ?, incoterm = ?, notes = ?, total_amount = ?, updated_at = ?
+    SET current_lines_json = ?, incoterm = ?, notes = ?, total_amount = ?, quote_valid_days = ?, updated_at = ?
     WHERE id = ?
-  `).bind(JSON.stringify(nextLines), nextIncoterm, nextNotes, totalAmount, nowIso(), id).run();
+  `).bind(JSON.stringify(nextLines), nextIncoterm, nextNotes, totalAmount, validDays, nowIso(), id).run();
 
   return handleOrderDetail(env, id);
 }
@@ -590,6 +746,106 @@ async function handleUpdateFulfillmentTimeline(request, env, id) {
   await env.DB.prepare('UPDATE sales_orders SET fulfillment_timeline_json = ?, updated_at = ? WHERE id = ?')
     .bind(JSON.stringify(timeline), nowIso(), id).run();
   return handleOrderDetail(env, id);
+}
+
+// —— 报关材料清单 ——
+
+// 生成/重置默认清单。force=true 时先清空再按模板重建。
+async function handleResetCustomsChecklist(request, env, id) {
+  const existing = await env.DB.prepare('SELECT id, status FROM sales_orders WHERE id = ?').bind(id).first();
+  if (!existing) return json({ ok: false, error: 'Order not found.' }, { status: 404 });
+  if (['closed', 'lost'].includes(existing.status)) {
+    return json({ ok: false, error: '已结案/已流失订单不可修改报关清单。' }, { status: 409 });
+  }
+  const body = await readBody(request).catch(() => ({}));
+  const force = Boolean(body.force);
+  if (force) {
+    await env.DB.prepare('DELETE FROM order_customs_items WHERE order_id = ?').bind(id).run();
+  }
+  const items = await ensureCustomsTemplate(env, id);
+  return json({ ok: true, items });
+}
+
+// 更新单项状态 / 备注，或新增自定义项。
+async function handleUpdateCustomsItem(request, env, auth, id, itemId) {
+  const existing = await env.DB.prepare('SELECT id, status FROM sales_orders WHERE id = ?').bind(id).first();
+  if (!existing) return json({ ok: false, error: 'Order not found.' }, { status: 404 });
+  if (['closed', 'lost'].includes(existing.status)) {
+    return json({ ok: false, error: '已结案/已流失订单不可修改报关清单。' }, { status: 409 });
+  }
+  const body = await readBody(request);
+  const row = await env.DB.prepare('SELECT * FROM order_customs_items WHERE id = ? AND order_id = ?').bind(itemId, id).first();
+  if (!row) return json({ ok: false, error: '报关材料项不存在。' }, { status: 404 });
+
+  const nextStatus = body.status === undefined || body.status === null ? row.status : String(body.status).trim();
+  if (!CUSTOMS_STATUSES.has(nextStatus)) return json({ ok: false, error: '无效的报关材料状态。' }, { status: 400 });
+  const nextNote = typeof body.note === 'string' ? body.note.trim().slice(0, 500) : row.note;
+  const now = nowIso();
+  // 状态变为 ready/submitted 时记录操作人与时间
+  const checkedBy = nextStatus !== 'pending' ? (auth?.sub || row.checked_by) : (nextStatus === 'pending' ? null : row.checked_by);
+  const checkedAt = nextStatus !== 'pending' ? now : (nextStatus === 'pending' ? null : row.checked_at);
+
+  await env.DB.prepare(
+    'UPDATE order_customs_items SET status = ?, note = ?, checked_by = ?, checked_at = ?, updated_at = ? WHERE id = ? AND order_id = ?'
+  ).bind(nextStatus, nextNote, checkedBy, checkedAt, now, itemId, id).run();
+
+  return json({ ok: true, item: normalizeCustomsItem(await env.DB.prepare('SELECT * FROM order_customs_items WHERE id = ?').bind(itemId).first()) });
+}
+
+// 新增自定义材料项。
+async function handleCreateCustomsItem(request, env, auth, id) {
+  const existing = await env.DB.prepare('SELECT id, status FROM sales_orders WHERE id = ?').bind(id).first();
+  if (!existing) return json({ ok: false, error: 'Order not found.' }, { status: 404 });
+  if (['closed', 'lost'].includes(existing.status)) {
+    return json({ ok: false, error: '已结案/已流失订单不可修改报关清单。' }, { status: 409 });
+  }
+  const body = await readBody(request);
+  const label = String(body.label || '').trim();
+  if (!label) return json({ ok: false, error: '材料名称不能为空。' }, { status: 400 });
+  const itemKey = String(body.itemKey || `custom_${Date.now()}`).trim();
+  const now = nowIso();
+  const { results } = await env.DB.prepare('SELECT COALESCE(MAX(sort_order), -1) AS maxSort FROM order_customs_items WHERE order_id = ?').bind(id).all();
+  const sortOrder = Number(results?.[0]?.maxSort ?? -1) + 1;
+  const itemId = newId('cst');
+  await env.DB.prepare(
+    'INSERT INTO order_customs_items (id, order_id, item_key, label, status, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+  ).bind(itemId, id, itemKey, label, 'pending', sortOrder, now, now).run();
+  return json({ ok: true, item: normalizeCustomsItem(await env.DB.prepare('SELECT * FROM order_customs_items WHERE id = ?').bind(itemId).first()) });
+}
+
+// 选择该报关材料关联的单据版本（doc_id 指向 documents.id；传空清除选择）。
+async function handleLinkCustomsDoc(request, env, id, itemId) {
+  const existing = await env.DB.prepare('SELECT id, status FROM sales_orders WHERE id = ?').bind(id).first();
+  if (!existing) return json({ ok: false, error: 'Order not found.' }, { status: 404 });
+  if (['closed', 'lost'].includes(existing.status)) {
+    return json({ ok: false, error: '已结案/已流失订单不可修改报关清单。' }, { status: 409 });
+  }
+  const row = await env.DB.prepare('SELECT * FROM order_customs_items WHERE id = ? AND order_id = ?').bind(itemId, id).first();
+  if (!row) return json({ ok: false, error: '报关材料项不存在。' }, { status: 404 });
+
+  const body = await readBody(request);
+  const docId = typeof body.docId === 'string' ? body.docId.trim() : '';
+  // 若指定了 docId，校验该单据确实属于本订单且为有效状态。
+  if (docId) {
+    const doc = await env.DB.prepare("SELECT id, status FROM documents WHERE id = ? AND order_id = ?").bind(docId, id).first();
+    if (!doc || doc.status !== 'active') return json({ ok: false, error: '所选单据版本无效。' }, { status: 400 });
+  }
+  await env.DB.prepare('UPDATE order_customs_items SET doc_id = ?, updated_at = ? WHERE id = ? AND order_id = ?')
+    .bind(docId || null, nowIso(), itemId, id).run();
+  return json({ ok: true });
+}
+
+// 删除自定义材料项（仅允许删除非模板项，避免误删核心清单）。
+async function handleDeleteCustomsItem(request, env, id, itemId) {
+  const existing = await env.DB.prepare('SELECT id, status FROM sales_orders WHERE id = ?').bind(id).first();
+  if (!existing) return json({ ok: false, error: 'Order not found.' }, { status: 404 });
+  if (['closed', 'lost'].includes(existing.status)) {
+    return json({ ok: false, error: '已结案/已流失订单不可修改报关清单。' }, { status: 409 });
+  }
+  const row = await env.DB.prepare('SELECT * FROM order_customs_items WHERE id = ? AND order_id = ?').bind(itemId, id).first();
+  if (!row) return json({ ok: false, error: '报关材料项不存在。' }, { status: 404 });
+  await env.DB.prepare('DELETE FROM order_customs_items WHERE id = ? AND order_id = ?').bind(itemId, id).run();
+  return json({ ok: true });
 }
 
 async function handleTransition(request, env, auth, id) {
@@ -850,13 +1106,19 @@ async function handleIssueDocument(request, env, auth, orderId) {
   const docNo = `${DOC_NO_PREFIX[type]}-${dateStr.replace(/-/g, '')}-${String(docSeq).padStart(4, '0')}`;
 
   const docId = newId('doc');
+  // 价格型单据（quote/pi）出具时，把有效期与汇率锁回订单，供后台偏离监控。
+  const isPriceDoc = type === 'quote' || type === 'pi';
   await env.DB.batch([
     env.DB.prepare(`
       INSERT INTO documents (id, order_id, type, version, doc_no, snapshot_json, issued_by, issued_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(docId, orderId, type, version, docNo, JSON.stringify(snapshot), auth.sub, now),
-    env.DB.prepare('UPDATE sales_orders SET status = ?, updated_at = ? WHERE id = ?')
-      .bind(rule.nextStatus, now, orderId)
+    env.DB.prepare(isPriceDoc
+      ? 'UPDATE sales_orders SET status = ?, quote_valid_until = ?, quote_exchange_rate = ?, quote_exchange_rate_date = ?, updated_at = ? WHERE id = ?'
+      : 'UPDATE sales_orders SET status = ?, updated_at = ? WHERE id = ?')
+      .bind(...(isPriceDoc
+        ? [rule.nextStatus, snapshot.quoteValidUntil || null, snapshot.exchangeRate || null, snapshot.exchangeRateDate || null, now, orderId]
+        : [rule.nextStatus, now, orderId]))
   ]);
 
   const created = await env.DB.prepare('SELECT * FROM documents WHERE id = ?').bind(docId).first();
@@ -912,6 +1174,29 @@ export async function onRequest(context) {
   const inquiryCollectionMatch = path.match(/^\/api\/orders\/([^/]+)\/inquiries$/);
   if (inquiryCollectionMatch && request.method === 'POST') {
     return handleAttachInquiryToOrder(request, env, auth, decodeURIComponent(inquiryCollectionMatch[1]));
+  }
+
+  const customsChecklistMatch = path.match(/^\/api\/orders\/([^/]+)\/customs$/);
+  if (customsChecklistMatch && request.method === 'POST') {
+    return handleResetCustomsChecklist(request, env, decodeURIComponent(customsChecklistMatch[1]));
+  }
+
+  const customsItemCollectionMatch = path.match(/^\/api\/orders\/([^/]+)\/customs\/items$/);
+  if (customsItemCollectionMatch && request.method === 'POST') {
+    return handleCreateCustomsItem(request, env, auth, decodeURIComponent(customsItemCollectionMatch[1]));
+  }
+
+  const customsItemMatch = path.match(/^\/api\/orders\/([^/]+)\/customs\/items\/([^/]+)$/);
+  if (customsItemMatch) {
+    const orderId = decodeURIComponent(customsItemMatch[1]);
+    const itemId = decodeURIComponent(customsItemMatch[2]);
+    if (request.method === 'PATCH') return handleUpdateCustomsItem(request, env, auth, orderId, itemId);
+    if (request.method === 'DELETE') return handleDeleteCustomsItem(request, env, orderId, itemId);
+  }
+
+  const customsDocLinkMatch = path.match(/^\/api\/orders\/([^/]+)\/customs\/items\/([^/]+)\/link$/);
+  if (customsDocLinkMatch && request.method === 'POST') {
+    return handleLinkCustomsDoc(request, env, decodeURIComponent(customsDocLinkMatch[1]), decodeURIComponent(customsDocLinkMatch[2]));
   }
 
   const docCollectionMatch = path.match(/^\/api\/orders\/([^/]+)\/documents$/);

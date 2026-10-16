@@ -221,6 +221,20 @@
             justify-content: flex-end;
             gap: 8px;
         }
+        /* 报关材料清单 */
+        #orderCustomsList { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+        #orderCustomsList li { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid var(--border-color, #e5e7eb); border-radius: 8px; background: var(--bg-light, #fafafa); }
+        #orderCustomsList li.customs-pending { border-left: 3px solid #d3d3d3; }
+        #orderCustomsList li.customs-ready { border-left: 3px solid #e0a800; }
+        #orderCustomsList li.customs-submitted { border-left: 3px solid #2e7d32; }
+        #orderCustomsList li .customs-label { flex: 1; min-width: 0; word-break: break-word; }
+        #orderCustomsList li .customs-status-select { max-width: 130px; }
+        #orderCustomsList li .customs-doc-select { max-width: 180px; }
+        #orderCustomsList li .customs-meta { font-size: 12px; color: var(--text-gray, #6b7280); }
+        .customs-warning { color: #b45309; }
+        @media (max-width: 720px) {
+            #orderCustomsList { grid-template-columns: 1fr; }
+        }
         #orderFinancialForm.compact-form {
             display: grid;
             grid-template-columns: repeat(4, minmax(110px, 1fr)) minmax(180px, 1.5fr) auto;
@@ -231,6 +245,21 @@
         }
         #orderFinancialForm.compact-form .btn-compact {
             white-space: nowrap;
+        }
+        /* 收款表单：横排网格，提交按钮放行尾 */
+        #orderPaymentForm.compact-form {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(140px, 1fr) minmax(160px, 1.2fr) auto;
+            gap: 10px;
+            align-items: end;
+            width: 100%;
+            max-width: none;
+        }
+        #orderPaymentForm.compact-form .btn-compact {
+            white-space: nowrap;
+        }
+        @media (max-width: 900px) {
+            #orderPaymentForm.compact-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
         .field-stack {
             display: grid;
@@ -247,6 +276,11 @@
             grid-template-columns: repeat(4, minmax(0, 1fr));
             gap: 10px;
             align-items: end;
+        }
+        #orderFulfillmentForm.fulfillment-form button[type="submit"] {
+            grid-column: 1 / -1;
+            justify-self: end;
+            white-space: nowrap;
         }
         #orderFulfillmentForm.fulfillment-form.hidden { display: none; }
         .form-feedback {
@@ -375,10 +409,10 @@
         textarea {
             border: 1px solid #cbd5e1;
             border-radius: 10px;
-            padding: 10px 12px;
+            padding: 6px 12px;
             font-size: 14px;
             width: 100%;
-            min-height: 90px;
+            min-height: 38px;
             resize: vertical;
         }
         @media (max-width: 900px) {
@@ -548,6 +582,7 @@
         }
         /* 表单内 textarea 默认一行高（覆盖全局 min-height:90px） */
         .erp-form label.span-full textarea { min-height: 0; height: auto; }
+        .erp-form > textarea { min-height: 0; height: auto; }
         /* 客户表单：字段名显示在输入框上方 */
         .erp-form label {
             display: flex;
@@ -924,14 +959,14 @@
                         <ul id="customerContactList" class="timeline-list" style="margin-top:8px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;list-style:none;padding:0;"></ul>
                         <div id="contactEditorSlot" class="hidden" style="margin-top:8px;"></div>
                     </div>
-                    <label class="span-full">收货地址<textarea id="customerAddressInput" placeholder="可选" rows="1"></textarea></label>
-                    <label class="span-full">账单地址<textarea id="customerBillingAddressInput" placeholder="可选" rows="1"></textarea></label>
+                    <label class="span-full">收货地址（Shipping / Ship To，货物送达地址）<textarea id="customerAddressInput" placeholder="可选" rows="1"></textarea></label>
+                    <label class="span-full">账单地址（Billing Address）<textarea id="customerBillingAddressInput" placeholder="可选" rows="1"></textarea></label>
                     <label>进口商名称<input id="customerImporterNameInput" type="text" placeholder="可选"></label>
                     <label>进口商税号/注册号<input id="customerImporterIdInput" type="text" placeholder="可选"></label>
-                    <label>收货人名称<input id="customerConsigneeNameInput" type="text" placeholder="可选"></label>
-                    <label class="span-full">收货人地址<textarea id="customerConsigneeAddressInput" placeholder="可选" rows="1"></textarea></label>
-                    <label>通知方名称<input id="customerNotifyPartyNameInput" type="text" placeholder="可选"></label>
-                    <label class="span-full">通知方地址<textarea id="customerNotifyPartyAddressInput" placeholder="可选" rows="1"></textarea></label>
+                    <label>提单收货人名称（Consignee）<input id="customerConsigneeNameInput" type="text" placeholder="可选"></label>
+                    <label class="span-full">提单收货人地址（Consignee Address）<textarea id="customerConsigneeAddressInput" placeholder="可选" rows="1"></textarea></label>
+                    <label>通知方名称（Notify Party）<input id="customerNotifyPartyNameInput" type="text" placeholder="可选"></label>
+                    <label class="span-full">通知方地址（Notify Party Address）<textarea id="customerNotifyPartyAddressInput" placeholder="可选" rows="1"></textarea></label>
                     <label class="span-full">内部备注<textarea id="customerNotesInput" placeholder="偏好、沟通事项等（仅后台可见）" rows="1"></textarea></label>
                     <button id="customerSubmitBtn" type="submit">新建客户</button>
                     <button id="customerCancelEditBtn" type="button" class="btn-outline hidden">取消编辑</button>
@@ -1121,6 +1156,7 @@
                 <select id="orderCustomerSelect" required><option value="">选择客户</option></select>
                 <input id="orderCustomerEmail" type="email" placeholder="收件邮箱将随客户自动带出" readonly aria-label="报价收件邮箱">
                 <input id="orderCurrencyInput" type="text" value="USD" maxlength="3" placeholder="币种">
+                <div class="field-stack"><label for="orderQuoteValidDaysInput">报价有效期（天）</label><input id="orderQuoteValidDaysInput" type="number" min="1" max="365" value="30"></div>
                 <div class="field-stack"><label for="orderExpectedDeliveryInput">约定交期</label><input id="orderExpectedDeliveryInput" type="date"></div>
                 <select id="orderIncotermInput" aria-label="贸易条款">
                     <option value="">选择贸易条款</option>
@@ -1132,7 +1168,7 @@
                     <option value="DAP">DAP - Delivered at Place</option>
                     <option value="DDP">DDP - Delivered Duty Paid</option>
                 </select>
-                <textarea id="orderNotesInput" placeholder="报价说明：包装、交期、付款条件等（可选）"></textarea>
+                <textarea id="orderNotesInput" rows="1" placeholder="报价说明：包装、交期、付款条件等（可选）"></textarea>
             </form>
             <div id="orderLinesContainer"></div>
             <div class="toolbar">
@@ -1166,6 +1202,7 @@
             <div class="detail-box hidden" id="orderDetailPanel" style="margin-top:16px;">
                 <h3 style="margin-top:0;" id="orderDetailTitle">报价与单据详情</h3>
                 <p class="muted" id="orderDetailMeta"></p>
+                <p id="orderRateDeviationWarning" class="hidden" style="margin:8px 0;padding:8px 12px;border:1px solid #f0c36d;border-radius:8px;background:#fef9ec;color:#9a6700;font-size:13px;"></p>
                 <div id="orderFulfillmentSection" class="detail-box" style="margin:14px 0;">
                     <div class="section-head"><h4 style="margin:0;">交期与履约</h4><span id="orderFulfillmentHint" class="muted"></span></div>
                     <form id="orderFulfillmentForm" class="fulfillment-form">
@@ -1226,6 +1263,25 @@
                         <input id="shippingForwarderNoteInput" type="text" placeholder="货代备注（可选）">
                         <div class="shipping-actions"><button id="loadFreightRateBtn" type="button" class="btn-compact btn-outline">带入参考运费</button><button type="submit" class="btn-compact btn-outline">保存物流资料</button><button id="issuePackingListBtn" type="button" class="btn-compact">保存并出具装箱单</button></div>
                     </form>
+                </div>
+                <div id="orderCustomsSection" class="detail-box" style="margin:14px 0;">
+                    <div class="section-head" style="display:flex;justify-content:space-between;align-items:center;">
+                        <h4 style="margin:0;">报关材料清单</h4>
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            <span id="orderCustomsHint" class="muted"></span>
+                            <button type="button" class="btn-compact btn-outline" id="addCustomsItemBtn">+ 添加材料</button>
+                            <button type="button" class="btn-compact btn-outline" id="resetCustomsBtn">重置为默认模板</button>
+                        </div>
+                    </div>
+                    <ul id="orderCustomsList" class="timeline-list" style="margin-top:8px;"></ul>
+                    <p id="orderCustomsSoftWarning" class="customs-warning hidden" style="margin:8px 0 0;"></p>
+                    <div id="orderCustomsAddSlot" class="hidden" style="margin-top:8px;">
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            <input id="customsNewItemLabelInput" type="text" placeholder="材料名称，如：木制包装熏蒸证书" style="flex:1;">
+                            <button type="button" class="btn-compact" id="customsNewItemConfirmBtn">添加</button>
+                            <button type="button" class="btn-compact btn-outline" id="customsNewItemCancelBtn">取消</button>
+                        </div>
+                    </div>
                 </div>
                 <h4>已出具文档</h4>
                 <p class="document-freeze-note">新出具的单据会固定当时的客户、产品、装箱和公司资料，后续修改不会影响历史版本。</p>

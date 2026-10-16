@@ -67,6 +67,21 @@ const productLabelMap = {
     other: '其他/定制需求'
 };
 
+// 产品库动态名称缓存：询盘里的 product 存的是产品库 ID（如 prod-gs-creative-001），
+// 静态映射只覆盖旧 slug，动态名称以产品库为准。
+let productLabelCache = null;
+async function ensureProductLabels() {
+    if (productLabelCache) return productLabelCache;
+    try {
+        const res = await apiFetch('/api/products?pageSize=200');
+        productLabelCache = {};
+        for (const p of (res.items || [])) productLabelCache[p.id] = p.name || p.sku || p.id;
+    } catch {
+        productLabelCache = {};
+    }
+    return productLabelCache;
+}
+
 const rfqFieldLabelMap = {
     name: '姓名',
     email: '邮箱',
@@ -110,7 +125,13 @@ function getStatusLabel(status) {
 
 function getProductLabel(product) {
     if (!product) return '-';
-    return productLabelMap[product] || product;
+    // 询盘 product 可能是多选拼接（如 "prod_gs_xxx,other"），逐段转换。
+    return String(product).split(',').map((part) => {
+        const key = part.trim();
+        if (!key) return '';
+        if (productLabelCache && productLabelCache[key]) return productLabelCache[key];
+        return productLabelMap[key] || key;
+    }).filter(Boolean).join('、') || '-';
 }
 
 function hasText(value) {
@@ -590,6 +611,7 @@ async function loadMailLogs() {
 
 async function loadInquiries() {
     try {
+        await ensureProductLabels();
         const query = buildQueryFromFilters();
         const result = await apiFetch(`${adminApiBase}/inquiries?${query.toString()}`);
         inquiryItems = result.items || [];
