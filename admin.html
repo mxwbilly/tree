@@ -258,6 +258,7 @@
         #orderPaymentForm.compact-form .btn-compact {
             white-space: nowrap;
         }
+        #orderPaymentForm.compact-form .row-actions { flex-wrap: nowrap; }
         @media (max-width: 900px) {
             #orderPaymentForm.compact-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
@@ -273,13 +274,11 @@
         }
         #orderFulfillmentForm.fulfillment-form {
             display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
+            grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
             gap: 10px;
             align-items: end;
         }
         #orderFulfillmentForm.fulfillment-form button[type="submit"] {
-            grid-column: 1 / -1;
-            justify-self: end;
             white-space: nowrap;
         }
         #orderFulfillmentForm.fulfillment-form.hidden { display: none; }
@@ -1150,7 +1149,7 @@
                 <span id="orderMergeLabel"></span>
                 <button id="attachInquiryToOrderBtn" type="button" class="btn-compact btn-outline">加入该报价</button>
             </div>
-            <form id="orderForm" class="erp-form" style="grid-template-columns: repeat(auto-fit, minmax(180px,1fr));">
+            <form id="orderForm" class="erp-form" style="grid-template-columns: repeat(auto-fit, minmax(180px,1fr));align-items:end;">
                 <input id="orderInquiryIdInput" type="hidden">
                 <input id="orderCustomerSearchInput" type="text" placeholder="搜索客户（姓名/邮箱/公司）">
                 <select id="orderCustomerSelect" required><option value="">选择客户</option></select>
@@ -1221,7 +1220,7 @@
                     <form id="orderPaymentForm" class="compact-form">
                         <select id="paymentTypeInput" aria-label="收款类型"><option value="deposit">定金</option><option value="balance">尾款</option><option value="full">全款</option></select>
                         <input id="paymentAmountInput" type="number" min="0.01" step="0.01" placeholder="到账金额" required>
-                        <div class="row-actions" aria-label="按订单总额快捷填入"><span class="muted">快捷填入</span><button type="button" class="btn-compact btn-outline" data-payment-percent="20">20%</button><button type="button" class="btn-compact btn-outline" data-payment-percent="30">30%</button><button type="button" class="btn-compact btn-outline" data-payment-percent="50">50%</button></div>
+                        <div class="row-actions" aria-label="按订单总额快捷填入"><button type="button" class="btn-compact btn-outline" data-payment-percent="20">20%</button><button type="button" class="btn-compact btn-outline" data-payment-percent="30">30%</button><button type="button" class="btn-compact btn-outline" data-payment-percent="50">50%</button></div>
                         <input id="paymentDateInput" type="date" required>
                         <input id="paymentReferenceInput" type="text" placeholder="流水号/凭证号（可选）">
                         <input id="paymentNoteInput" type="text" placeholder="备注（可选）">
