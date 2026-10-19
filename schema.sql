@@ -270,12 +270,13 @@ CREATE TABLE IF NOT EXISTS order_customs_items (
 
 CREATE INDEX IF NOT EXISTS idx_order_customs_items_order_id ON order_customs_items(order_id);
 
--- A quotation can consolidate several products requested by the same buyer.
--- Each inquiry can be linked to at most one active quotation chain, while one
--- quotation may carry multiple inquiry sources for traceability.
+-- A quotation can consolidate several products requested by the same buyer,
+-- while one inquiry may also be re-quoted multiple times (each quote becomes an
+-- independent order). The composite primary key keeps a single (order, inquiry)
+-- link unique without forcing a one-quote-per-inquiry limit.
 CREATE TABLE IF NOT EXISTS sales_order_inquiries (
   order_id TEXT NOT NULL,
-  inquiry_id TEXT NOT NULL UNIQUE,
+  inquiry_id TEXT NOT NULL,
   created_at TEXT NOT NULL,
   PRIMARY KEY (order_id, inquiry_id),
   FOREIGN KEY (order_id) REFERENCES sales_orders(id),
@@ -283,6 +284,7 @@ CREATE TABLE IF NOT EXISTS sales_order_inquiries (
 );
 
 CREATE INDEX IF NOT EXISTS idx_sales_order_inquiries_order_id ON sales_order_inquiries(order_id);
+CREATE INDEX IF NOT EXISTS idx_sales_order_inquiries_inquiry_id ON sales_order_inquiries(inquiry_id);
 
 -- One shared table for all 4 document types (quote / pi / packing_list /
 -- invoice). Each row is an immutable snapshot — later changes to the order,

@@ -170,28 +170,37 @@ const CUSTOMS_DOC_LINKS = {
   contract: 'pi'                     // 销售合同 ← PI（形式发票即合同依据）
 };
 
-// 给清单项标注已出具的关联单据（取该类型最新一版有效单据）。
 // 给清单项标注可关联的已出具单据版本列表（同类型可能多版本），并回显用户已选版本。
+// 报关需与客户实际拿到的单据一致，故只关联「已发送(sent/accepted)」的版本。
 async function attachLinkedDocs(env, orderId, items) {
   const { results } = await env.DB.prepare(
-    "SELECT id, type, doc_no, version, issued_at FROM documents WHERE order_id = ? AND status = 'active' ORDER BY issued_at ASC"
+    "SELECT id, type, doc_no, version, issued_at, mail_status FROM documents WHERE order_id = ? AND status = 'active' ORDER BY issued_at ASC"
   ).bind(orderId).all();
   const byType = new Map();
   for (const row of results || []) {
     if (!byType.has(row.type)) byType.set(row.type, []);
     byType.get(row.type).push(row);
   }
+  const isSent = (v) => ['sent', 'accepted'].includes(v.mail_status);
   return items.map((item) => {
     const docType = CUSTOMS_DOC_LINKS[item.itemKey];
-    const versions = docType ? (byType.get(docType) || []) : [];
-    if (!versions.length) return item;
-    // 用户已选版本若仍有效则保留，否则回退到最新版。
-    const chosen = versions.find((v) => v.id === item.docId) || versions[versions.length - 1];
+    // 只保留「已发送」的版本；未发送/发送失败的版本不可用于报关，不进入可选列表。
+    const sentVersions = docType ? (byType.get(docType) || []).filter(isSent) : [];
+    if (!sentVersions.length) return item;
+    // 用户已选版本若仍在已发送列表里则保留，否则取已发送的最新版。
+    const chosen = sentVersions.find((v) => v.id === item.docId)
+      || sentVersions[sentVersions.length - 1];
     return {
       ...item,
-      linkedDocs: versions.map((v) => ({ id: v.id, docNo: v.doc_no, version: v.version, issuedAt: v.issued_at })),
+      linkedDocs: sentVersions.map((v) => ({
+        id: v.id, docNo: v.doc_no, version: v.version, issuedAt: v.issued_at,
+        mailStatus: v.mail_status || 'not_sent'
+      })),
       linkedDocId: chosen.id,
-      linkedDoc: { type: docType, docNo: chosen.doc_no, version: chosen.version, issuedAt: chosen.issued_at }
+      linkedDoc: {
+        type: docType, docNo: chosen.doc_no, version: chosen.version, issuedAt: chosen.issued_at,
+        mailStatus: chosen.mail_status || 'not_sent'
+      }
     };
   });
 }
@@ -483,15 +492,6 @@ async function handleCreateOrder(request, env, auth) {
     if (inquiry.customer_id !== body.customerId) {
       return json({ ok: false, error: 'The selected inquiry does not belong to this customer.' }, { status: 400 });
     }
-    const linkedOrder = await env.DB.prepare(`
-      SELECT sales_orders.id, sales_orders.order_no
-      FROM sales_order_inquiries
-      JOIN sales_orders ON sales_orders.id = sales_order_inquiries.order_id
-      WHERE sales_order_inquiries.inquiry_id = ?
-    `).bind(inquiryId).first();
-    if (linkedOrder) {
-      return json({ ok: false, error: `Inquiry already has linked quote ${linkedOrder.order_no}.`, orderId: linkedOrder.id }, { status: 409 });
-    }
     inquiries.push(inquiry);
   }
 
@@ -563,7 +563,8 @@ async function handleCreateOrder(request, env, auth) {
   for (const inquiry of inquiries) {
     const timeline = parseJson(inquiry.timeline_json, []);
     timeline.push({ at: now, type: 'quote', actorId: auth.sub, note: `Formal quote ${docNo} created and linked to ${orderNo}.` });
-    const inquiryStatus = ['new', 'contacted'].includes(inquiry.status) ? 'quoted' : inquiry.status;
+    // 流失的询盘重新报价后恢复为「已报价」，其余状态保持不变。
+    const inquiryStatus = ['new', 'contacted', 'lost'].includes(inquiry.status) ? 'quoted' : inquiry.status;
     statements.push(
       env.DB.prepare('INSERT INTO sales_order_inquiries (order_id, inquiry_id, created_at) VALUES (?, ?, ?)')
         .bind(id, inquiry.id, now),
@@ -825,10 +826,11 @@ async function handleLinkCustomsDoc(request, env, id, itemId) {
 
   const body = await readBody(request);
   const docId = typeof body.docId === 'string' ? body.docId.trim() : '';
-  // 若指定了 docId，校验该单据确实属于本订单且为有效状态。
+  // 若指定了 docId，校验该单据确实属于本订单、为有效状态且已发送给客户。
   if (docId) {
-    const doc = await env.DB.prepare("SELECT id, status FROM documents WHERE id = ? AND order_id = ?").bind(docId, id).first();
+    const doc = await env.DB.prepare("SELECT id, status, mail_status FROM documents WHERE id = ? AND order_id = ?").bind(docId, id).first();
     if (!doc || doc.status !== 'active') return json({ ok: false, error: '所选单据版本无效。' }, { status: 400 });
+    if (!['sent', 'accepted'].includes(doc.mail_status)) return json({ ok: false, error: '只能关联已发送给客户的单据版本。' }, { status: 400 });
   }
   await env.DB.prepare('UPDATE order_customs_items SET doc_id = ?, updated_at = ? WHERE id = ? AND order_id = ?')
     .bind(docId || null, nowIso(), itemId, id).run();

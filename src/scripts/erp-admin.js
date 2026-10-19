@@ -1024,22 +1024,34 @@ function clearOrderInquiryContext() {
     document.getElementById('createOrderBtn').disabled = false;
     document.getElementById('orderMergeContext').classList.add('hidden');
     document.getElementById('orderMergeLabel').textContent = '';
+    const createBtnHint = document.getElementById('createOrderBtnHint');
+    createBtnHint.textContent = '';
+    createBtnHint.classList.add('hidden');
     pendingInquiryForOrder = null;
     mergeTargetOrder = null;
 }
 
-function setOrderInquiryContext(detail, linkedOrder = null) {
+function setOrderInquiryContext(detail, linkedOrders = []) {
     const inquiryId = detail.inquiryId || '';
     pendingInquiryForOrder = detail;
     document.getElementById('orderInquiryIdInput').value = inquiryId;
     document.getElementById('orderInquiryRef').textContent = compactInquiryRef(inquiryId);
     const parts = [detail.customerName, detail.country, detail.product, detail.quantity].filter(Boolean);
-    if (linkedOrder) parts.push(`已关联 ${linkedOrder.orderNo}`);
     document.getElementById('orderInquiryMeta').textContent = parts.join(' · ');
     document.getElementById('orderInquiryContext').classList.remove('hidden');
     document.getElementById('orderCustomerSearchInput').disabled = true;
     document.getElementById('orderCustomerSelect').disabled = true;
-    document.getElementById('createOrderBtn').disabled = Boolean(linkedOrder);
+    // 同一询盘/客户允许多次报价，每次独立成单——不再因已关联订单禁用创建按钮。
+    document.getElementById('createOrderBtn').disabled = false;
+    const createBtnHint = document.getElementById('createOrderBtnHint');
+    if (linkedOrders.length) {
+        const nums = linkedOrders.map((o) => o.orderNo).join('、');
+        createBtnHint.textContent = `该询盘已关联报价 ${nums}，可再次创建新报价单（每次独立成单）。`;
+        createBtnHint.classList.remove('hidden');
+    } else {
+        createBtnHint.textContent = '';
+        createBtnHint.classList.add('hidden');
+    }
 }
 
 function setOrderMergeTarget(order) {
@@ -1288,15 +1300,12 @@ window.addEventListener('greensmart:open-orders-for-customer', async (event) => 
     updateOrderCustomerEmail();
     document.getElementById('orderCustomerFilter').value = customerId;
     await loadOrders();
+    // 查询该询盘已关联的全部报价单（同一询盘可多次报价），仅用于提示，不再阻断新建。
     const existing = inquiryId
-        ? await apiFetch(`/api/orders?inquiryId=${encodeURIComponent(inquiryId)}&pageSize=1`)
+        ? await apiFetch(`/api/orders?inquiryId=${encodeURIComponent(inquiryId)}&pageSize=50`)
         : { items: [] };
-    const linkedOrder = existing.items?.[0] || null;
-    setOrderInquiryContext(event.detail, linkedOrder);
-    if (linkedOrder) {
-        await viewOrder(linkedOrder.id);
-        return;
-    }
+    const linkedOrders = existing.items || [];
+    setOrderInquiryContext(event.detail, linkedOrders);
     // 根据询盘信息自动填充产品行：多选产品逐行填充，数量取询盘意向数量。
     const matchedProducts = matchInquiryProducts(event.detail?.product);
     const qty = parseInquiryQuantity(event.detail?.quantity);
@@ -1310,7 +1319,6 @@ window.addEventListener('greensmart:open-orders-for-customer', async (event) => 
         addOrderLine({ productId: product?.id || '', qty });
     }
     updateOrderTotalPreview();
-    setOrderMergeTarget(allOrders.find((order) => order.status === 'quoted') || null);
 });
 
 const DOCUMENT_TYPE_LABEL = { quote: '报价单', pi: '形式发票 (PI)', packing_list: '装箱单', invoice: '商业发票 (CI)' };
@@ -1691,7 +1699,7 @@ function renderCustomsItems(order) {
                 .join('');
             docControl = `<select class="customs-doc-select" data-customs-item-id="${item.id}" ${readOnly ? 'disabled' : ''}>${versionOptions}</select>`;
         } else if (item.linkedDoc) {
-            docControl = `<span class="doc-badge" title="系统已出具该单据，可直接使用">已有单据 ${escapeHtml(item.linkedDoc.docNo)} v${item.linkedDoc.version}</span>`;
+            docControl = `<span class="doc-badge" title="该单据已发送给客户，可直接用于报关">已发送单据 ${escapeHtml(item.linkedDoc.docNo)} v${item.linkedDoc.version}</span>`;
         }
 
         return `<li class="customs-${item.status}">

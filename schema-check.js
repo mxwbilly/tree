@@ -58,14 +58,18 @@ try {
         "INSERT INTO inquiries (id, customer_id, status, lang, source, page_url, product, message, contact_json, timeline_json, quotes_json, created_at, updated_at) VALUES ('qa_inquiry', 'qa_customer', 'new', 'en', 'qa', '/qa', 'qa-product', 'QA inquiry', '{}', '[]', '[]', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z');",
         "INSERT INTO inquiries (id, customer_id, status, lang, source, page_url, product, message, contact_json, timeline_json, quotes_json, created_at, updated_at) VALUES ('qa_inquiry_2', 'qa_customer', 'new', 'en', 'qa', '/qa', 'qa-product-2', 'QA second inquiry', '{}', '[]', '[]', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z');",
         "INSERT INTO sales_orders (id, order_no, customer_id, status, currency, current_lines_json, deposit_status, total_amount, created_at, updated_at) VALUES ('qa_order', 'SO-QA-0001', 'qa_customer', 'quoted', 'USD', '[]', 'unpaid', 0, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z');",
+        "INSERT INTO sales_orders (id, order_no, customer_id, status, currency, current_lines_json, deposit_status, total_amount, created_at, updated_at) VALUES ('qa_order_2', 'SO-QA-0002', 'qa_customer', 'quoted', 'USD', '[]', 'unpaid', 0, '2026-01-02T00:00:00.000Z', '2026-01-02T00:00:00.000Z');",
         "INSERT INTO sales_order_inquiries (order_id, inquiry_id, created_at) VALUES ('qa_order', 'qa_inquiry', '2026-01-01T00:00:00.000Z');",
-        "INSERT INTO sales_order_inquiries (order_id, inquiry_id, created_at) VALUES ('qa_order', 'qa_inquiry_2', '2026-01-01T00:00:00.000Z');"
+        "INSERT INTO sales_order_inquiries (order_id, inquiry_id, created_at) VALUES ('qa_order', 'qa_inquiry_2', '2026-01-01T00:00:00.000Z');",
+        "INSERT INTO sales_order_inquiries (order_id, inquiry_id, created_at) VALUES ('qa_order_2', 'qa_inquiry', '2026-01-02T00:00:00.000Z');"
     ].join(' ');
     runWrangler([...commonArgs, '--command', seedSql]);
     const inquiryOutput = runWrangler([...commonArgs, '--command', "SELECT COUNT(*) AS inquiry_count FROM inquiries WHERE id = 'qa_inquiry';"]);
     assertContains(inquiryOutput, '"inquiry_count": 1', 'schema inquiry write check');
     const linkedOrderOutput = runWrangler([...commonArgs, '--command', "SELECT COUNT(*) AS linked_inquiry_count FROM sales_order_inquiries WHERE order_id = 'qa_order';"]);
     assertContains(linkedOrderOutput, '"linked_inquiry_count": 2', 'schema consolidated inquiry/order relation check');
+    const multiQuoteOutput = runWrangler([...commonArgs, '--command', "SELECT COUNT(*) AS quote_count FROM sales_order_inquiries WHERE inquiry_id = 'qa_inquiry';"]);
+    assertContains(multiQuoteOutput, '"quote_count": 2', 'schema multi-quote-per-inquiry check (UNIQUE constraint removed)');
     console.log(`[QA] PASS - D1 schema created ${requiredTables.length} core tables and accepted a consolidated inquiry/order write.`);
 } catch (error) {
     console.error(`[QA] FAIL - D1 schema check failed: ${error.message}`);
