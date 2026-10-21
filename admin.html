@@ -1203,6 +1203,54 @@
                 <h3 style="margin-top:0;" id="orderDetailTitle">报价与单据详情</h3>
                 <p class="muted" id="orderDetailMeta"></p>
                 <p id="orderRateDeviationWarning" class="hidden" style="margin:8px 0;padding:8px 12px;border:1px solid #f0c36d;border-radius:8px;background:#fef9ec;color:#9a6700;font-size:13px;"></p>
+                <div id="orderShippingSection" class="detail-box" style="margin:14px 0;">
+                    <div class="section-head"><h4 style="margin:0;">装箱与物流资料</h4><span id="orderShippingHint" class="muted"></span></div>
+                    <form id="orderShippingForm" class="shipping-form">
+                        <input id="shippingForwarderInput" type="text" placeholder="货代公司（可选）">
+                        <input id="shippingForwarderContactInput" type="text" placeholder="货代联系人/电话（可选）">
+                        <input id="shippingBookingNoInput" type="text" placeholder="订舱号（可选）">
+                        <input id="shippingBookingDateInput" type="date" aria-label="订舱日期">
+                        <select id="shippingContainerTypeInput" aria-label="柜型"><option value="">柜型（可选）</option><option value="20GP">20GP</option><option value="40GP">40GP</option><option value="40HQ">40HQ</option><option value="LCL">LCL 拼箱</option></select>
+                        <input id="shippingContainerNoInput" type="text" placeholder="柜号（可选）">
+                        <input id="shippingSealNoInput" type="text" placeholder="封条号（可选）">
+                        <input id="shippingVesselVoyageInput" type="text" placeholder="船名 / 航次（可选）">
+                        <input id="shippingCustomsNoInput" type="text" placeholder="报关单号（可选）">
+                        <input id="shippingCustomsDateInput" type="date" aria-label="报关日期">
+                        <select id="shippingOriginPortInput" aria-label="起运港"><option value="">起运港（可选）</option></select>
+                        <select id="shippingDestinationPortInput" aria-label="目的港"><option value="">目的港（可选）</option></select>
+                        <input id="shippingMarksInput" type="text" placeholder="唛头（可选）">
+                        <input id="shippingActualShipmentDateInput" type="date" aria-label="实际出运日期">
+                        <div id="freightItemsBox" style="grid-column:1/-1;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:6px;">
+                                <span class="muted" style="font-size:13px;font-weight:600;">货代费用明细<span id="freightItemsIncotermTag"></span></span>
+                                <span id="freightItemsTotal" class="muted" style="font-size:13px;"></span>
+                            </div>
+                            <div id="freightItemsList" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;"></div>
+                        </div>
+                        <input id="shippingFreightRefInput" type="text" placeholder="运费凭证号（可选）">
+                        <input id="shippingForwarderNoteInput" type="text" placeholder="货代备注（可选）">
+                        <div class="shipping-actions"><button id="loadFreightRateBtn" type="button" class="btn-compact btn-outline">带入参考运费</button><button type="submit" class="btn-compact btn-outline">保存物流资料</button><button id="issuePackingListBtn" type="button" class="btn-compact">保存并出具装箱单</button></div>
+                    </form>
+                </div>
+                <div id="orderCustomsSection" class="detail-box" style="margin:14px 0;">
+                    <div class="section-head" style="display:flex;justify-content:space-between;align-items:center;">
+                        <h4 style="margin:0;">报关材料清单</h4>
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            <span id="orderCustomsHint" class="muted"></span>
+                            <button type="button" class="btn-compact btn-outline" id="addCustomsItemBtn">+ 添加材料</button>
+                            <button type="button" class="btn-compact btn-outline" id="resetCustomsBtn">重置为默认模板</button>
+                        </div>
+                    </div>
+                    <ul id="orderCustomsList" class="timeline-list" style="margin-top:8px;"></ul>
+                    <p id="orderCustomsSoftWarning" class="customs-warning hidden" style="margin:8px 0 0;"></p>
+                    <div id="orderCustomsAddSlot" class="hidden" style="margin-top:8px;">
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            <input id="customsNewItemLabelInput" type="text" placeholder="材料名称，如：木制包装熏蒸证书" style="flex:1;">
+                            <button type="button" class="btn-compact" id="customsNewItemConfirmBtn">添加</button>
+                            <button type="button" class="btn-compact btn-outline" id="customsNewItemCancelBtn">取消</button>
+                        </div>
+                    </div>
+                </div>
                 <div id="orderFulfillmentSection" class="detail-box" style="margin:14px 0;">
                     <div class="section-head"><h4 style="margin:0;">交期与履约</h4><span id="orderFulfillmentHint" class="muted"></span></div>
                     <form id="orderFulfillmentForm" class="fulfillment-form">
@@ -1239,49 +1287,6 @@
                         <div class="field-stack"><label for="financialNoteInput">成本说明</label><input id="financialNoteInput" type="text" placeholder="凭证备注（可选）"></div>
                         <button type="submit" class="btn-compact">锁定实际成本与费用</button>
                     </form>
-                </div>
-                <div id="orderShippingSection" class="detail-box" style="margin:14px 0;">
-                    <div class="section-head"><h4 style="margin:0;">装箱与物流资料</h4><span id="orderShippingHint" class="muted"></span></div>
-                    <form id="orderShippingForm" class="shipping-form">
-                        <input id="shippingForwarderInput" type="text" placeholder="货代公司（可选）">
-                        <input id="shippingForwarderContactInput" type="text" placeholder="货代联系人/电话（可选）">
-                        <input id="shippingBookingNoInput" type="text" placeholder="订舱号（可选）">
-                        <input id="shippingBookingDateInput" type="date" aria-label="订舱日期">
-                        <select id="shippingContainerTypeInput" aria-label="柜型"><option value="">柜型（可选）</option><option value="20GP">20GP</option><option value="40GP">40GP</option><option value="40HQ">40HQ</option><option value="LCL">LCL 拼箱</option></select>
-                        <input id="shippingContainerNoInput" type="text" placeholder="柜号（可选）">
-                        <input id="shippingSealNoInput" type="text" placeholder="封条号（可选）">
-                        <input id="shippingVesselVoyageInput" type="text" placeholder="船名 / 航次（可选）">
-                        <input id="shippingCustomsNoInput" type="text" placeholder="报关单号（可选）">
-                        <input id="shippingCustomsDateInput" type="date" aria-label="报关日期">
-                        <select id="shippingOriginPortInput" aria-label="起运港"><option value="">起运港（可选）</option></select>
-                        <select id="shippingDestinationPortInput" aria-label="目的港"><option value="">目的港（可选）</option></select>
-                        <input id="shippingMarksInput" type="text" placeholder="唛头（可选）">
-                        <input id="shippingActualShipmentDateInput" type="date" aria-label="实际出运日期">
-                        <input id="shippingFreightAmountInput" type="number" min="0" step="0.01" placeholder="实际运费（可选）">
-                        <input id="shippingFreightCurrencyInput" type="text" maxlength="3" placeholder="运费币种，如 USD">
-                        <input id="shippingFreightRefInput" type="text" placeholder="运费凭证号（可选）">
-                        <input id="shippingForwarderNoteInput" type="text" placeholder="货代备注（可选）">
-                        <div class="shipping-actions"><button id="loadFreightRateBtn" type="button" class="btn-compact btn-outline">带入参考运费</button><button type="submit" class="btn-compact btn-outline">保存物流资料</button><button id="issuePackingListBtn" type="button" class="btn-compact">保存并出具装箱单</button></div>
-                    </form>
-                </div>
-                <div id="orderCustomsSection" class="detail-box" style="margin:14px 0;">
-                    <div class="section-head" style="display:flex;justify-content:space-between;align-items:center;">
-                        <h4 style="margin:0;">报关材料清单</h4>
-                        <div style="display:flex;gap:8px;align-items:center;">
-                            <span id="orderCustomsHint" class="muted"></span>
-                            <button type="button" class="btn-compact btn-outline" id="addCustomsItemBtn">+ 添加材料</button>
-                            <button type="button" class="btn-compact btn-outline" id="resetCustomsBtn">重置为默认模板</button>
-                        </div>
-                    </div>
-                    <ul id="orderCustomsList" class="timeline-list" style="margin-top:8px;"></ul>
-                    <p id="orderCustomsSoftWarning" class="customs-warning hidden" style="margin:8px 0 0;"></p>
-                    <div id="orderCustomsAddSlot" class="hidden" style="margin-top:8px;">
-                        <div style="display:flex;gap:8px;align-items:center;">
-                            <input id="customsNewItemLabelInput" type="text" placeholder="材料名称，如：木制包装熏蒸证书" style="flex:1;">
-                            <button type="button" class="btn-compact" id="customsNewItemConfirmBtn">添加</button>
-                            <button type="button" class="btn-compact btn-outline" id="customsNewItemCancelBtn">取消</button>
-                        </div>
-                    </div>
                 </div>
                 <h4>已出具文档</h4>
                 <p class="document-freeze-note">新出具的单据会固定当时的客户、产品、装箱和公司资料，后续修改不会影响历史版本。</p>

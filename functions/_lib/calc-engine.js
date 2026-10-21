@@ -184,6 +184,55 @@ export async function computeCbm(env, { lines }) {
 // reporting currency); cost is re-derived per line via computeCost and
 // converted into the order's currency. When the caller does not supply a
 // freight value, the saved logistics amount on the order is used.
+
+// 订单汇率基准：取订单最新一版有效报价单(quote)快照锁定的汇率
+// （1 订单币种 = X CNY）。用于利润核算，使利润不随每日汇率波动。
+export async function getOrderQuoteExchangeRate(env, orderId) {
+  const row = await env.DB.prepare(`
+    SELECT snapshot_json FROM documents
+    WHERE order_id = ? AND type = 'quote' AND status = 'active'
+    ORDER BY version DESC LIMIT 1
+  `).bind(orderId).first();
+  if (row) {
+    const snapshot = parseJson(row.snapshot_json, {});
+    const rate = Number(snapshot.exchangeRate);
+    if (rate) return { rate, date: snapshot.exchangeRateDate || '' };
+  }
+  return null;
+}
+
+// 订单感知的汇率换算：凡涉及「订单币种 ↔ 人民币」的换算，优先用锁定汇率
+// （1 订单币种 = X CNY；CNY→订单币种取倒数 1/X）。其余币种对回退实时汇率。
+async function resolveOrderAwareRate(env, order, base, quote, cache, lockedRate) {
+  const b = String(base).trim().toUpperCase();
+  const q = String(quote).trim().toUpperCase();
+  const oc = String(order.currency || '').trim().toUpperCase();
+  if (lockedRate && oc && oc !== 'CNY') {
+    if (b === 'CNY' && q === oc) return { rate: 1 / lockedRate.rate, effectiveDate: lockedRate.date, locked: true };
+    if (b === oc && q === 'CNY') return { rate: lockedRate.rate, effectiveDate: lockedRate.date, locked: true };
+  }
+  const rateKey = `${b}|${q}`;
+  if (cache?.rates && !cache.rates.has(rateKey)) {
+    cache.rates.set(rateKey, getLatestExchangeRate(env, b, q, todayStr()));
+  }
+  return cache?.rates ? await cache.rates.get(rateKey) : await getLatestExchangeRate(env, b, q, todayStr());
+}
+
+// 订单币种 → 报表币种的换算（统计看板利润汇总用），优先用订单锁定汇率桥接。
+export async function getOrderToReportingRate(env, sourceCurrency, reportingCurrency, lockedRate, fallbackDateStr) {
+  const src = String(sourceCurrency || '').trim().toUpperCase();
+  const rep = String(reportingCurrency || '').trim().toUpperCase();
+  if (src === rep) return { rate: 1, synthetic: true };
+  if (lockedRate && src !== 'CNY') {
+    if (rep === 'CNY') return { rate: lockedRate.rate, effectiveDate: lockedRate.date, locked: true };
+    const cnyToRep = await getLatestExchangeRate(env, 'CNY', rep, fallbackDateStr);
+    if (cnyToRep) {
+      return { rate: Math.round(lockedRate.rate * cnyToRep.rate * 10000) / 10000, effectiveDate: lockedRate.date, locked: true };
+    }
+  }
+  return getLatestExchangeRate(env, src, rep, fallbackDateStr);
+}
+
 export async function computeProfit(env, { orderId, freightAmount, freightCurrency }) {
   if (!orderId) return { ok: false, error: 'orderId is required.' };
   const order = await env.DB.prepare('SELECT * FROM sales_orders WHERE id = ?').bind(orderId).first();
@@ -225,9 +274,13 @@ export async function computeProfitForOrder(env, order, { freightAmount, freight
       marginPercent: revenue > 0 ? Math.round((profit / revenue) * 10000) / 100 : null,
       lineCosts: [],
       hasWarnings: false,
-      isLocked: true
+      isLocked: true,
+      exchangeRateBasis: null
     };
   }
+
+  // 汇率基准：优先用订单最新版报价单(quote)锁定的汇率（1 订单币种 = X CNY）。
+  const lockedRate = await getOrderQuoteExchangeRate(env, order.id);
 
   const lines = parseJson(order.current_lines_json, []);
   if (!lines.length) return { ok: false, error: 'Order has no lines.' };
@@ -246,11 +299,7 @@ export async function computeProfitForOrder(env, order, { freightAmount, freight
     }
     let costInOrderCurrency = costResult.totalCost;
     if (costResult.currency !== order.currency) {
-      const rateKey = `${costResult.currency}|${order.currency}`;
-      if (cache?.rates && !cache.rates.has(rateKey)) {
-        cache.rates.set(rateKey, getLatestExchangeRate(env, costResult.currency, order.currency, todayStr()));
-      }
-      const rate = cache?.rates ? await cache.rates.get(rateKey) : await getLatestExchangeRate(env, costResult.currency, order.currency, todayStr());
+      const rate = await resolveOrderAwareRate(env, order, costResult.currency, order.currency, cache, lockedRate);
       if (!rate) {
         lineCosts.push({ productId: line.productId, ok: false, warning: `No exchange rate ${costResult.currency}->${order.currency}.` });
         continue;
@@ -270,11 +319,7 @@ export async function computeProfitForOrder(env, order, { freightAmount, freight
     if (!Number.isFinite(amt) || amt < 0) return { ok: false, error: 'freightAmount must be a non-negative number.' };
     const fCurrency = String(resolvedFreightCurrency || order.currency).trim().toUpperCase();
     if (fCurrency !== order.currency) {
-      const rateKey = `${fCurrency}|${order.currency}`;
-      if (cache?.rates && !cache.rates.has(rateKey)) {
-        cache.rates.set(rateKey, getLatestExchangeRate(env, fCurrency, order.currency, todayStr()));
-      }
-      const rate = cache?.rates ? await cache.rates.get(rateKey) : await getLatestExchangeRate(env, fCurrency, order.currency, todayStr());
+      const rate = await resolveOrderAwareRate(env, order, fCurrency, order.currency, cache, lockedRate);
       if (!rate) return { ok: false, error: `No exchange rate found for ${fCurrency}->${order.currency}.` };
       freightInOrderCurrency = Math.round(amt * rate.rate * 100) / 100;
     } else {
@@ -301,6 +346,7 @@ export async function computeProfitForOrder(env, order, { freightAmount, freight
     marginPercent,
     lineCosts,
     hasWarnings: lineCosts.some((item) => !item.ok),
-    isLocked: false
+    isLocked: false,
+    exchangeRateBasis: lockedRate
   };
 }

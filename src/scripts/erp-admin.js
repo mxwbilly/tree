@@ -931,6 +931,89 @@ const INCOTERM_NOTE_TEMPLATES = {
     DDP: 'Trade term: DDP [Named Place]. The quoted price includes delivery, import customs clearance, duties, and taxes to the named destination, subject to a confirmed delivery address and local import requirements.'
 };
 
+// 货代费用明细：标准费用项（'other' 始终卖方承担，可自由加）。
+const FREIGHT_ITEMS = [
+    { key: 'trucking', label: '拖车费' },
+    { key: 'customs_clearance', label: '报关费' },
+    { key: 'port_charges', label: '港杂费' },
+    { key: 'ocean_freight', label: '海运费' },
+    { key: 'insurance', label: '保险费' },
+    { key: 'destination_charges', label: '目的港费用' },
+    { key: 'duty', label: '关税' },
+    { key: 'other', label: '其他费用' }
+];
+
+// 贸易条款 → 卖方承担的费用项 key。
+const INCOTERM_SELLER_FREIGHT = {
+    EXW: [],
+    FCA: ['trucking', 'customs_clearance'],
+    FOB: ['trucking', 'customs_clearance', 'port_charges'],
+    CFR: ['trucking', 'customs_clearance', 'port_charges', 'ocean_freight'],
+    CIF: ['trucking', 'customs_clearance', 'port_charges', 'ocean_freight', 'insurance'],
+    DAP: ['trucking', 'customs_clearance', 'port_charges', 'ocean_freight', 'insurance', 'destination_charges'],
+    DDP: ['trucking', 'customs_clearance', 'port_charges', 'ocean_freight', 'insurance', 'destination_charges', 'duty']
+};
+
+const FREIGHT_CURRENCIES = ['USD', 'CNY', 'EUR', 'GBP'];
+let currentSavedFreightItems = [];
+
+// 按订单贸易条款渲染货代费用明细表：卖方承担项可填金额，买方承担项灰显。
+function renderFreightItems(incoterm, savedItems, orderCurrency) {
+    const list = document.getElementById('freightItemsList');
+    if (!list) return;
+    const sellerKeys = new Set(['other', ...(INCOTERM_SELLER_FREIGHT[String(incoterm || '').trim().toUpperCase()] || [])]);
+    const byKey = new Map((savedItems || []).map((item) => [item.key, item]));
+    const currencies = [...new Set([orderCurrency, ...FREIGHT_CURRENCIES].filter(Boolean).map((c) => String(c).toUpperCase()))];
+    const tag = document.getElementById('freightItemsIncotermTag');
+    if (tag) tag.innerHTML = incoterm
+        ? `<span style="margin-left:6px;font-size:12px;color:#2e7d32;">贸易条款：${escapeHtml(incoterm)}</span>`
+        : '';
+    list.innerHTML = FREIGHT_ITEMS.map((def) => {
+        const isSeller = sellerKeys.has(def.key);
+        const saved = byKey.get(def.key) || {};
+        const currency = String(saved.currency || orderCurrency || 'USD').toUpperCase();
+        if (!isSeller) {
+            return `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--border-color,#e5e7eb);border-radius:8px;background:var(--bg-light,#fafafa);opacity:.6;">
+                <span style="flex:1;min-width:0;">${escapeHtml(def.label)}</span>
+                <span style="font-size:12px;color:var(--text-gray,#6b7280);">买方承担</span>
+            </div>`;
+        }
+        return `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--border-color,#e5e7eb);border-radius:8px;">
+            <span style="flex:1;min-width:0;">${escapeHtml(def.label)}</span>
+            <span style="font-size:12px;color:#2e7d32;">卖方承担</span>
+            <input type="number" min="0" step="0.01" data-freight-key="${def.key}" placeholder="金额" value="${saved.amount ?? ''}" style="width:100px;">
+            <select data-freight-currency="${def.key}" style="width:72px;">${currencies.map((c) => `<option value="${c}" ${c === currency ? 'selected' : ''}>${c}</option>`).join('')}</select>
+        </div>`;
+    }).join('');
+    updateFreightItemsTotal();
+}
+
+// 收集当前明细表中已填金额的卖方承担项。
+function collectFreightItems() {
+    const items = [];
+    FREIGHT_ITEMS.forEach((def) => {
+        const input = document.querySelector(`[data-freight-key="${def.key}"]`);
+        if (!input) return;
+        const amount = Number(input.value);
+        if (!Number.isFinite(amount) || amount <= 0) return;
+        const currencySel = document.querySelector(`[data-freight-currency="${def.key}"]`);
+        items.push({ key: def.key, amount, currency: currencySel ? currencySel.value : '' });
+    });
+    return items;
+}
+
+function updateFreightItemsTotal() {
+    const totalEl = document.getElementById('freightItemsTotal');
+    if (!totalEl) return;
+    const total = FREIGHT_ITEMS.reduce((sum, def) => {
+        const input = document.querySelector(`[data-freight-key="${def.key}"]`);
+        return sum + (input ? (Number(input.value) || 0) : 0);
+    }, 0);
+    totalEl.textContent = total > 0 ? `卖方承担合计：${total.toFixed(2)}` : '';
+}
+
+document.getElementById('freightItemsList').addEventListener('input', updateFreightItemsTotal);
+
 document.getElementById('orderIncotermInput').addEventListener('change', (event) => {
     const template = INCOTERM_NOTE_TEMPLATES[event.target.value];
     if (!template) return;
@@ -1438,8 +1521,8 @@ async function viewOrder(orderId) {
         document.getElementById('shippingDestinationPortInput').value = shipping.destinationPort || '';
         document.getElementById('shippingMarksInput').value = shipping.shippingMarks || '';
         document.getElementById('shippingActualShipmentDateInput').value = shipping.actualShipmentDate || order.actualShipmentDate || '';
-        document.getElementById('shippingFreightAmountInput').value = shipping.freightAmount ?? '';
-        document.getElementById('shippingFreightCurrencyInput').value = shipping.freightCurrency || order.currency || 'USD';
+        currentSavedFreightItems = shipping.freightItems || [];
+        renderFreightItems(order.incoterm, currentSavedFreightItems, order.currency);
         document.getElementById('shippingFreightRefInput').value = shipping.freightRef || '';
         document.getElementById('shippingForwarderNoteInput').value = shipping.forwarderNote || '';
         await loadShippingPortOptions(shipping.originPort, shipping.destinationPort);
@@ -1592,8 +1675,7 @@ function getShippingPayload() {
         destinationPort: document.getElementById('shippingDestinationPortInput').value.trim(),
         shippingMarks: document.getElementById('shippingMarksInput').value.trim(),
         actualShipmentDate: document.getElementById('shippingActualShipmentDateInput').value,
-        freightAmount: document.getElementById('shippingFreightAmountInput').value,
-        freightCurrency: document.getElementById('shippingFreightCurrencyInput').value.trim(),
+        freightItems: collectFreightItems(),
         freightRef: document.getElementById('shippingFreightRefInput').value.trim(),
         forwarderNote: document.getElementById('shippingForwarderNoteInput').value.trim()
     };
@@ -1841,8 +1923,15 @@ document.getElementById('loadFreightRateBtn').addEventListener('click', async ()
     }
     try {
         const result = await apiFetch(`/api/freight-rates/latest?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&containerType=${encodeURIComponent(containerType)}`);
-        document.getElementById('shippingFreightAmountInput').value = Number(result.item.rate).toFixed(2);
-        document.getElementById('shippingFreightCurrencyInput').value = result.item.currency || 'USD';
+        const oceanInput = document.querySelector('[data-freight-key="ocean_freight"]');
+        if (!oceanInput) {
+            alert('当前贸易条款下海运费为买方承担，参考运费未自动填入；请直接填写卖方承担的费用项。');
+            return;
+        }
+        oceanInput.value = Number(result.item.rate).toFixed(2);
+        const currencySel = document.querySelector('[data-freight-currency="ocean_freight"]');
+        if (currencySel && result.item.currency) currencySel.value = String(result.item.currency).toUpperCase();
+        updateFreightItemsTotal();
     } catch (error) {
         alert(`未找到可用的参考运费：${error.message}`);
     }

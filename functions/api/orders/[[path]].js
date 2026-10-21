@@ -2,7 +2,7 @@ import { json, newId, hasText, parseJson, nowIso, readBody } from '../../_lib/ht
 import { requireAuth } from '../../_lib/auth.js';
 import { getCompanyInfo, getConfiguredCompanyInfo } from '../../_lib/company.js';
 import { renderDocumentHtml } from '../../_lib/document-renderer.js';
-import { computeCbm, computeProfitForOrder } from '../../_lib/calc-engine.js';
+import { computeCbm, computeProfitForOrder, getOrderQuoteExchangeRate } from '../../_lib/calc-engine.js';
 import { getLatestExchangeRate } from '../../_lib/rates.js';
 import { sendEmailViaResend } from '../../_lib/mailer.js';
 
@@ -659,9 +659,35 @@ async function handleUpdateOrder(request, env, id) {
   return handleOrderDetail(env, id);
 }
 
+// 贸易条款 → 卖方承担的费用项 key（'other' 始终卖方承担，可自由加）。
+const INCOTERM_SELLER_FREIGHT = {
+  EXW: [],
+  FCA: ['trucking', 'customs_clearance'],
+  FOB: ['trucking', 'customs_clearance', 'port_charges'],
+  CFR: ['trucking', 'customs_clearance', 'port_charges', 'ocean_freight'],
+  CIF: ['trucking', 'customs_clearance', 'port_charges', 'ocean_freight', 'insurance'],
+  DAP: ['trucking', 'customs_clearance', 'port_charges', 'ocean_freight', 'insurance', 'destination_charges'],
+  DDP: ['trucking', 'customs_clearance', 'port_charges', 'ocean_freight', 'insurance', 'destination_charges', 'duty']
+};
+const FREIGHT_ITEM_KEYS = ['trucking', 'customs_clearance', 'port_charges', 'ocean_freight', 'insurance', 'destination_charges', 'duty', 'other'];
+
+function normalizeFreightItems(input) {
+  if (!Array.isArray(input)) return [];
+  const result = [];
+  for (const item of input) {
+    if (!item || typeof item !== 'object') continue;
+    const key = String(item.key || '').trim();
+    if (!FREIGHT_ITEM_KEYS.includes(key)) continue;
+    const amount = Number(item.amount);
+    if (!Number.isFinite(amount) || amount < 0) continue;
+    const currency = String(item.currency || '').trim().toUpperCase().slice(0, 3);
+    result.push({ key, amount: Math.round(amount * 100) / 100, currency });
+  }
+  return result;
+}
+
 function normalizeShipping(input) {
   const value = input && typeof input === 'object' ? input : {};
-  const freightAmount = String(value.freightAmount ?? '').trim();
   const dates = ['bookingDate', 'customsDate', 'actualShipmentDate'];
   if (dates.some((key) => value[key] && !/^\d{4}-\d{2}-\d{2}$/.test(String(value[key])))) return { error: '货代节点日期必须使用 YYYY-MM-DD。' };
   return {
@@ -679,8 +705,9 @@ function normalizeShipping(input) {
     destinationPort: String(value.destinationPort || '').trim(),
     shippingMarks: String(value.shippingMarks || '').trim(),
     actualShipmentDate: String(value.actualShipmentDate || '').trim(),
-    freightAmount: freightAmount !== '' && Number.isFinite(Number(freightAmount)) && Number(freightAmount) >= 0 ? Number(freightAmount) : null,
-    freightCurrency: String(value.freightCurrency || '').trim().toUpperCase().slice(0, 3),
+    freightItems: normalizeFreightItems(value.freightItems),
+    freightAmount: null,
+    freightCurrency: '',
     freightRef: String(value.freightRef || '').trim(),
     forwarderNote: String(value.forwarderNote || '').trim()
   };
@@ -695,6 +722,26 @@ async function handleUpdateShipping(request, env, id) {
   const body = await readBody(request);
   const shipping = normalizeShipping(body.shipping);
   if (shipping.error) return json({ ok: false, error: shipping.error }, { status: 400 });
+  // 汇总卖方承担的货代费用明细为订单币种，作为订单的实际运费基准。
+  const incoterm = String(existing.incoterm || '').trim().toUpperCase();
+  const sellerSet = new Set([...(INCOTERM_SELLER_FREIGHT[incoterm] || []), 'other']);
+  const orderCurrency = String(existing.currency || '').trim().toUpperCase();
+  const lockedRate = await getOrderQuoteExchangeRate(env, existing.id);
+  let freightTotal = 0;
+  for (const item of shipping.freightItems) {
+    if (!sellerSet.has(item.key)) continue;
+    const cur = String(item.currency || orderCurrency).trim().toUpperCase();
+    if (cur === orderCurrency) { freightTotal += item.amount; continue; }
+    let rate = null;
+    if (lockedRate && orderCurrency !== 'CNY' && cur === 'CNY') rate = 1 / lockedRate.rate;
+    if (!rate) {
+      const r = await getLatestExchangeRate(env, cur, orderCurrency, nowIso().slice(0, 10));
+      if (r) rate = r.rate;
+    }
+    if (rate) freightTotal += item.amount * rate;
+  }
+  shipping.freightAmount = freightTotal > 0 ? Math.round(freightTotal * 100) / 100 : null;
+  shipping.freightCurrency = orderCurrency;
   const actualShipmentDate = shipping.actualShipmentDate || null;
   await env.DB.prepare('UPDATE sales_orders SET shipping_json = ?, updated_at = ? WHERE id = ?')
     .bind(JSON.stringify(shipping), nowIso(), id).run();

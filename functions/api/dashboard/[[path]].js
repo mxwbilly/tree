@@ -5,8 +5,7 @@
 // logistics profile is included in the shared calculation.
 import { json, parseJson } from '../../_lib/http.js';
 import { requireAuth } from '../../_lib/auth.js';
-import { computeProfitForOrder } from '../../_lib/calc-engine.js';
-import { getLatestExchangeRate } from '../../_lib/rates.js';
+import { computeProfitForOrder, getOrderToReportingRate } from '../../_lib/calc-engine.js';
 
 // Orders that have moved past the quoting stage — i.e. a deposit or firm
 // commitment exists — count as real revenue/profit. 'quoted' and
@@ -72,7 +71,7 @@ function createProfitCalculator(env, reportingCurrency) {
           return { ok: false, code: 'missing_payment', error: 'Completed order has no recorded payment.' };
         }
         const agreedRateDate = String(order.created_at || '').slice(0, 10);
-        const rate = await getLatestExchangeRate(env, sourceCurrency, reportingCurrency, agreedRateDate);
+        const rate = await getOrderToReportingRate(env, sourceCurrency, reportingCurrency, result.exchangeRateBasis, agreedRateDate);
         if (!rate) {
           return { ok: false, code: 'missing_agreed_rate', error: `No agreed exchange rate found for ${sourceCurrency}->${reportingCurrency} on ${agreedRateDate}.` };
         }
