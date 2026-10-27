@@ -30,6 +30,9 @@ data/*.json
 .wrangler-config/
 wrangler.jsonc
 
+# Google service-account credentials (sensitive)
+.credentials/
+
 # macOS/Windows junk
 .DS_Store
 Thumbs.db
