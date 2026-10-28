@@ -100,6 +100,26 @@ async function loadProducts(q) {
     }
 }
 
+function syncDetailFieldsVisibility() {
+    const enabled = document.getElementById('productDetailEnabledInput').checked;
+    const fields = document.getElementById('productDetailFields');
+    if (fields) fields.classList.toggle('hidden', !enabled);
+}
+document.getElementById('productDetailEnabledInput').addEventListener('change', syncDetailFieldsVisibility);
+
+function syncLangFieldsVisibility() {
+    const mapping = { vi: 'productLangViFields', th: 'productLangThFields', id: 'productLangIdFields' };
+    const checks = { vi: 'productLangViInput', th: 'productLangThInput', id: 'productLangIdInput' };
+    for (const lang of ['vi', 'th', 'id']) {
+        const checked = document.getElementById(checks[lang]).checked;
+        const fields = document.getElementById(mapping[lang]);
+        if (fields) fields.classList.toggle('hidden', !checked);
+    }
+}
+document.getElementById('productLangViInput').addEventListener('change', syncLangFieldsVisibility);
+document.getElementById('productLangThInput').addEventListener('change', syncLangFieldsVisibility);
+document.getElementById('productLangIdInput').addEventListener('change', syncLangFieldsVisibility);
+
 document.getElementById('productForm').addEventListener('submit', async (event) => {
     event.preventDefault();
     const id = document.getElementById('productIdInput').value;
@@ -132,7 +152,6 @@ document.getElementById('productForm').addEventListener('submit', async (event) 
         title: document.getElementById('productPublicTitleInput').value.trim(),
         imageUrl: normalizePublicImagePath(document.getElementById('productPublicImageInput').value),
         secondaryImageUrl: normalizePublicImagePath(document.getElementById('productPublicSecondaryImageInput').value),
-        detailUrl: document.getElementById('productPublicDetailUrlInput').value.trim(),
         description: document.getElementById('productPublicDescriptionInput').value.trim(),
         badge: document.getElementById('productPublicBadgeInput').value.trim(),
         chip: document.getElementById('productPublicChipInput').value.trim(),
@@ -140,11 +159,64 @@ document.getElementById('productForm').addEventListener('submit', async (event) 
         meta: splitHomepageLines('productPublicMetaInput', 2),
         sortOrder: Number(document.getElementById('productPublicOrderInput').value || 0)
     };
+    const detailEnabled = document.getElementById('productDetailEnabledInput').checked;
+    const splitDetailLines = (id, limit) => document.getElementById(id).value
+        .split(/\r?\n/)
+        .map((value) => value.trim())
+        .filter(Boolean)
+        .slice(0, limit);
+    const splitDetailKeyValue = (id, limit) => splitDetailLines(id, limit)
+        .map((line) => {
+            const idx = line.search(/[|:：]/);
+            if (idx < 0) return [line, ''];
+            return [line.slice(0, idx).trim(), line.slice(idx + 1).trim()];
+        })
+        .filter((pair) => pair[0] || pair[1]);
+    const langChecks = { vi: 'productLangViInput', th: 'productLangThInput', id: 'productLangIdInput' };
+    const langPrefixes = { vi: 'productVi', th: 'productTh', id: 'productId' };
+    const selectedLangs = ['vi', 'th', 'id'].filter((code) => document.getElementById(langChecks[code]).checked);
+    const languages = ['en', ...selectedLangs];
+    const collectTranslation = (code) => {
+        const p = langPrefixes[code];
+        return {
+            title: document.getElementById(`${p}TitleInput`).value.trim(),
+            metaDescription: document.getElementById(`${p}MetaDescInput`).value.trim(),
+            intro: document.getElementById(`${p}IntroInput`).value.trim(),
+            points: splitDetailLines(`${p}PointsInput`, 5),
+            quickSpecs: splitDetailKeyValue(`${p}QuickSpecsInput`, 4),
+            specs: splitDetailKeyValue(`${p}SpecsInput`, 30),
+            faq: splitDetailKeyValue(`${p}FaqInput`, 20),
+            moqLadder: splitDetailLines(`${p}MoqInput`, 10)
+        };
+    };
+    const translations = {};
+    for (const code of selectedLangs) translations[code] = collectTranslation(code);
+    const detailInfo = detailEnabled
+        ? {
+            enabled: true,
+            slug: document.getElementById('productDetailSlugInput').value.trim(),
+            title: document.getElementById('productDetailTitleInput').value.trim(),
+            metaDescription: document.getElementById('productDetailMetaDescInput').value.trim(),
+            intro: document.getElementById('productDetailIntroInput').value.trim(),
+            points: splitDetailLines('productDetailPointsInput', 5),
+            quickSpecs: splitDetailKeyValue('productDetailQuickSpecsInput', 4),
+            specs: splitDetailKeyValue('productDetailSpecsInput', 30),
+            gallery: splitDetailLines('productDetailGalleryInput', 20).map((line) => {
+                const idx = line.indexOf('|');
+                return idx < 0 ? { image: line } : { image: line.slice(0, idx).trim(), caption: line.slice(idx + 1).trim() };
+            }),
+            faq: splitDetailKeyValue('productDetailFaqInput', 20),
+            moqLadder: splitDetailLines('productDetailMoqInput', 10),
+            related: document.getElementById('productDetailRelatedInput').value.split(',').map((value) => value.trim()).filter(Boolean),
+            languages,
+            translations
+        }
+        : { ...(currentProduct?.spec?.detail || {}), enabled: false };
     const body = {
         sku: document.getElementById('productSkuInput').value.trim(),
         name: document.getElementById('productNameInput').value.trim(),
         category: document.getElementById('productCategoryInput').value.trim(),
-        spec: { ...(currentProduct?.spec || {}), note: document.getElementById('productSpecInput').value.trim(), public: publicInfo,
+        spec: { ...(currentProduct?.spec || {}), note: document.getElementById('productSpecInput').value.trim(), public: publicInfo, detail: detailInfo,
             hsCode: document.getElementById('productHsCodeInput').value.trim(),
             originCountry: document.getElementById('productOriginCountryInput').value.trim(),
             unit: document.getElementById('productUnitInput').value.trim() },
@@ -171,13 +243,26 @@ function resetProductForm() {
     document.getElementById('productPublicTitleInput').value = '';
     document.getElementById('productPublicImageInput').value = '';
     document.getElementById('productPublicSecondaryImageInput').value = '';
-    document.getElementById('productPublicDetailUrlInput').value = '';
     document.getElementById('productPublicOrderInput').value = '0';
     document.getElementById('productPublicDescriptionInput').value = '';
     document.getElementById('productPublicBadgeInput').value = '';
     document.getElementById('productPublicChipInput').value = '';
     document.getElementById('productPublicHighlightsInput').value = '';
     document.getElementById('productPublicMetaInput').value = '';
+    document.getElementById('productDetailEnabledInput').checked = false;
+    document.getElementById('productDetailSlugInput').value = '';
+    document.getElementById('productDetailTitleInput').value = '';
+    document.getElementById('productDetailMetaDescInput').value = '';
+    document.getElementById('productDetailIntroInput').value = '';
+    document.getElementById('productDetailPointsInput').value = '';
+    document.getElementById('productDetailQuickSpecsInput').value = '';
+    document.getElementById('productDetailSpecsInput').value = '';
+    document.getElementById('productDetailGalleryInput').value = '';
+    document.getElementById('productDetailFaqInput').value = '';
+    document.getElementById('productDetailMoqInput').value = '';
+    document.getElementById('productDetailRelatedInput').value = '';
+    syncDetailFieldsVisibility();
+    syncLangFieldsVisibility();
     document.getElementById('productHsCodeInput').value = '';
     document.getElementById('productOriginCountryInput').value = '';
     document.getElementById('productUnitInput').value = '';
@@ -207,13 +292,46 @@ document.getElementById('productRows').addEventListener('click', async (event) =
         document.getElementById('productPublicTitleInput').value = p.spec?.public?.title || '';
         document.getElementById('productPublicImageInput').value = p.spec?.public?.imageUrl || '';
         document.getElementById('productPublicSecondaryImageInput').value = p.spec?.public?.secondaryImageUrl || '';
-        document.getElementById('productPublicDetailUrlInput').value = p.spec?.public?.detailUrl || '';
         document.getElementById('productPublicOrderInput').value = p.spec?.public?.sortOrder ?? 0;
         document.getElementById('productPublicDescriptionInput').value = p.spec?.public?.description || '';
         document.getElementById('productPublicBadgeInput').value = p.spec?.public?.badge || '';
         document.getElementById('productPublicChipInput').value = p.spec?.public?.chip || '';
         document.getElementById('productPublicHighlightsInput').value = (p.spec?.public?.highlights || []).join('\n');
         document.getElementById('productPublicMetaInput').value = (p.spec?.public?.meta || []).join('\n');
+        const detail = p.spec?.detail || {};
+        document.getElementById('productDetailEnabledInput').checked = Boolean(detail.enabled);
+        document.getElementById('productDetailSlugInput').value = detail.slug || '';
+        document.getElementById('productDetailTitleInput').value = detail.title || '';
+        document.getElementById('productDetailMetaDescInput').value = detail.metaDescription || '';
+        document.getElementById('productDetailIntroInput').value = detail.intro || '';
+        document.getElementById('productDetailPointsInput').value = (detail.points || []).join('\n');
+        document.getElementById('productDetailQuickSpecsInput').value = (detail.quickSpecs || []).map((pair) => (Array.isArray(pair) ? pair.join('|') : pair)).join('\n');
+        document.getElementById('productDetailSpecsInput').value = (detail.specs || []).map((pair) => (Array.isArray(pair) ? pair.join('|') : pair)).join('\n');
+        document.getElementById('productDetailGalleryInput').value = (detail.gallery || []).map((item) => (typeof item === 'string' ? item : `${item.image}${item.caption ? `|${item.caption}` : ''}`)).join('\n');
+        document.getElementById('productDetailFaqInput').value = (detail.faq || []).map((pair) => (Array.isArray(pair) ? pair.join('|') : pair)).join('\n');
+        document.getElementById('productDetailMoqInput').value = (detail.moqLadder || []).join('\n');
+        document.getElementById('productDetailRelatedInput').value = (detail.related || []).join(', ');
+        const langMap = { vi: 'productLangViInput', th: 'productLangThInput', id: 'productLangIdInput' };
+        const detailLangs = Array.isArray(detail.languages) ? detail.languages : [];
+        for (const code of ['vi', 'th', 'id']) {
+            document.getElementById(langMap[code]).checked = detailLangs.includes(code);
+        }
+        const translations = detail.translations || {};
+        const fillTranslation = (code) => {
+            const t = translations[code] || {};
+            const p = { vi: 'productVi', th: 'productTh', id: 'productId' }[code];
+            document.getElementById(`${p}TitleInput`).value = t.title || '';
+            document.getElementById(`${p}MetaDescInput`).value = t.metaDescription || '';
+            document.getElementById(`${p}IntroInput`).value = t.intro || '';
+            document.getElementById(`${p}PointsInput`).value = (t.points || []).join('\n');
+            document.getElementById(`${p}QuickSpecsInput`).value = (t.quickSpecs || []).map((pair) => (Array.isArray(pair) ? pair.join('|') : pair)).join('\n');
+            document.getElementById(`${p}SpecsInput`).value = (t.specs || []).map((pair) => (Array.isArray(pair) ? pair.join('|') : pair)).join('\n');
+            document.getElementById(`${p}FaqInput`).value = (t.faq || []).map((pair) => (Array.isArray(pair) ? pair.join('|') : pair)).join('\n');
+            document.getElementById(`${p}MoqInput`).value = (t.moqLadder || []).join('\n');
+        };
+        for (const code of ['vi', 'th', 'id']) fillTranslation(code);
+        syncDetailFieldsVisibility();
+        syncLangFieldsVisibility();
         document.getElementById('productSupplierSelect').value = p.defaultSupplierId || '';
         document.getElementById('productUnitsPerCartonInput').value = p.packaging?.unitsPerCarton || '';
         document.getElementById('productCartonLInput').value = p.packaging?.cartonDimensionsCm?.length || '';

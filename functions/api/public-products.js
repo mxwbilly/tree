@@ -106,6 +106,9 @@ export async function onRequestGet(context) {
     const spec = parseJson(row.spec_json, {});
     const publicInfo = spec.public || {};
     if (!publicInfo.published) return null;
+    const detailInfo = spec.detail || {};
+    // 详情页开关驱动「View Details」按钮：仅当 detail.enabled 且配置了 slug 时才返回链接。
+    const detailUrl = (detailInfo.enabled && detailInfo.slug) ? `/products/${String(detailInfo.slug).trim()}` : '';
     return {
       id: row.id,
       sku: row.sku,
@@ -115,7 +118,7 @@ export async function onRequestGet(context) {
       description: String(publicInfo.description || spec.note || '').trim(),
       imageUrl: safeImageUrl(publicInfo.imageUrl),
       secondaryImageUrl: safeImageUrl(publicInfo.secondaryImageUrl),
-      detailUrl: safeImageUrl(publicInfo.detailUrl),
+      detailUrl,
       badge: String(publicInfo.badge || '').trim(),
       chip: String(publicInfo.chip || '').trim(),
       chipIcon: String(publicInfo.chipIcon || '').trim(),

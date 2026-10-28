@@ -995,13 +995,68 @@
                 <input id="productPublicTitleInput" type="text" placeholder="前台展示标题（默认产品名称）">
                 <input id="productPublicImageInput" type="text" inputmode="url" placeholder="前台图片地址或文件名（如 /image.jpg）">
                 <input id="productPublicSecondaryImageInput" type="text" inputmode="url" placeholder="前台第二张图片地址或文件名（悬停展示，可选）">
-                <input id="productPublicDetailUrlInput" type="text" placeholder="产品详情页路径（如 /self-watering-double-layer.html，可选）">
                 <input id="productPublicOrderInput" type="number" min="0" step="1" value="0" placeholder="前台排序（数字小靠前）">
                 <textarea id="productPublicDescriptionInput" placeholder="前台产品简介（建议英文，150 字以内）" maxlength="500"></textarea>
                 <input id="productPublicBadgeInput" type="text" placeholder="产品角标（如 Trend leader，可选）" maxlength="80">
                 <input id="productPublicChipInput" type="text" placeholder="图片右上角提示（如 Samples ready to ship，可选）" maxlength="80">
                 <textarea id="productPublicHighlightsInput" placeholder="首页卖点（每行一条，最多三条）" maxlength="500"></textarea>
                 <textarea id="productPublicMetaInput" placeholder="首页补充信息（每行一条，例如 MOQ / 适用场景）" maxlength="300"></textarea>
+                <hr style="margin:8px 0;">
+                <label class="checkbox-field"><input id="productDetailEnabledInput" type="checkbox"> 启用产品详情页</label>
+                <div id="productDetailFields" class="hidden" style="display:grid;gap:8px;border:1px solid #e5e7eb;border-radius:8px;padding:12px;background:#f9fafb;">
+                    <input id="productDetailSlugInput" type="text" placeholder="详情页路径（如 self-watering-double-layer，必填）">
+                    <input id="productDetailTitleInput" type="text" placeholder="详情页标题（含 SEO 标题，默认产品名）">
+                    <textarea id="productDetailMetaDescInput" placeholder="SEO 描述（meta description）" maxlength="300"></textarea>
+                    <textarea id="productDetailIntroInput" placeholder="详情页简介段落（英文）" maxlength="1000"></textarea>
+                    <textarea id="productDetailPointsInput" placeholder="产品卖点（每行一条，最多 5 条）" maxlength="1000"></textarea>
+                    <textarea id="productDetailQuickSpecsInput" placeholder="顶部快参（每行 标签|值，如 MOQ|From 50 pcs）" maxlength="600"></textarea>
+                    <textarea id="productDetailSpecsInput" placeholder="规格表（每行 标签|值，如 Material|BPA-free PP）" maxlength="2000"></textarea>
+                    <textarea id="productDetailGalleryInput" placeholder="图集（每行 图片路径|说明，如 product-x.jpg|颜色范围）" maxlength="2000"></textarea>
+                    <textarea id="productDetailFaqInput" placeholder="常见问题（每行 问题|答案）" maxlength="2000"></textarea>
+                    <textarea id="productDetailMoqInput" placeholder="MOQ 阶梯（每行一条）" maxlength="1000"></textarea>
+                    <input id="productDetailRelatedInput" type="text" placeholder="相关产品 slug（逗号分隔，可选）">
+                    <div style="border-top:1px dashed #d1d5db;padding-top:8px;margin-top:4px;">
+                        <span style="font-weight:600;">支持语言（勾选后填写译文，未勾选不生成该语言页）</span>
+                        <div style="display:flex;gap:14px;margin-top:6px;">
+                            <label class="checkbox-field"><input id="productLangViInput" type="checkbox"> VI 越南语</label>
+                            <label class="checkbox-field"><input id="productLangThInput" type="checkbox"> TH 泰语</label>
+                            <label class="checkbox-field"><input id="productLangIdInput" type="checkbox"> ID 印尼语</label>
+                        </div>
+                    </div>
+                    <fieldset id="productLangViFields" class="hidden" style="display:grid;gap:8px;border:1px solid #e5e7eb;border-radius:8px;padding:12px;">
+                        <legend>越南语译文 VI</legend>
+                        <input id="productViTitleInput" type="text" placeholder="标题（Tiêu đề）">
+                        <textarea id="productViMetaDescInput" placeholder="SEO 描述（meta description）" maxlength="300"></textarea>
+                        <textarea id="productViIntroInput" placeholder="简介段落" maxlength="1000"></textarea>
+                        <textarea id="productViPointsInput" placeholder="卖点（每行一条）" maxlength="1000"></textarea>
+                        <textarea id="productViQuickSpecsInput" placeholder="顶部快参（每行 标签|值）" maxlength="600"></textarea>
+                        <textarea id="productViSpecsInput" placeholder="规格表（每行 标签|值）" maxlength="2000"></textarea>
+                        <textarea id="productViFaqInput" placeholder="常见问题（每行 问题|答案）" maxlength="2000"></textarea>
+                        <textarea id="productViMoqInput" placeholder="MOQ 阶梯（每行一条）" maxlength="1000"></textarea>
+                    </fieldset>
+                    <fieldset id="productLangThFields" class="hidden" style="display:grid;gap:8px;border:1px solid #e5e7eb;border-radius:8px;padding:12px;">
+                        <legend>泰语译文 TH</legend>
+                        <input id="productThTitleInput" type="text" placeholder="标题 (ชื่อเรื่อง)">
+                        <textarea id="productThMetaDescInput" placeholder="SEO 描述（meta description）" maxlength="300"></textarea>
+                        <textarea id="productThIntroInput" placeholder="简介段落" maxlength="1000"></textarea>
+                        <textarea id="productThPointsInput" placeholder="卖点（每行一条）" maxlength="1000"></textarea>
+                        <textarea id="productThQuickSpecsInput" placeholder="顶部快参（每行 标签|值）" maxlength="600"></textarea>
+                        <textarea id="productThSpecsInput" placeholder="规格表（每行 标签|值）" maxlength="2000"></textarea>
+                        <textarea id="productThFaqInput" placeholder="常见问题（每行 问题|答案）" maxlength="2000"></textarea>
+                        <textarea id="productThMoqInput" placeholder="MOQ 阶梯（每行一条）" maxlength="1000"></textarea>
+                    </fieldset>
+                    <fieldset id="productLangIdFields" class="hidden" style="display:grid;gap:8px;border:1px solid #e5e7eb;border-radius:8px;padding:12px;">
+                        <legend>印尼语译文 ID</legend>
+                        <input id="productIdTitleInput" type="text" placeholder="标题 (Judul)">
+                        <textarea id="productIdMetaDescInput" placeholder="SEO 描述（meta description）" maxlength="300"></textarea>
+                        <textarea id="productIdIntroInput" placeholder="简介段落" maxlength="1000"></textarea>
+                        <textarea id="productIdPointsInput" placeholder="卖点（每行一条）" maxlength="1000"></textarea>
+                        <textarea id="productIdQuickSpecsInput" placeholder="顶部快参（每行 标签|值）" maxlength="600"></textarea>
+                        <textarea id="productIdSpecsInput" placeholder="规格表（每行 标签|值）" maxlength="2000"></textarea>
+                        <textarea id="productIdFaqInput" placeholder="常见问题（每行 问题|答案）" maxlength="2000"></textarea>
+                        <textarea id="productIdMoqInput" placeholder="MOQ 阶梯（每行一条）" maxlength="1000"></textarea>
+                    </fieldset>
+                </div>
                 <select id="productSupplierSelect">
                     <option value="">默认供应商（可选）</option>
                 </select>

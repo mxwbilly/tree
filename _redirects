@@ -1,15 +1,37 @@
-# Old product pages → new product pages (301 permanent)
-/bamboo-fiber-planter.html          /transparent-orchid-pot        301
-/self-watering-ceramic-planter.html /self-watering-double-layer     301
-/stackable-nursery-tray.html        /root-control-gallon-pot        301
-/terracotta-planter.html            /creative-shaped-planter        301
-/balcony-planter-box.html           /self-watering-double-layer     301
-/hanging-coir-basket.html           /creative-shaped-planter        301
+# 更早的产品改名跳转（旧产品页 → 新详情页，301）
+/bamboo-fiber-planter.html          /products/transparent-orchid-pot        301
+/self-watering-ceramic-planter.html /products/self-watering-double-layer     301
+/stackable-nursery-tray.html        /products/root-control-gallon-pot        301
+/terracotta-planter.html            /products/creative-shaped-planter        301
+/balcony-planter-box.html           /products/self-watering-double-layer     301
+/hanging-coir-basket.html           /products/creative-shaped-planter        301
+/bamboo-fiber-planter               /products/transparent-orchid-pot        301
+/self-watering-ceramic-planter      /products/self-watering-double-layer     301
+/stackable-nursery-tray             /products/root-control-gallon-pot        301
+/terracotta-planter                 /products/creative-shaped-planter        301
+/balcony-planter-box                /products/self-watering-double-layer     301
+/hanging-coir-basket                /products/creative-shaped-planter        301
 
-# Old clean URLs without .html suffix → new product pages (301)
-/bamboo-fiber-planter               /transparent-orchid-pot        301
-/self-watering-ceramic-planter      /self-watering-double-layer     301
-/stackable-nursery-tray             /root-control-gallon-pot        301
-/terracotta-planter                 /creative-shaped-planter        301
-/balcony-planter-box                /self-watering-double-layer     301
-/hanging-coir-basket                /creative-shaped-planter        301
+# 旧详情页 URL（裸 slug 与 .html）→ 配置化详情页（301）
+/self-watering-double-layer         /products/self-watering-double-layer     301
+/self-watering-double-layer.html    /products/self-watering-double-layer     301
+/root-control-gallon-pot            /products/root-control-gallon-pot        301
+/root-control-gallon-pot.html       /products/root-control-gallon-pot        301
+/transparent-orchid-pot             /products/transparent-orchid-pot         301
+/transparent-orchid-pot.html        /products/transparent-orchid-pot         301
+/creative-shaped-planter            /products/creative-shaped-planter        301
+/creative-shaped-planter.html       /products/creative-shaped-planter        301
+
+# 旧多语言详情页 URL → 对应语言详情页（301）
+/vi/self-watering-double-layer      /vi/products/self-watering-double-layer   301
+/vi/root-control-gallon-pot         /vi/products/root-control-gallon-pot      301
+/vi/transparent-orchid-pot          /vi/products/transparent-orchid-pot       301
+/vi/creative-shaped-planter         /vi/products/creative-shaped-planter      301
+/th/self-watering-double-layer      /th/products/self-watering-double-layer   301
+/th/root-control-gallon-pot         /th/products/root-control-gallon-pot      301
+/th/transparent-orchid-pot          /th/products/transparent-orchid-pot       301
+/th/creative-shaped-planter         /th/products/creative-shaped-planter      301
+/id/self-watering-double-layer      /id/products/self-watering-double-layer   301
+/id/root-control-gallon-pot         /id/products/root-control-gallon-pot      301
+/id/transparent-orchid-pot          /id/products/transparent-orchid-pot       301
+/id/creative-shaped-planter         /id/products/creative-shaped-planter      301

@@ -51,6 +51,9 @@ function localReference(file, rawRef, baseHref) {
 // (extensionless paths map to the matching `.html` file, trailing-slash routes
 // map to `index.html`) in addition to exact file paths.
 function resolveExists(target) {
+    // 产品详情页为 Cloudflare Pages 动态路由（functions/products/[slug].js 及 functions/[lang]/products/[slug].js），
+    // 由 SSR 服务端渲染，不依赖静态 HTML 文件存在，跳过静态存在性检查。
+    if (/^products[\\/]/.test(target) || /^(vi|th|id)[\\/]products[\\/]/.test(target)) return true;
     const full = path.join(siteDir, target);
     if (fs.existsSync(full)) return true;
     if (path.extname(target)) return false;
