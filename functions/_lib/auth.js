@@ -44,7 +44,9 @@ export async function sha256Hex(text) {
 // 无盐 SHA-256 属快速哈希，一旦数据库泄露可被彩虹表/字典爆破。改用
 // PBKDF2（Web Crypto 原生支持，无需引入依赖），存储格式：
 //   pbkdf2-sha256$<iterations>$<salt base64url>$<hash base64url>
-const PBKDF2_ITERATIONS = 120000;
+// Cloudflare Workers 的 PBKDF2 实现上限为 100000 次迭代（超过会抛
+// NotSupportedError），这里取上限值以最大化安全性。
+const PBKDF2_ITERATIONS = 100000;
 const PBKDF2_SALT_BYTES = 16;
 
 function base64UrlToBytes(text) {
