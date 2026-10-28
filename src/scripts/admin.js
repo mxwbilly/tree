@@ -628,7 +628,7 @@ async function loadInquiries() {
         updatePageControls();
         await loadDashboardSummary();
     } catch (error) {
-        inquiryRows.innerHTML = `<tr><td colspan="9">${error.message}</td></tr>`;
+        inquiryRows.innerHTML = `<tr><td colspan="9">${escapeHtml(error.message)}</td></tr>`;
         summaryText.textContent = '加载失败';
     }
 }

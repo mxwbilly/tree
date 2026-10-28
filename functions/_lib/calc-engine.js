@@ -247,6 +247,10 @@ export async function computeProfit(env, { orderId, freightAmount, freightCurren
 export async function computeProfitForOrder(env, order, { freightAmount, freightCurrency, cache } = {}) {
   if (!order?.id) return { ok: false, error: 'Order is required.' };
 
+  // 请求内缓存：即便调用方未传入共享 cache（订单详情路径），也用本地 Map
+  // 去重，避免同一 productId 被重复 computeCost / 查汇率（消除 N+1）。
+  const effectiveCache = { costs: cache?.costs || new Map(), rates: cache?.rates || new Map() };
+
   // A completed order can be locked to its actual settlement values. These
   // values are all recorded in the order currency and take precedence over
   // live supplier tiers, FX rates and the editable shipping profile.
@@ -289,17 +293,17 @@ export async function computeProfitForOrder(env, order, { freightAmount, freight
   const lineCosts = [];
   for (const line of lines) {
     const costKey = `${line.productId || ''}|${Number(line.qty) || ''}|${line.supplierId || ''}`;
-    if (cache?.costs && !cache.costs.has(costKey)) {
-      cache.costs.set(costKey, computeCost(env, { productId: line.productId, qty: line.qty, supplierId: line.supplierId }));
+    if (!effectiveCache.costs.has(costKey)) {
+      effectiveCache.costs.set(costKey, computeCost(env, { productId: line.productId, qty: line.qty, supplierId: line.supplierId }));
     }
-    const costResult = cache?.costs ? await cache.costs.get(costKey) : await computeCost(env, { productId: line.productId, qty: line.qty, supplierId: line.supplierId });
+    const costResult = await effectiveCache.costs.get(costKey);
     if (!costResult.ok) {
       lineCosts.push({ productId: line.productId, ok: false, warning: costResult.error });
       continue;
     }
     let costInOrderCurrency = costResult.totalCost;
     if (costResult.currency !== order.currency) {
-      const rate = await resolveOrderAwareRate(env, order, costResult.currency, order.currency, cache, lockedRate);
+      const rate = await resolveOrderAwareRate(env, order, costResult.currency, order.currency, effectiveCache, lockedRate);
       if (!rate) {
         lineCosts.push({ productId: line.productId, ok: false, warning: `No exchange rate ${costResult.currency}->${order.currency}.` });
         continue;
@@ -319,7 +323,7 @@ export async function computeProfitForOrder(env, order, { freightAmount, freight
     if (!Number.isFinite(amt) || amt < 0) return { ok: false, error: 'freightAmount must be a non-negative number.' };
     const fCurrency = String(resolvedFreightCurrency || order.currency).trim().toUpperCase();
     if (fCurrency !== order.currency) {
-      const rate = await resolveOrderAwareRate(env, order, fCurrency, order.currency, cache, lockedRate);
+      const rate = await resolveOrderAwareRate(env, order, fCurrency, order.currency, effectiveCache, lockedRate);
       if (!rate) return { ok: false, error: `No exchange rate found for ${fCurrency}->${order.currency}.` };
       freightInOrderCurrency = Math.round(amt * rate.rate * 100) / 100;
     } else {

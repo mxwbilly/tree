@@ -40,6 +40,64 @@ export async function sha256Hex(text) {
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
+// --- Password hashing (PBKDF2-SHA256) ----------------------------------
+// 无盐 SHA-256 属快速哈希，一旦数据库泄露可被彩虹表/字典爆破。改用
+// PBKDF2（Web Crypto 原生支持，无需引入依赖），存储格式：
+//   pbkdf2-sha256$<iterations>$<salt base64url>$<hash base64url>
+const PBKDF2_ITERATIONS = 120000;
+const PBKDF2_SALT_BYTES = 16;
+
+function base64UrlToBytes(text) {
+  const normalized = text.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+  const binary = atob(padded);
+  return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+}
+
+async function pbkdf2Derive(password, salt, iterations) {
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(password),
+    'PBKDF2',
+    false,
+    ['deriveBits']
+  );
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt, iterations, hash: 'SHA-256' },
+    key,
+    256
+  );
+  return new Uint8Array(bits);
+}
+
+export async function hashPassword(password) {
+  const salt = crypto.getRandomValues(new Uint8Array(PBKDF2_SALT_BYTES));
+  const hash = await pbkdf2Derive(password, salt, PBKDF2_ITERATIONS);
+  return `pbkdf2-sha256$${PBKDF2_ITERATIONS}$${base64UrlEncode(salt)}$${base64UrlEncode(hash)}`;
+}
+
+export async function verifyPassword(password, stored) {
+  const value = String(stored || '');
+  if (value.startsWith('pbkdf2-sha256$')) {
+    const parts = value.split('$');
+    if (parts.length !== 4) return { ok: false };
+    const iterations = Number(parts[1]);
+    if (!Number.isInteger(iterations) || iterations <= 0) return { ok: false };
+    const salt = base64UrlToBytes(parts[2]);
+    const expected = base64UrlToBytes(parts[3]);
+    const actual = await pbkdf2Derive(password, salt, iterations);
+    if (actual.length !== expected.length) return { ok: false };
+    let match = true;
+    for (let i = 0; i < actual.length; i += 1) {
+      if (actual[i] !== expected[i]) { match = false; break; }
+    }
+    return { ok: match };
+  }
+  // 旧无盐 SHA-256 兼容：校验通过则标记需要升级，登录成功后平滑迁移。
+  if (value === await sha256Hex(password)) return { ok: true, needsRehash: true };
+  return { ok: false };
+}
+
 async function hmacSign(input, secret) {
   const key = await crypto.subtle.importKey(
     'raw',

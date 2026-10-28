@@ -5,7 +5,8 @@ import {
   sessionCookie,
   expiredSessionCookie,
   requireAuth,
-  sha256Hex,
+  hashPassword,
+  verifyPassword,
   checkRateLimit
 } from '../_lib/auth.js';
 
@@ -81,7 +82,12 @@ function parseJson(value, fallback) {
 }
 
 function toCsvCell(value) {
-  const text = String(value ?? '');
+  let text = String(value ?? '');
+  // 防 CSV 公式注入：以 = + - @ 或制表符/回车开头的值会被 Excel 当作
+  // 公式执行，前置单引号使其按纯文本处理。
+  if (/^[=+\-@\t\r]/.test(text)) {
+    text = `'${text}`;
+  }
   return `"${text.replace(/"/g, '""')}"`;
 }
 
@@ -316,7 +322,7 @@ async function ensureBootstrap(env) {
     'user_admin',
     String(env.ADMIN_EMAIL).trim().toLowerCase(),
     String(env.ADMIN_NAME || 'Site Administrator').trim(),
-    await sha256Hex(String(env.ADMIN_PASSWORD)),
+    await hashPassword(String(env.ADMIN_PASSWORD)),
     nowIso(),
     nowIso()
   ).run();
@@ -478,6 +484,26 @@ function applyInquirySort(items, sortBy) {
   return sorted.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 }
 
+// 将可直接下推 SQL 的过滤条件（status/q/country/product）构建为 WHERE 子句。
+// 计算字段过滤（rfqLevel/priority/sla）与计算字段排序无法下推，由调用方回退内存路径。
+function buildInquiryWhere(params) {
+  const clauses = [];
+  const binds = [];
+  const status = String(params.get('status') || '').trim();
+  const q = String(params.get('q') || '').trim();
+  const country = String(params.get('country') || '').trim();
+  const product = String(params.get('product') || '').trim();
+  if (status) { clauses.push('status = ?'); binds.push(status); }
+  if (country) { clauses.push('LOWER(contact_json) LIKE ?'); binds.push(`%${country.toLowerCase()}%`); }
+  if (product) { clauses.push('LOWER(product) LIKE ?'); binds.push(`%${product.toLowerCase()}%`); }
+  if (q) {
+    const like = `%${q.toLowerCase()}%`;
+    clauses.push('(LOWER(id) LIKE ? OR LOWER(product) LIKE ? OR LOWER(message) LIKE ? OR LOWER(contact_json) LIKE ?)');
+    binds.push(like, like, like, like);
+  }
+  return { where: clauses.length ? `WHERE ${clauses.join(' AND ')}` : '', binds };
+}
+
 async function loadAllInquiries(env) {
   const { results } = await env.DB.prepare('SELECT * FROM inquiries ORDER BY created_at DESC').all();
   return (results || []).map(normalizeInquiry);
@@ -608,6 +634,8 @@ async function handleCreateInquiry(request, env, waitUntil) {
 async function handleLogin(request, env) {
   const limited = await checkRateLimit(env, request, 'login', 8, 15 * 60);
   if (limited) return limited;
+  // bootstrap 移到限流之后执行，消除未限流的数据库写路径。
+  await ensureBootstrap(env);
   const body = await readBody(request);
   const email = String(body.email || '').trim().toLowerCase();
   const password = String(body.password || '');
@@ -615,8 +643,14 @@ async function handleLogin(request, env) {
     return json({ ok: false, error: 'Email and password are required.' }, { status: 400 });
   }
   const user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(email).first();
-  if (!user || user.password_hash !== await sha256Hex(password)) {
+  const verified = user ? await verifyPassword(password, user.password_hash) : { ok: false };
+  if (!verified.ok) {
     return json({ ok: false, error: 'Invalid credentials.' }, { status: 401 });
+  }
+  // 平滑迁移：旧无盐 SHA-256 hash 校验通过后，重算为 PBKDF2 格式并落库。
+  if (verified.needsRehash) {
+    await env.DB.prepare('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?')
+      .bind(await hashPassword(password), nowIso(), user.id).run();
   }
   const token = await createToken({ sub: user.id, role: user.role, email: user.email, name: user.name }, env);
   await appendActivityLog(env, { type: 'auth.login', actorId: user.id, payload: { email: user.email } });
@@ -694,10 +728,35 @@ async function handleDashboard(env) {
 
 async function handleInquiriesList(request, env) {
   const url = new URL(request.url);
-  const page = Math.max(1, Number.parseInt(url.searchParams.get('page') || '1', 10) || 1);
-  const pageSize = Math.min(100, Math.max(1, Number.parseInt(url.searchParams.get('pageSize') || '20', 10) || 20));
-  const filtered = applyInquiryFilters(await loadAllInquiries(env), url.searchParams);
-  const sorted = applyInquirySort(filtered, url.searchParams.get('sort'));
+  const params = url.searchParams;
+  const page = Math.max(1, Number.parseInt(params.get('page') || '1', 10) || 1);
+  const pageSize = Math.min(100, Math.max(1, Number.parseInt(params.get('pageSize') || '20', 10) || 20));
+  const sort = String(params.get('sort') || 'created_desc');
+
+  // 计算字段过滤（rfqLevel/priority/sla）与计算字段排序无法下推 SQL，
+  // 此时回退到内存路径以保持既有语义。
+  const hasComputedFilter = ['rfqLevel', 'priority', 'sla'].some((key) => String(params.get(key) || '').trim());
+  const sortableInSql = sort === 'created_desc' || sort === 'created_asc';
+
+  if (!hasComputedFilter && sortableInSql) {
+    const { where, binds } = buildInquiryWhere(params);
+    const countRow = await env.DB.prepare(`SELECT COUNT(*) AS total FROM inquiries ${where}`).bind(...binds).first();
+    const order = sort === 'created_asc' ? 'ASC' : 'DESC';
+    const offset = (page - 1) * pageSize;
+    const { results } = await env.DB.prepare(
+      `SELECT * FROM inquiries ${where} ORDER BY created_at ${order} LIMIT ${pageSize} OFFSET ${offset}`
+    ).bind(...binds).all();
+    return json({
+      ok: true,
+      items: (results || []).map(normalizeInquiry),
+      page,
+      pageSize,
+      total: Number(countRow?.total || 0)
+    });
+  }
+
+  const filtered = applyInquiryFilters(await loadAllInquiries(env), params);
+  const sorted = applyInquirySort(filtered, sort);
   const offset = (page - 1) * pageSize;
   return json({ ok: true, items: sorted.slice(offset, offset + pageSize), page, pageSize, total: sorted.length });
 }
@@ -1039,7 +1098,6 @@ async function routeAdmin(request, env, path, waitUntil) {
   }
 
   if (path === '/api/admin/auth/login' && request.method === 'POST') {
-    await ensureBootstrap(env);
     return handleLogin(request, env);
   }
   if (path === '/api/admin/auth/logout' && request.method === 'POST') {

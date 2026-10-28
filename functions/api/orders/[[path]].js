@@ -287,10 +287,13 @@ function freezeProduct(product, productId) {
 
 async function loadSnapshotProducts(env, lines) {
   const products = new Map();
-  for (const productId of [...new Set((lines || []).map((line) => line.productId).filter(Boolean))]) {
-    const product = await env.DB.prepare('SELECT id, sku, name, category, spec_json, packaging_json FROM products WHERE id = ?').bind(productId).first();
-    if (product) products.set(productId, product);
-  }
+  const ids = [...new Set((lines || []).map((line) => line.productId).filter(Boolean))];
+  if (!ids.length) return products;
+  const placeholders = ids.map(() => '?').join(',');
+  const { results } = await env.DB.prepare(
+    `SELECT id, sku, name, category, spec_json, packaging_json FROM products WHERE id IN (${placeholders})`
+  ).bind(...ids).all();
+  for (const product of results || []) products.set(product.id, product);
   return products;
 }
 

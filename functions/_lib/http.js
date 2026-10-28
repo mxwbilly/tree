@@ -41,7 +41,12 @@ export function parseJson(value, fallback) {
 }
 
 export function toCsvCell(value) {
-  const text = String(value ?? '');
+  let text = String(value ?? '');
+  // 防 CSV 公式注入：以 = + - @ 或制表符/回车开头的值会被 Excel 当作
+  // 公式执行，前置单引号使其按纯文本处理。
+  if (/^[=+\-@\t\r]/.test(text)) {
+    text = `'${text}`;
+  }
   return `"${text.replace(/"/g, '""')}"`;
 }
 
